@@ -11,6 +11,7 @@ void runEMT2() {
 
   gSystem->AddIncludePath("-I\"$ALICE_ROOT/include\"");
   gSystem->AddIncludePath("-I\"$ALICE_ROOT/MUON\"");
+  gSystem->AddIncludePath("-I\"$ALICE_ROOT/MUON/mapping\"");
 
   // AliRoot libraries
   gSystem->Load("libSTEERBase");
@@ -24,7 +25,7 @@ void runEMT2() {
 
   gROOT->LoadMacro("AliAnalysisTaskExtractMuonTracks.cxx+");
   AliAnalysisTaskExtractMuonTracks *task =
-    new AliAnalysisTaskExtractMuonTracks("myEMT", kTRUE, 12345, ocdbPath);
+    new AliAnalysisTaskExtractMuonTracks("myEMT", kTRUE, 0, ocdbPath);
 
   mgr = new AliAnalysisManager("ExtractMT");
   mgr->AddTask(task);
@@ -40,20 +41,22 @@ void runEMT2() {
     AliAnalysisManager::kOutputContainer, "mtracks.root");
   mgr->ConnectOutput(task, 1, cOutput);
 
-  cOutputPt = mgr->CreateContainer("lf", TList::Class(),
+  cOutputPt = mgr->CreateContainer("histos", TList::Class(),
     AliAnalysisManager::kOutputContainer, "mtracks.root");
   mgr->ConnectOutput(task, 2, cOutputPt);
 
-  mgr->SetDebugLevel(0); // >0 to disable progressbar, which only appears with 0
+  mgr->SetDebugLevel(2); // >0 to disable progressbar, which only appears with 0
   mgr->InitAnalysis();
   mgr->PrintStatus();
 
   TChain *chain = new TChain("esdTree");
   // good chain
-  chain->Add( "alien:///alice/sim/PDC_09/LHC09a6/92000/993/AliESDs.root" );
+  chain->Add(Form("%s/Bogdan/macros_20100714-164117/AliESDs.root",
+    gSystem->pwd()));
+  //chain->Add( "alien:///alice/sim/PDC_09/LHC09a6/92000/993/AliESDs.root" );
   //chain->Add(Form("%s/AliESDs.root",gSystem->pwd()));
 
-  TGrid::Connect("alien:");
+  //TGrid::Connect("alien:");
   mgr->StartAnalysis("local", chain);
 
   cout << endl << endl;  // cleaner output

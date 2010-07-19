@@ -23,6 +23,12 @@
 #include "AliESDMuonTrack.h"
 #include "AliMUONTriggerChamberEfficiency.h"
 #include "AliMUONTriggerEfficiencyCells.h"
+#include "AliMUONTrackParam.h"
+#include "AliMUONESDInterface.h"
+#include "AliMUONTrackExtrap.h"
+#include "AliMUONConstants.h"
+#include "AliMUONCDB.h"
+#include "AliMUONTrack.h"
 #include "AliLog.h"
 
 /** Definiton of the Event class. This is a simple container class that contains
@@ -59,6 +65,8 @@ class AliAnalysisTaskExtractMuonTracks : public AliAnalysisTaskSE {
 
   public:
 
+    typedef enum { kLocTrig = 1, kLocTrack = 2, kLocBoth = 3 } MuonTrackLoc_t;
+
     // See http://aliweb.cern.ch/Offline/Activities/Analysis/AnalysisFramework/
     // index.html >> we should not DefineInput/Output in the default constructor
     AliAnalysisTaskExtractMuonTracks() {};
@@ -80,6 +88,8 @@ class AliAnalysisTaskExtractMuonTracks : public AliAnalysisTaskSE {
 
     TList       *fHistoList;            //! List that containts output histos
     TH1F        *fHistoPt;              //! Output Pt distro
+    TH1F        *fHistoTrLoc;           //! Output tracks locations count
+    TH1F        *fHistoEffFlag;         //! Efficiency flag of muon tracks
 
     Bool_t       fTrigDec;              //!
     Int_t        fRunNum;               //!
