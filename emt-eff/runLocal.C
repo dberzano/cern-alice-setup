@@ -1,6 +1,6 @@
 /** Modified by Dario Berzano <dario.berzano@gmail.com>
  */
-void runEMT2() {
+void runLocal() {
 
   // Base ROOT libraries
   gSystem->Load("libTree");
@@ -23,11 +23,14 @@ void runEMT2() {
 
   gSystem->Unlink("mtracks.root");
 
-  TString ocdbPath = Form("local://%s/OCDB", gSystem->pwd());
+  TString ocdbTrigChEff = Form("local://%s/OCDB", gSystem->pwd());
+  TString ocdbMagField = Form("local://%s/Bogdan/macros_20100714-164117",
+    gSystem->pwd());
 
   gROOT->LoadMacro("AliAnalysisTaskExtractMuonTracks.cxx+");
   AliAnalysisTaskExtractMuonTracks *task =
-    new AliAnalysisTaskExtractMuonTracks("myEMT", kTRUE, 0, ocdbPath, ocdbPath);
+    new AliAnalysisTaskExtractMuonTracks("myEMT", kTRUE, 10001, ocdbTrigChEff,
+    ocdbMagField);
 
   mgr = new AliAnalysisManager("ExtractMT");
   mgr->AddTask(task);

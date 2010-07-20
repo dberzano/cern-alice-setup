@@ -2,6 +2,9 @@
 
 ClassImp(AliAnalysisTaskExtractMuonTracks)
 
+Int_t AliAnalysisTaskExtractMuonTracks::kNTrigCh =
+  AliMUONConstants::NTriggerCh();
+
 /** Constructor for the analysis task. It has some optional arguments that, if
  *  given, make the analysis also set a flag if the event was triggered or not
  *  by using a trigger decision added "a posteriori" from the R tables in OCDB.
@@ -45,7 +48,15 @@ AliAnalysisTaskExtractMuonTracks::AliAnalysisTaskExtractMuonTracks(
       dynamic_cast<AliMUONTriggerEfficiencyCells*>(obj)
     );
 
+    // Loads the magnetic field for track extrapolations
     AliMUONCDB::LoadField();
+
+    // Averages local board efficiencies to get RPC efficiencies
+    // TO BE IMPLEMENTED
+
+    // Averages adjacent RPC efficiencies to be used when a track crosses
+    // different RPCs
+    // TO BE IMPLEMENTED
 
   }
 
@@ -160,6 +171,16 @@ void AliAnalysisTaskExtractMuonTracks::UserExec(Option_t *) {
       continue;
     }
 
+    // Apply the efficiency "a posteriori" (if told to do so)
+    if (fApplyEff) {
+      if (!KeepTrackByEff(muonTrack)) {
+        AliInfo("Track DISCARDED");
+        delete muonTrack;
+        continue;
+      }
+      AliInfo("Track KEPT");
+    }
+
     new (ta[n++]) AliESDMuonTrack(*muonTrack);
 
     Bool_t tri = muonTrack->ContainTriggerData();
@@ -196,10 +217,6 @@ void AliAnalysisTaskExtractMuonTracks::UserExec(Option_t *) {
     if ((tri) && (tra)) { fHistoTrLoc->Fill( kLocBoth ); }
     else if (tri)       { fHistoTrLoc->Fill( kLocTrig ); }
     else if (tra)       { fHistoTrLoc->Fill( kLocTrack ); }
-
-    if (fApplyEff) {
-      KeepTrackByEff(muonTrack); 
-    }
 
   } // track loop
 
@@ -253,64 +270,78 @@ Event::~Event() {
   delete fTracks;
 }
 
-// Fa, in effetti, differenza: questo per l'ultima traccia:
-//I-AliAnalysisTaskExtractMuonTracks::UserExec: Extrapolated to MT11 [cm]: z=-1603.500000, bend=52.772428, nonbend=-150.282259
-//I-AliAnalysisTaskExtractMuonTracks::UserExec: Extrapolated to MT11 [cm]: z=-1603.500000, bend=12.627187, nonbend=-149.924941
-//I-AliAnalysisTaskExtractMuonTracks::UserExec: Extrapolated to MT11 [cm]: z=-1603.500000, bend=52.626195, nonbend=-150.185043
-
-
 /** Decides whether to keep the specified muon track or not by using efficiency
  *  values from the OCDB.
  */
-Bool_t AliAnalysisTaskExtractMuonTracks::KeepTrackByEff(AliESDMuonTrack *muTrack) {
+Bool_t AliAnalysisTaskExtractMuonTracks::KeepTrackByEff(
+  AliESDMuonTrack *muTrack) {
 
-  /*Float_t rb[4]; ///< Efficiencies for the bending plane
-  Float_t rn[4]; ///< Efficiencies for the nonbending plane
+  UShort_t effFlag = AliESDMuonTrack::GetEffFlag(
+    muTrack->GetHitsPatternInTrigCh()
+  );
 
-  for (Int_t i=0; i<4; i++) {
+  // In this case, track is not good for efficiency calculation; we should not
+  // count it even in total tracks, take care!
+  if (effFlag == AliESDMuonTrack::kNoEff) {
+    return kFALSE;
+  }
+
+  Float_t rb[kNTrigCh]; ///< Efficiencies for the bending plane
+  Float_t rn[kNTrigCh]; ///< Efficiencies for the nonbending plane
+
+  GetTrackEffPerCrossedElements(muTrack, rb, rn);
+
+  Float_t mtrEffBend  =   rb[0]    *   rb[1]    *   rb[2]    *   rb[3]    +
+                        (1.-rb[0]) *   rb[1]    *   rb[2]    *   rb[3]    +
+                          rb[0]    * (1.-rb[1]) *   rb[2]    *   rb[3]    +
+                          rb[0]    *   rb[1]    * (1.-rb[2]) *   rb[3]    +
+                          rb[0]    *   rb[1]    *   rb[2]    * (1.-rb[3]);
+
+  Float_t mtrEffNBend =   rn[0]    *   rn[1]    *   rn[2]    *   rn[3]    +
+                        (1.-rn[0]) *   rn[1]    *   rn[2]    *   rn[3]    +
+                          rn[0]    * (1.-rn[1]) *   rn[2]    *   rn[3]    +
+                          rn[0]    *   rn[1]    * (1.-rn[2]) *   rn[3]    +
+                          rn[0]    *   rn[1]    *   rn[2]    * (1.-rn[3]);
+
+  Bool_t hitBend  = (gRandom->Rndm() < mtrEffBend);
+  Bool_t hitNBend = (gRandom->Rndm() < mtrEffNBend);
+
+  AliInfo(Form("Effs (bend): %4.2f %4.2f %4.2f %4.2f => %6.4f", rb[0], rb[1],
+    rb[2], rb[3], mtrEffBend));
+  AliInfo(Form("Effs (nbnd): %4.2f %4.2f %4.2f %4.2f => %6.4f", rn[0], rn[1],
+    rn[2], rn[3], mtrEffNBend));
+
+  /*switch (effFlag) {
+    case AliESDMuonTrack::kNoEff:
+      AliInfo("Track not good for efficiency calculation");
+    break;
+    case AliESDMuonTrack::kChEff:
+      AliInfo("Track crosses different RPCs");
+    break;
+    case AliESDMuonTrack::kSlatEff:
+      AliInfo("Track crosses the same RPC in all planes");
+    break;
+    case AliESDMuonTrack::kBoardEff:
+      AliInfo("Track crosses the same local board in all planes");
+    break;
+  }*/
+
+  return ((hitBend) && (hitNBend));
+}
+
+/**
+ */
+void AliAnalysisTaskExtractMuonTracks::GetTrackEffPerCrossedElements(
+  AliESDMuonTrack *muTrack, Float_t *effBend, Float_t *effNonBend) {
+
+  Int_t localBoard = muTrack->LoCircuit();
+
+  for (Int_t i=0; i<kNTrigCh; i++) {
     Int_t detElemId = 1000+100*(i+1);
-
-    rb[i] = fTrigChEff->GetCellEfficiency(detElemId,
-      muonTrack->LoCircuit(), AliMUONTriggerEfficiencyCells::kBendingEff);
-
-    rn[i] = fTrigChEff->GetCellEfficiency(detElemId,
-      muonTrack->LoCircuit(),
+    effBend[i] = fTrigChEff->GetCellEfficiency(detElemId, localBoard,
+      AliMUONTriggerEfficiencyCells::kBendingEff);
+    effNonBend[i] = fTrigChEff->GetCellEfficiency(detElemId, localBoard,
       AliMUONTriggerEfficiencyCells::kNonBendingEff);
   }
 
-  Float_t effb =   rb[0]    *   rb[1]    *   rb[2]    *   rb[3]    +
-                 (1.-rb[0]) *   rb[1]    *   rb[2]    *   rb[3]    +
-                   rb[0]    * (1.-rb[1]) *   rb[2]    *   rb[3]    +
-                   rb[0]    *   rb[1]    * (1.-rb[2]) *   rb[3]    +
-                   rb[0]    *   rb[1]    *   rb[2]    * (1.-rb[3]);
-
-  Float_t effn =   rn[0]    *   rn[1]    *   rn[2]    *   rn[3]    +
-                 (1.-rn[0]) *   rn[1]    *   rn[2]    *   rn[3]    +
-                   rn[0]    * (1.-rn[1]) *   rn[2]    *   rn[3]    +
-                   rn[0]    *   rn[1]    * (1.-rn[2]) *   rn[3]    +
-                   rn[0]    *   rn[1]    *   rn[2]    * (1.-rn[3]);
-
-  Bool_t trb = (gRandom->Rndm() < effb);
-  Bool_t trn = (gRandom->Rndm() < effn);
-  Bool_t tr = (trb && trn);
-
-  if ( AliAnalysisManager::GetAnalysisManager()->GetDebugLevel() >= 2 ) {
-    AliInfo(Form("MTR: %s | MTK: %s", (tri ? "Yes" : "No"),
-      (tra ? "Yes" : "No")));
-    AliInfo(Form("Rb: %4.2f %4.2f %4.2f %4.2f => %6.4f", rb[0], rb[1],
-      rb[2], rb[3], effb));
-    AliInfo(Form("Rn: %4.2f %4.2f %4.2f %4.2f => %6.4f", rn[0], rn[1],
-      rn[2], rn[3], effn));
-  }
-
-  if ( AliAnalysisManager::GetAnalysisManager()->GetDebugLevel() >= 1 ) {
-    AliInfo(Form("Trb: %s | Trn: %s => %s", (trb ? "Yes" : "No"),
-      (trn ? "Yes" : "No"), (tr ? "\033[32;1mACCEPTED\033[m" :
-      "\033[31;1mREJECTED\033[m")));
-  }
-  */
-
-  AliInfo(Form("Called: %x", muTrack));
-
-  return kTRUE;
 }
