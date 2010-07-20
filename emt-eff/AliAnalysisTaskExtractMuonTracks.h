@@ -72,14 +72,17 @@ class AliAnalysisTaskExtractMuonTracks : public AliAnalysisTaskSE {
     AliAnalysisTaskExtractMuonTracks() {};
 
     AliAnalysisTaskExtractMuonTracks(const char *name,
-      Bool_t applyTriggerDecision = kFALSE, Int_t runNum = -1,
-      const char *ocdbSpecificStorage = NULL);
+      Bool_t applyEfficiencies = kFALSE, Int_t runNum = -1,
+      const char *ocdbTrigChEff = NULL, const char *ocdbMagField = NULL);
     virtual ~AliAnalysisTaskExtractMuonTracks() {}
 
-   virtual void UserCreateOutputObjects();
-   virtual void UserExec(Option_t *opt);
-   virtual void Terminate(Option_t *opt);
-   virtual void ConnectInputData(Option_t *opt);
+    virtual void UserCreateOutputObjects();
+    virtual void UserExec(Option_t *opt);
+    virtual void Terminate(Option_t *opt);
+
+  protected:
+
+    virtual Bool_t KeepTrackByEff(AliESDMuonTrack *muTrack);
 
   private:
 
@@ -90,21 +93,17 @@ class AliAnalysisTaskExtractMuonTracks : public AliAnalysisTaskSE {
     TH1F        *fHistoPt;              //! Output Pt distro
     TH1F        *fHistoTrLoc;           //! Output tracks locations count
     TH1F        *fHistoEffFlag;         //! Efficiency flag of muon tracks
+    TH1F        *fHistoTheta;           //! Theta distro
+    TH1F        *fHistoPhi;             //! Phi distro
+    TH1F        *fHistoP;               //! Total momentum distro
+    TH1F        *fHistoDca;             //! DCA distro
+    TH1F        *fHistoChHit;           //! Chambers hit (per plane)
+    TH1F        *fHistoBendHit;         //! Hits on bending plane
+    TH1F        *fHistoNBendHit;        //! Hits on nonbending plane
 
-    Bool_t       fTrigDec;              //!
-    Int_t        fRunNum;               //!
-    TString      fOcdbSpecificStorage;  //!
+    Bool_t       fApplyEff;             //! If kTRUE, apply effs a posteriori
 
     AliMUONTriggerChamberEfficiency *fTrigChEff;  //! Handler of chamber effs
-
-    /*
-    TH1I  *fHistoTrTr;      //! Output what's in trigger/tracker/both
-    TH1I  *fHistoLo;        //! <n.d.>
-    TH1F  *fHistoTheta;     //!
-    TH1F  *fHistoPhi;       //!
-    TH1F  *fHistoP;         //!
-    TH1F  *fHistoDca;       //!
-    */
 
     // Copy constructor and equals operator are disabled for this class
     AliAnalysisTaskExtractMuonTracks(const AliAnalysisTaskExtractMuonTracks &);

@@ -21,11 +21,13 @@ void runEMT2() {
   gSystem->Load("libANALYSISalice");
   gSystem->Load("libMUONtrigger");
 
+  gSystem->Unlink("mtracks.root");
+
   TString ocdbPath = Form("local://%s/OCDB", gSystem->pwd());
 
   gROOT->LoadMacro("AliAnalysisTaskExtractMuonTracks.cxx+");
   AliAnalysisTaskExtractMuonTracks *task =
-    new AliAnalysisTaskExtractMuonTracks("myEMT", kTRUE, 0, ocdbPath);
+    new AliAnalysisTaskExtractMuonTracks("myEMT", kTRUE, 0, ocdbPath, ocdbPath);
 
   mgr = new AliAnalysisManager("ExtractMT");
   mgr->AddTask(task);
@@ -45,7 +47,7 @@ void runEMT2() {
     AliAnalysisManager::kOutputContainer, "mtracks.root");
   mgr->ConnectOutput(task, 2, cOutputPt);
 
-  mgr->SetDebugLevel(2); // >0 to disable progressbar, which only appears with 0
+  mgr->SetDebugLevel(1); // >0 to disable progressbar, which only appears with 0
   mgr->InitAnalysis();
   mgr->PrintStatus();
 
