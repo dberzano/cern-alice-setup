@@ -85,6 +85,7 @@ class AliAnalysisTaskExtractMuonTracks : public AliAnalysisTaskSE {
     virtual Bool_t KeepTrackByEff(AliESDMuonTrack *muTrack);
     virtual void GetTrackEffPerCrossedElements(AliESDMuonTrack *muTrack,
       Float_t *effBend, Float_t *effNonBend);
+    virtual Int_t GetRpcFromLo(Int_t lo);
 
   private:
 
@@ -107,7 +108,11 @@ class AliAnalysisTaskExtractMuonTracks : public AliAnalysisTaskSE {
 
     AliMUONTriggerChamberEfficiency *fTrigChEff;  //! Handler of chamber effs
 
+    static Int_t kNTrigLo;
     static Int_t kNTrigCh;
+    static Int_t kNRpc;
+    static Int_t kLoRpc[];
+    static Int_t kNLoPerRpc[];
 
     // Copy constructor and equals operator are disabled for this class
     AliAnalysisTaskExtractMuonTracks(const AliAnalysisTaskExtractMuonTracks &);

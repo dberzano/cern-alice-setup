@@ -2,8 +2,32 @@
 
 ClassImp(AliAnalysisTaskExtractMuonTracks)
 
+Int_t AliAnalysisTaskExtractMuonTracks::kNTrigLo =
+  AliMUONConstants::NTriggerCircuit();
+
 Int_t AliAnalysisTaskExtractMuonTracks::kNTrigCh =
   AliMUONConstants::NTriggerCh();
+
+Int_t AliAnalysisTaskExtractMuonTracks::kNRpc = 18;
+
+Int_t AliAnalysisTaskExtractMuonTracks::kLoRpc[234] = { 26, 27, 28, 29, 48, 49,
+  50, 51, 68, 69, 84, 85, 100, 101, 113, 9, 10, 11, 30, 31, 32, 33, 52, 53, 54,
+  55, 70, 71, 86, 87, 102, 103, 114, 12, 13, 34, 35, 56, 57, 72, 73, 88, 89,
+  104, 105, 115, 14, 15, 36, 37, 58, 59, 74, 75, 90, 91, 106, 107, 116, 16, 38,
+  60, 76, 92, 108, 117, 133, 155, 177, 193, 209, 225, 234, 131, 132, 153, 154,
+  175, 176, 191, 192, 207, 208, 223, 224, 233, 129, 130, 151, 152, 173, 174,
+  189, 190, 205, 206, 221, 222, 232, 126, 127, 128, 147, 148, 149, 150, 169,
+  170, 171, 172, 187, 188, 203, 204, 219, 220, 231, 143, 144, 145, 146, 165,
+  166, 167, 168, 185, 186, 201, 202, 217, 218, 230, 123, 124, 125, 139, 140,
+  141, 142, 161, 162, 163, 164, 183, 184, 199, 200, 215, 216, 229, 121, 122,
+  137, 138, 159, 160, 181, 182, 197, 198, 213, 214, 228, 119, 120, 135, 136,
+  157, 158, 179, 180, 195, 196, 211, 212, 227, 118, 134, 156, 178, 194, 210,
+  226, 1, 17, 39, 61, 77, 93, 109, 2, 3, 18, 19, 40, 41, 62, 63, 78, 79, 94,
+  95, 110, 4, 5, 20, 21, 42, 43, 64, 65, 80, 81, 96, 97, 111, 6, 7, 8, 22, 23,
+  24, 25, 44, 45, 46, 47, 66, 67, 82, 83, 98, 99, 112 };
+
+Int_t AliAnalysisTaskExtractMuonTracks::kNLoPerRpc[18] = { 15, 18, 13, 13, 7, 7,
+  13, 13, 18, 15, 18, 13, 13, 7, 7, 13, 13, 18 };
 
 /** Constructor for the analysis task. It has some optional arguments that, if
  *  given, make the analysis also set a flag if the event was triggered or not
@@ -290,6 +314,8 @@ Bool_t AliAnalysisTaskExtractMuonTracks::KeepTrackByEff(
   Float_t rn[kNTrigCh]; ///< Efficiencies for the nonbending plane
 
   GetTrackEffPerCrossedElements(muTrack, rb, rn);
+  AliInfo(Form("RPC number for this lo (%d) is: %d", muTrack->LoCircuit(),
+    GetRpcFromLo(muTrack->LoCircuit())));
 
   Float_t mtrEffBend  =   rb[0]    *   rb[1]    *   rb[2]    *   rb[3]    +
                         (1.-rb[0]) *   rb[1]    *   rb[2]    *   rb[3]    +
@@ -344,4 +370,35 @@ void AliAnalysisTaskExtractMuonTracks::GetTrackEffPerCrossedElements(
       AliMUONTriggerEfficiencyCells::kNonBendingEff);
   }
 
+}
+
+/**
+ */
+Int_t AliAnalysisTaskExtractMuonTracks::GetRpcFromLo(Int_t lo) {
+
+  // Local board index goes to 1 to 234;
+  // RPC index goes to 1 to 18;
+
+  if ((lo <= 0) || (lo > kNTrigLo)) return -1;
+
+  // kLoRpc (234)
+  // kNLoPerRpc (18)
+
+  // Find index
+  Int_t idx;
+  Int_t nRpc = 0;
+  Int_t nInRpc = 0;
+  //printf("{{{ ");
+  for (idx=0; idx<kNTrigLo; idx++) {
+    if (nInRpc == kNLoPerRpc[nRpc]) {
+      nRpc++;
+      nInRpc = 0;
+    }
+    nInRpc++;
+    //printf("%d ", nInRpc);
+    if (lo == kLoRpc[idx]) break;
+  }
+  //printf("}}}\n");
+
+  return nRpc;
 }
