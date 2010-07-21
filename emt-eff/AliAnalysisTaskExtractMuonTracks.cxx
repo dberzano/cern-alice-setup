@@ -198,11 +198,19 @@ void AliAnalysisTaskExtractMuonTracks::UserExec(Option_t *) {
     // Apply the efficiency "a posteriori" (if told to do so)
     if (fApplyEff) {
       if (!KeepTrackByEff(muonTrack)) {
-        AliInfo("Track DISCARDED");
+        AliInfo(Form("Track DISCARDED --> eff=%d rpc=%d lo=%d",
+          AliESDMuonTrack::GetEffFlag(muonTrack->GetHitsPatternInTrigCh()),
+          AliESDMuonTrack::GetSlatOrInfo(muonTrack->GetHitsPatternInTrigCh()),
+          muonTrack->LoCircuit()
+        ));
         delete muonTrack;
         continue;
       }
-      AliInfo("Track KEPT");
+      AliInfo(Form("Track KEPT --> eff=%d rpc=%d lo=%d",
+        AliESDMuonTrack::GetEffFlag(muonTrack->GetHitsPatternInTrigCh()),
+        AliESDMuonTrack::GetSlatOrInfo(muonTrack->GetHitsPatternInTrigCh())
+        muonTrack->LoCircuit()
+      ));
     }
 
     new (ta[n++]) AliESDMuonTrack(*muonTrack);
@@ -314,8 +322,9 @@ Bool_t AliAnalysisTaskExtractMuonTracks::KeepTrackByEff(
   Float_t rn[kNTrigCh]; ///< Efficiencies for the nonbending plane
 
   GetTrackEffPerCrossedElements(muTrack, rb, rn);
-  AliInfo(Form("RPC number for this lo (%d) is: %d", muTrack->LoCircuit(),
-    GetRpcFromLo(muTrack->LoCircuit())));
+  AliInfo(Form("RPC number for this lo (%d) is: %d (%d)", muTrack->LoCircuit(),
+    GetRpcFromLo(muTrack->LoCircuit()),
+    AliESDMuonTrack::GetSlatOrInfo(muTrack->GetHitsPatternInTrigCh()) ));
 
   Float_t mtrEffBend  =   rb[0]    *   rb[1]    *   rb[2]    *   rb[3]    +
                         (1.-rb[0]) *   rb[1]    *   rb[2]    *   rb[3]    +
