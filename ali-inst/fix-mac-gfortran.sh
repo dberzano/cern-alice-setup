@@ -30,24 +30,38 @@ function FixAliRoot() {
     -not -path '*\.svn*' |
   while read F
   do
-    egrep -- '-ffree-form|LHpdflib.F' "$F" > /dev/null
+    egrep -- '-ffree-form' "$F" > /dev/null
     if [ $? == 0 ]; then
       echo -n "Fixing $F..."
       sed -i '' 's/-ffree-form//' "$F"
-      sed -i '' 's/LHpdflib\.F/LHpdflib\.f90/' "$F"
       echo "done"
     fi
   done
 
   # Create the proper symbolic links
-  find "$1/LHAPDF" -name "LHpdflib.F" |
+  PB='|\\-/'
+  echo -n "Creating symbolic links... "
+  find "$1/LHAPDF/lhapdf5.5.1" \( -name '*.F' -or -name '*.f' \) -and \
+    -not -path '*\.svn*' |
   while read F
   do
-    DEST="`dirname $F`/LHpdflib.f90"
-    echo -n "Creating symlink $DEST..."
+    DI=`dirname $F`
+    FN=`basename $F`
+    BN=`echo $FN|cut -d. -f1`
+    EX=`echo $FN|cut -d. -f2`
+    DEST="$DI/$BN.f90"
+    let M=CNT%4
+    echo -ne '\b'${PB:M:1}
+    let CNT++
+    #echo -n "."
     ln -nfs "$F" "$DEST"
-    echo "done"
   done
+  echo -e '\b'"done"
+
+  # New file names
+  echo -n "Pointing Makefiles to the symlinks..."
+  sed -E -i '' 's/\.[fF]([\t \\]*)$/.f90\1/g' "$1/LHAPDF/liblhapdf.pkg"
+  echo "done"
 
 }
 
