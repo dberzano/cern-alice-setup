@@ -36,7 +36,9 @@ N_TRIAD=1
 while [ $# -gt 0 ]; do
   case "$1" in
     "-q") OPT_QUIET=1 ;;
+    "-v") OPT_QUIET=0 ;;
     "-n") OPT_NONINTERACTIVE=1 ;;
+    "-i") OPT_NONINTERACTIVE=0 ;;
     "-c") OPT_CLEANENV=1; OPT_NONINTERACTIVE=1 ;;
   esac
   shift
