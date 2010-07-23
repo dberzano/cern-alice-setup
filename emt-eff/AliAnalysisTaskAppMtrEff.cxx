@@ -1,16 +1,16 @@
-#include "AliAnalysisTaskExtractMuonTracks.h"
+#include "AliAnalysisTaskAppMtrEff.h"
 
-ClassImp(AliAnalysisTaskExtractMuonTracks)
+ClassImp(AliAnalysisTaskAppMtrEff)
 
-Int_t AliAnalysisTaskExtractMuonTracks::kNTrigLo =
-  AliMUONConstants::NTriggerCircuit();
+Int_t AliAnalysisTaskAppMtrEff::kNTrigLo =
+  AliMUONConstants::NTriggerCircuit();  // 1 to 234
 
-Int_t AliAnalysisTaskExtractMuonTracks::kNTrigCh =
-  AliMUONConstants::NTriggerCh();
+Int_t AliAnalysisTaskAppMtrEff::kNTrigCh =
+  AliMUONConstants::NTriggerCh();  // 4
 
-Int_t AliAnalysisTaskExtractMuonTracks::kNRpc = 18;
+Int_t AliAnalysisTaskAppMtrEff::kNRpc = 18;  // 0 to 17
 
-Int_t AliAnalysisTaskExtractMuonTracks::kLoRpc[234] = { 26, 27, 28, 29, 48, 49,
+Int_t AliAnalysisTaskAppMtrEff::kLoRpc[234] = { 26, 27, 28, 29, 48, 49,
   50, 51, 68, 69, 84, 85, 100, 101, 113, 9, 10, 11, 30, 31, 32, 33, 52, 53, 54,
   55, 70, 71, 86, 87, 102, 103, 114, 12, 13, 34, 35, 56, 57, 72, 73, 88, 89,
   104, 105, 115, 14, 15, 36, 37, 58, 59, 74, 75, 90, 91, 106, 107, 116, 16, 38,
@@ -26,14 +26,14 @@ Int_t AliAnalysisTaskExtractMuonTracks::kLoRpc[234] = { 26, 27, 28, 29, 48, 49,
   95, 110, 4, 5, 20, 21, 42, 43, 64, 65, 80, 81, 96, 97, 111, 6, 7, 8, 22, 23,
   24, 25, 44, 45, 46, 47, 66, 67, 82, 83, 98, 99, 112 };
 
-Int_t AliAnalysisTaskExtractMuonTracks::kNLoPerRpc[18] = { 15, 18, 13, 13, 7, 7,
+Int_t AliAnalysisTaskAppMtrEff::kNLoPerRpc[18] = { 15, 18, 13, 13, 7, 7,
   13, 13, 18, 15, 18, 13, 13, 7, 7, 13, 13, 18 };
 
 /** Constructor for the analysis task. It has some optional arguments that, if
  *  given, make the analysis also set a flag if the event was triggered or not
  *  by using a trigger decision added "a posteriori" from the R tables in OCDB.
  */
-AliAnalysisTaskExtractMuonTracks::AliAnalysisTaskExtractMuonTracks(
+AliAnalysisTaskAppMtrEff::AliAnalysisTaskAppMtrEff(
   const char *name, Bool_t applyEfficiencies, Int_t runNum,
   const char *ocdbTrigChEff, const char *ocdbMagField) :
     AliAnalysisTaskSE(name),
@@ -75,21 +75,154 @@ AliAnalysisTaskExtractMuonTracks::AliAnalysisTaskExtractMuonTracks(
     // Loads the magnetic field for track extrapolations
     AliMUONCDB::LoadField();
 
-    // Averages local board efficiencies to get RPC efficiencies
-    // TO BE IMPLEMENTED
-
     // Averages adjacent RPC efficiencies to be used when a track crosses
     // different RPCs
-    // TO BE IMPLEMENTED
+    fEffCh  = new Float_t[kNTrigCh*2];
+    fEffRpc = new Float_t[kNRpc*kNTrigCh*2];
+
+    /*
+    // Check: RPC from Lo
+    for (Int_t i=1; i<=kNTrigLo; i++) {
+      Printf("lo=%d rpc=%d", i, GetRpcFromLo(i));
+    }
+
+    // Check: Lo from RPC
+    Int_t *los;
+    Int_t nLos;
+    for (Int_t i=0; i<kNRpc; i++) {
+      nLos = GetLosFromRpc(i, &los);
+      printf("rpc=%d #lo=%d los={", i, nLos);
+      for (Int_t j=0; j<nLos; j++) {
+        printf("%d", los[j]);
+        if (j<nLos-1) printf(",");
+      }
+      printf("}\n");
+    }
+    */
+
+    // Average chamber efficiency
+    for (Int_t ch=0; ch<kNTrigCh; ch++) {
+      Int_t detElemId = 1000+100*(ch+1);
+      Float_t effBend = 0.;
+      Float_t effNonBend = 0.;
+      for (Int_t lo=1; lo<=kNTrigLo; lo++) {
+        effBend += fTrigChEff->GetCellEfficiency(detElemId, lo,
+          AliMUONTriggerEfficiencyCells::kBendingEff);
+        effNonBend += fTrigChEff->GetCellEfficiency(detElemId, lo,
+          AliMUONTriggerEfficiencyCells::kNonBendingEff);
+      }
+      effBend /= (Float_t)kNTrigLo;
+      effNonBend /= (Float_t)kNTrigLo;
+
+      //Printf("ch=%d effb=%.4f effn=%.4f", detElemId, effBend, effNonBend);
+
+      //Printf("fEffCh[%d] = %.4f  // bending",
+      //  ch+AliMUONTriggerEfficiencyCells::kBendingEff*kNTrigCh, effBend);
+      //Printf("fEffCh[%d] = %.4f  // nonbending",
+      //  ch+AliMUONTriggerEfficiencyCells::kNonBendingEff*kNTrigCh, effNonBend);
+
+      fEffCh[ch+AliMUONTriggerEfficiencyCells::kBendingEff*kNTrigCh] = effBend;
+      fEffCh[ch+AliMUONTriggerEfficiencyCells::kNonBendingEff*kNTrigCh] =
+        effNonBend;
+    }
+
+    /*
+    const Float_t *ccb;
+    const Float_t *ccn;
+    ccb = GetChamberEff(AliMUONTriggerEfficiencyCells::kNonBendingEff);
+    ccn = GetChamberEff(AliMUONTriggerEfficiencyCells::kBendingEff);
+    for (Int_t k=0; k<kNTrigCh; k++) {
+      Int_t detElemId = 1000+100*(k+1);
+      Printf("ch=%d effb=%.4f effn=%.4f // cross-check", detElemId, ccb[k],
+        ccn[k]);
+    }
+    */
+
+    // Average RPC efficiency
+    for (Int_t rpc=0; rpc<kNRpc; rpc++) {
+      Int_t *los;
+      Int_t nLos;
+      nLos = GetLosFromRpc(rpc, &los);
+      //printf("rpc=%02d #lo=%02d los={", rpc, nLos);
+
+      for (Int_t ch=0; ch<kNTrigCh; ch++) {
+        Int_t detElemId = 1000+100*(ch+1);
+        Float_t effBend = 0.;
+        Float_t effNonBend = 0.;
+
+        /*b = fTrigChEff->GetCellEfficiency(detElemId, los[j],
+          AliMUONTriggerEfficiencyCells::kBendingEff);
+        n = fTrigChEff->GetCellEfficiency(detElemId, los[j],
+          AliMUONTriggerEfficiencyCells::kNonBendingEff);*/
+
+        //printf("(%.2f,%.2f)", b, n);
+
+        for (Int_t j=0; j<nLos; j++) {
+          effBend += fTrigChEff->GetCellEfficiency(detElemId, los[j],
+            AliMUONTriggerEfficiencyCells::kBendingEff);
+          effNonBend += fTrigChEff->GetCellEfficiency(detElemId, los[j],
+            AliMUONTriggerEfficiencyCells::kNonBendingEff);
+        }
+
+        // These are (average) bending and nonbending efficiencies for the given
+        // RPC and chamber
+        effBend /= (Float_t)nLos;
+        effNonBend /= (Float_t)nLos;
+        //fEffRpc[rpc*(kNRpc*2)+AliMUONTriggerEfficiencyCells::kBendingEff*kNTrigCh] =
+        //  effBend;
+        //fEffRpc[rpc*(kNRpc*2)+AliMUONTriggerEfficiencyCells::kBendingEff*kNTrigCh] =
+        //  effNonBend;
+
+        //printf("%d(b=%.2f,n=%.2f)", ch, effBend, effNonBend);
+
+        Int_t ib = rpc*(kNTrigCh*2) +
+          AliMUONTriggerEfficiencyCells::kBendingEff*kNTrigCh+ch;
+        Int_t in = rpc*(kNTrigCh*2) +
+          AliMUONTriggerEfficiencyCells::kNonBendingEff*kNTrigCh+ch;
+
+        fEffRpc[ib] = effBend;
+        fEffRpc[in] = effNonBend;
+
+        //if (ch<kNTrigCh-1) printf(",");
+      }
+
+      //printf("}\n");      
+
+      /*
+      // Cross-check
+      const Float_t *ccb;
+      const Float_t *ccn;
+      ccb = GetRpcEff(rpc, AliMUONTriggerEfficiencyCells::kNonBendingEff);
+      ccn = GetRpcEff(rpc, AliMUONTriggerEfficiencyCells::kBendingEff);
+      printf("rpc=%02d        los={", rpc);
+      for (Int_t j=0; j<kNTrigCh; j++) {
+        printf("%d(b=%.2f,n=%.2f)", j, ccb[j], ccn[j]);
+        if (j<kNTrigCh-1) printf(",");
+      }
+      printf("} // cross-check\n\n");
+      */
+
+    }
+
+    //gSystem->Exit(66);
 
   }
 
 }
 
+/** Destructor.
+ */
+AliAnalysisTaskAppMtrEff::~AliAnalysisTaskAppMtrEff() {
+  if (fApplyEff) {
+    delete[] fEffCh;
+    delete[] fEffRpc;
+  }
+}
+
 /** This function is called to create objects that store the output data. It is
  *  thus called only once when running the analysis.
  */
-void AliAnalysisTaskExtractMuonTracks::UserCreateOutputObjects() {
+void AliAnalysisTaskAppMtrEff::UserCreateOutputObjects() {
 
   // Create output TTree
   fTreeOut = new TTree("muonTracks", "Muon tracks");
@@ -159,7 +292,7 @@ void AliAnalysisTaskExtractMuonTracks::UserCreateOutputObjects() {
 /** This code is the core of the analysis: it is executed once per event. At
  *  each loop, fInputEvent of type AliESDEvent points to the current event.
  */
-void AliAnalysisTaskExtractMuonTracks::UserExec(Option_t *) {
+void AliAnalysisTaskAppMtrEff::UserExec(Option_t *) {
 
   if (!fInputEvent) {
     AliError("fInputEvent not available");
@@ -208,7 +341,7 @@ void AliAnalysisTaskExtractMuonTracks::UserExec(Option_t *) {
       }
       AliInfo(Form("Track KEPT --> eff=%d rpc=%d lo=%d",
         AliESDMuonTrack::GetEffFlag(muonTrack->GetHitsPatternInTrigCh()),
-        AliESDMuonTrack::GetSlatOrInfo(muonTrack->GetHitsPatternInTrigCh())
+        AliESDMuonTrack::GetSlatOrInfo(muonTrack->GetHitsPatternInTrigCh()),
         muonTrack->LoCircuit()
       ));
     }
@@ -263,7 +396,7 @@ void AliAnalysisTaskExtractMuonTracks::UserExec(Option_t *) {
 /** Called at the end of the analysis, to eventually plot the merged results:
  *  it makes sense only with the AliEn plugin, in local mode or in PROOF mode.
  */
-void AliAnalysisTaskExtractMuonTracks::Terminate(Option_t *) {
+void AliAnalysisTaskAppMtrEff::Terminate(Option_t *) {
 
   fHistoList = dynamic_cast<TList *>( GetOutputData(2) );
   if (!fHistoList) {
@@ -305,8 +438,8 @@ Event::~Event() {
 /** Decides whether to keep the specified muon track or not by using efficiency
  *  values from the OCDB.
  */
-Bool_t AliAnalysisTaskExtractMuonTracks::KeepTrackByEff(
-  AliESDMuonTrack *muTrack) {
+Bool_t AliAnalysisTaskAppMtrEff::KeepTrackByEff(
+  AliESDMuonTrack *muTrack) const {
 
   UShort_t effFlag = AliESDMuonTrack::GetEffFlag(
     muTrack->GetHitsPatternInTrigCh()
@@ -322,8 +455,7 @@ Bool_t AliAnalysisTaskExtractMuonTracks::KeepTrackByEff(
   Float_t rn[kNTrigCh]; ///< Efficiencies for the nonbending plane
 
   GetTrackEffPerCrossedElements(muTrack, rb, rn);
-  AliInfo(Form("RPC number for this lo (%d) is: %d (%d)", muTrack->LoCircuit(),
-    GetRpcFromLo(muTrack->LoCircuit()),
+  AliInfo(Form("RPC number for this lo (%d) is: %d", muTrack->LoCircuit(),
     AliESDMuonTrack::GetSlatOrInfo(muTrack->GetHitsPatternInTrigCh()) ));
 
   Float_t mtrEffBend  =   rb[0]    *   rb[1]    *   rb[2]    *   rb[3]    +
@@ -366,8 +498,8 @@ Bool_t AliAnalysisTaskExtractMuonTracks::KeepTrackByEff(
 
 /**
  */
-void AliAnalysisTaskExtractMuonTracks::GetTrackEffPerCrossedElements(
-  AliESDMuonTrack *muTrack, Float_t *effBend, Float_t *effNonBend) {
+void AliAnalysisTaskAppMtrEff::GetTrackEffPerCrossedElements(
+  AliESDMuonTrack *muTrack, Float_t *effBend, Float_t *effNonBend) const {
 
   Int_t localBoard = muTrack->LoCircuit();
 
@@ -383,15 +515,48 @@ void AliAnalysisTaskExtractMuonTracks::GetTrackEffPerCrossedElements(
 
 /**
  */
-Int_t AliAnalysisTaskExtractMuonTracks::GetRpcFromLo(Int_t lo) {
+const Float_t *AliAnalysisTaskAppMtrEff::GetRpcEff(Int_t nRpc,
+  Int_t bendNonBend) const {
+
+  //AliMUONTriggerEfficiencyCells::kBendingEff = 0;
+  //AliMUONTriggerEfficiencyCells::kBendingEff = 1;
+
+  // nRpc = [0,17]
+
+  if (((bendNonBend != 0) && (bendNonBend != 1)) ||
+    (nRpc < 0) || (nRpc >= kNRpc))
+    return NULL;
+
+  // Take care of considering the first 4 values, which is: one for each plane
+  return &fEffRpc[ (nRpc * 8) + (bendNonBend * 4) ];
+}
+
+const Float_t *AliAnalysisTaskAppMtrEff::GetChamberEff(
+  Int_t bendNonBend) const {
+
+  //AliMUONTriggerEfficiencyCells::kBendingEff = 0;
+  //AliMUONTriggerEfficiencyCells::kBendingEff = 1;
+
+  // nRpc = [0,3]
+
+  if ((bendNonBend != 0) && (bendNonBend != 1))
+    return NULL;
+
+  // Take care of considering the first 4 values, which is: one for each plane
+  return &fEffCh[ bendNonBend * 4 ];
+}
+
+/**
+ */
+Int_t AliAnalysisTaskAppMtrEff::GetRpcFromLo(Int_t lo) const {
 
   // Local board index goes to 1 to 234;
-  // RPC index goes to 1 to 18;
+  // RPC index goes to 0 to 17;
 
   if ((lo <= 0) || (lo > kNTrigLo)) return -1;
 
   // kLoRpc (234)
-  // kNLoPerRpc (18)
+  // kNRpc (18)
 
   // Find index
   Int_t idx;
@@ -410,4 +575,21 @@ Int_t AliAnalysisTaskExtractMuonTracks::GetRpcFromLo(Int_t lo) {
   //printf("}}}\n");
 
   return nRpc;
+}
+
+/**
+ */
+Int_t AliAnalysisTaskAppMtrEff::GetLosFromRpc(Int_t rpc, Int_t **los) const {
+
+  if (los == NULL) return -1;
+  if ((rpc < 0) || (rpc >= kNRpc)) return -1;
+
+  Int_t startIdx = 0;
+
+  for (Int_t i=0; i<rpc; i++) {
+    startIdx += kNLoPerRpc[i];
+  }
+
+  *los = &kLoRpc[startIdx];
+  return kNLoPerRpc[rpc];
 }

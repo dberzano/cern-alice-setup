@@ -27,9 +27,9 @@ void runLocal() {
   TString ocdbMagField = Form("local://%s/Bogdan/macros_20100714-164117",
     gSystem->pwd());
 
-  gROOT->LoadMacro("AliAnalysisTaskExtractMuonTracks.cxx+");
-  AliAnalysisTaskExtractMuonTracks *task =
-    new AliAnalysisTaskExtractMuonTracks("myEMT", kTRUE, 10001, ocdbTrigChEff,
+  gROOT->LoadMacro("AliAnalysisTaskAppMtrEff.cxx+");
+  AliAnalysisTaskAppMtrEff *task =
+    new AliAnalysisTaskAppMtrEff("myEMT", kTRUE, 10001, ocdbTrigChEff,
     ocdbMagField);
 
   mgr = new AliAnalysisManager("ExtractMT");

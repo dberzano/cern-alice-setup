@@ -1,5 +1,5 @@
-#ifndef ALIANALYSISTASKEXTRACTMUONTRACKS_H
-#define ALIANALYSISTASKEXTRACTMUONTRACKS_H
+#ifndef ALIANALYSISTASKAPPMTREFF_H
+#define ALIANALYSISTASKAPPMTREFF_H
 
 // ROOT includes
 #include <TH1F.h>
@@ -61,7 +61,7 @@ private:
  *  this procedure, the OCDB is used, and the map of efficiencies should be
  *  put in the custom specific storage for the OCDB.
  */
-class AliAnalysisTaskExtractMuonTracks : public AliAnalysisTaskSE {
+class AliAnalysisTaskAppMtrEff : public AliAnalysisTaskSE {
 
   public:
 
@@ -69,12 +69,12 @@ class AliAnalysisTaskExtractMuonTracks : public AliAnalysisTaskSE {
 
     // See http://aliweb.cern.ch/Offline/Activities/Analysis/AnalysisFramework/
     // index.html >> we should not DefineInput/Output in the default constructor
-    AliAnalysisTaskExtractMuonTracks() {};
+    AliAnalysisTaskAppMtrEff() {};
 
-    AliAnalysisTaskExtractMuonTracks(const char *name,
+    AliAnalysisTaskAppMtrEff(const char *name,
       Bool_t applyEfficiencies = kFALSE, Int_t runNum = -1,
       const char *ocdbTrigChEff = NULL, const char *ocdbMagField = NULL);
-    virtual ~AliAnalysisTaskExtractMuonTracks() {}
+    virtual ~AliAnalysisTaskAppMtrEff();
 
     virtual void UserCreateOutputObjects();
     virtual void UserExec(Option_t *opt);
@@ -82,10 +82,13 @@ class AliAnalysisTaskExtractMuonTracks : public AliAnalysisTaskSE {
 
   protected:
 
-    virtual Bool_t KeepTrackByEff(AliESDMuonTrack *muTrack);
+    virtual Bool_t KeepTrackByEff(AliESDMuonTrack *muTrack) const;
     virtual void GetTrackEffPerCrossedElements(AliESDMuonTrack *muTrack,
-      Float_t *effBend, Float_t *effNonBend);
-    virtual Int_t GetRpcFromLo(Int_t lo);
+      Float_t *effBend, Float_t *effNonBend) const;
+    virtual const Float_t *GetRpcEff(Int_t nRpc, Int_t bendNonBend) const;
+    virtual const Float_t *GetChamberEff(Int_t bendNonBend) const;
+    virtual Int_t GetRpcFromLo(Int_t lo) const;
+    virtual Int_t GetLosFromRpc(Int_t rpc, Int_t **los) const;
 
   private:
 
@@ -104,6 +107,9 @@ class AliAnalysisTaskExtractMuonTracks : public AliAnalysisTaskSE {
     TH1F        *fHistoBendHit;         //! Hits on bending plane
     TH1F        *fHistoNBendHit;        //! Hits on nonbending plane
 
+    Float_t     *fEffRpc;               //! Efficiencies per RPC
+    Float_t     *fEffCh;                //! Efficiencies per chamber
+
     Bool_t       fApplyEff;             //! If kTRUE, apply effs a posteriori
 
     AliMUONTriggerChamberEfficiency *fTrigChEff;  //! Handler of chamber effs
@@ -115,11 +121,11 @@ class AliAnalysisTaskExtractMuonTracks : public AliAnalysisTaskSE {
     static Int_t kNLoPerRpc[];
 
     // Copy constructor and equals operator are disabled for this class
-    AliAnalysisTaskExtractMuonTracks(const AliAnalysisTaskExtractMuonTracks &);
-    AliAnalysisTaskExtractMuonTracks& operator=(
-      const AliAnalysisTaskExtractMuonTracks&);
+    AliAnalysisTaskAppMtrEff(const AliAnalysisTaskAppMtrEff &);
+    AliAnalysisTaskAppMtrEff& operator=(
+      const AliAnalysisTaskAppMtrEff&);
  
-    ClassDef(AliAnalysisTaskExtractMuonTracks, 1);
+    ClassDef(AliAnalysisTaskAppMtrEff, 1);
 };
 
-#endif // ALIANALYSISTASKEXTRACTMUONTRACKS_H
+#endif // ALIANALYSISTASKAPPMTREFF_H
