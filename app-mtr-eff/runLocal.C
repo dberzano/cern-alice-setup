@@ -50,7 +50,7 @@ void runLocal() {
     AliAnalysisManager::kOutputContainer, "mtracks.root");
   mgr->ConnectOutput(task, 2, cOutputPt);
 
-  mgr->SetDebugLevel(1); // >0 to disable progressbar, which only appears with 0
+  mgr->SetDebugLevel(0); // >0 to disable progressbar, which only appears with 0
   mgr->InitAnalysis();
   mgr->PrintStatus();
 

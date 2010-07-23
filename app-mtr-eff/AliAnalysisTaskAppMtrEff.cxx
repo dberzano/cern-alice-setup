@@ -10,24 +10,24 @@ Int_t AliAnalysisTaskAppMtrEff::kNTrigCh =
 
 Int_t AliAnalysisTaskAppMtrEff::kNRpc = 18;  // 0 to 17
 
-Int_t AliAnalysisTaskAppMtrEff::kLoRpc[234] = { 26, 27, 28, 29, 48, 49,
-  50, 51, 68, 69, 84, 85, 100, 101, 113, 9, 10, 11, 30, 31, 32, 33, 52, 53, 54,
-  55, 70, 71, 86, 87, 102, 103, 114, 12, 13, 34, 35, 56, 57, 72, 73, 88, 89,
-  104, 105, 115, 14, 15, 36, 37, 58, 59, 74, 75, 90, 91, 106, 107, 116, 16, 38,
-  60, 76, 92, 108, 117, 133, 155, 177, 193, 209, 225, 234, 131, 132, 153, 154,
-  175, 176, 191, 192, 207, 208, 223, 224, 233, 129, 130, 151, 152, 173, 174,
-  189, 190, 205, 206, 221, 222, 232, 126, 127, 128, 147, 148, 149, 150, 169,
-  170, 171, 172, 187, 188, 203, 204, 219, 220, 231, 143, 144, 145, 146, 165,
-  166, 167, 168, 185, 186, 201, 202, 217, 218, 230, 123, 124, 125, 139, 140,
-  141, 142, 161, 162, 163, 164, 183, 184, 199, 200, 215, 216, 229, 121, 122,
-  137, 138, 159, 160, 181, 182, 197, 198, 213, 214, 228, 119, 120, 135, 136,
-  157, 158, 179, 180, 195, 196, 211, 212, 227, 118, 134, 156, 178, 194, 210,
-  226, 1, 17, 39, 61, 77, 93, 109, 2, 3, 18, 19, 40, 41, 62, 63, 78, 79, 94,
-  95, 110, 4, 5, 20, 21, 42, 43, 64, 65, 80, 81, 96, 97, 111, 6, 7, 8, 22, 23,
-  24, 25, 44, 45, 46, 47, 66, 67, 82, 83, 98, 99, 112 };
+Int_t AliAnalysisTaskAppMtrEff::kLoRpc[234] = { 26, 27, 28, 29, 48, 49, 50, 51,
+  68, 69, 84, 85, 100, 101, 113, 9, 10, 11, 30, 31, 32, 33, 52, 53, 54, 55, 70,
+  71, 86, 87, 102, 103, 114, 12, 13, 34, 35, 56, 57, 72, 73, 88, 89, 104, 105,
+  115, 14, 15, 36, 37, 58, 59, 74, 75, 90, 91, 106, 107, 116, 16, 38, 60, 76,
+  92, 108, 117, 133, 155, 177, 193, 209, 225, 234, 131, 132, 153, 154, 175, 176,
+  191, 192, 207, 208, 223, 224, 233, 129, 130, 151, 152, 173, 174, 189, 190,
+  205, 206, 221, 222, 232, 126, 127, 128, 147, 148, 149, 150, 169, 170, 171,
+  172, 187, 188, 203, 204, 219, 220, 231, 143, 144, 145, 146, 165, 166, 167,
+  168, 185, 186, 201, 202, 217, 218, 230, 123, 124, 125, 139, 140, 141, 142,
+  161, 162, 163, 164, 183, 184, 199, 200, 215, 216, 229, 121, 122, 137, 138,
+  159, 160, 181, 182, 197, 198, 213, 214, 228, 119, 120, 135, 136, 157, 158,
+  179, 180, 195, 196, 211, 212, 227, 118, 134, 156, 178, 194, 210, 226, 1, 17,
+  39, 61, 77, 93, 109, 2, 3, 18, 19, 40, 41, 62, 63, 78, 79, 94, 95, 110, 4, 5,
+  20, 21, 42, 43, 64, 65, 80, 81, 96, 97, 111, 6, 7, 8, 22, 23, 24, 25, 44, 45,
+  46, 47, 66, 67, 82, 83, 98, 99, 112 };
 
-Int_t AliAnalysisTaskAppMtrEff::kNLoPerRpc[18] = { 15, 18, 13, 13, 7, 7,
-  13, 13, 18, 15, 18, 13, 13, 7, 7, 13, 13, 18 };
+Int_t AliAnalysisTaskAppMtrEff::kNLoPerRpc[18] = { 15, 18, 13, 13, 7, 7, 13, 13,
+  18, 15, 18, 13, 13, 7, 7, 13, 13, 18 };
 
 /** Constructor for the analysis task. It has some optional arguments that, if
  *  given, make the analysis also set a flag if the event was triggered or not
@@ -232,7 +232,7 @@ void AliAnalysisTaskAppMtrEff::UserCreateOutputObjects() {
   // Output list of TH1Fs
   fHistoList = new TList();
 
-  // Sample histogram with the Pt distribution (test)
+  // Pt distribution
   fHistoPt = new TH1F("hPt", "Pt distribution", 100, 0., 4.);
   fHistoPt->GetXaxis()->SetTitle("Pt [GeV/c]");
   fHistoList->Add(fHistoPt);
@@ -242,7 +242,7 @@ void AliAnalysisTaskAppMtrEff::UserCreateOutputObjects() {
   fHistoTrLoc->GetXaxis()->SetBinLabel(kLocTrig, "only trig");
   fHistoTrLoc->GetXaxis()->SetBinLabel(kLocTrack, "only track");
   fHistoTrLoc->GetXaxis()->SetBinLabel(kLocBoth, "trig+track");
-  fHistoList->Add(fHistoTrLoc);
+  //fHistoList->Add(fHistoTrLoc);
 
   // Efficiency flags distribution
   fHistoEffFlag = new TH1F("hEffFlag", "Efficiency flags", 4, -0.5, 3.5);
@@ -251,41 +251,41 @@ void AliAnalysisTaskAppMtrEff::UserCreateOutputObjects() {
   fHistoEffFlag->GetXaxis()->SetBinLabel(2, "diff RPCs");
   fHistoEffFlag->GetXaxis()->SetBinLabel(3, "same RPC");
   fHistoEffFlag->GetXaxis()->SetBinLabel(4, "same board");
-  fHistoList->Add(fHistoEffFlag);
+  //fHistoList->Add(fHistoEffFlag);
 
   // Kinematics: theta
   fHistoTheta = new TH1F("hTheta", "#theta distribution", 1000, 0.,
     TMath::Pi());
   fHistoTheta->GetXaxis()->SetTitle("#theta [rad]");
-  fHistoList->Add(fHistoTheta);
+  //fHistoList->Add(fHistoTheta);
 
   // Kinematics: total momemtum
   fHistoP = new TH1F("hP", "Total momentum distribution", 1000, 0., 100.);
   fHistoP->GetXaxis()->SetTitle("P [GeV/c]");
-  fHistoList->Add(fHistoP);
+  //fHistoList->Add(fHistoP);
 
   // Kinematics: phi
   fHistoPhi = new TH1F("hPhi", "#varphi distribution", 1000, 0.,
     2.*TMath::Pi());
   fHistoPhi->GetXaxis()->SetTitle("#varphi [rad]");
-  fHistoList->Add(fHistoPhi);
+  //fHistoList->Add(fHistoPhi);
 
   // Kinematics: DCA
   fHistoDca = new TH1F("hDca", "DCA distribution", 1000, 0., 100.);
   fHistoDca->GetXaxis()->SetTitle("DCA [cm]");
-  fHistoList->Add(fHistoDca);
+  //fHistoList->Add(fHistoDca);
 
   // Hardware: chambers hit
   fHistoChHit = new TH1F("hChHit", "Chambers hit (per plane)", 8, -0.5, 7.5);
-  fHistoList->Add(fHistoChHit);
+  //fHistoList->Add(fHistoChHit);
 
   // Hardware: number of chambers hit (bending plane)
   fHistoBendHit = new TH1F("hBendHit", "Signals (bending)", 5, -0.5, 4.5);
-  fHistoList->Add(fHistoBendHit);
+  //fHistoList->Add(fHistoBendHit);
 
   // Hardware: number of chambers hit (nonbending plane)
   fHistoNBendHit = new TH1F("hNBendHit", "Signals (nonbending)", 5, -0.5, 4.5);
-  fHistoList->Add(fHistoNBendHit);
+  //fHistoList->Add(fHistoNBendHit);
 
 }
 
@@ -319,37 +319,42 @@ void AliAnalysisTaskAppMtrEff::UserExec(Option_t *) {
   Int_t n = 0;  // conta nel tclonesarray
   for (Int_t iTrack = 0; iTrack < nTracks; iTrack++) {
 
-    AliESDMuonTrack* muonTrack = new AliESDMuonTrack(
-      *( esdEv->GetMuonTrack(iTrack) )
-    );
+    AliESDMuonTrack *esdMt = esdEv->GetMuonTrack(iTrack);
 
-    if (!muonTrack) {
+    if (!esdMt) {
       AliError(Form("Could not receive track %d", iTrack));
+      continue;
+    }
+
+    AliESDMuonTrack* muonTrack = new AliESDMuonTrack( *esdMt );
+
+    Bool_t tri = muonTrack->ContainTriggerData();
+    Bool_t tra = muonTrack->ContainTrackerData();
+    UShort_t effFlag = AliESDMuonTrack::GetEffFlag(
+      muonTrack->GetHitsPatternInTrigCh() );
+
+    if ((!tri) || (!tra) || (effFlag == AliESDMuonTrack::kNoEff)) {
+      AliDebug(1, "Track does not match both trigger and tracker, or it is not "
+        "good for efficiency calculation");
+      delete muonTrack;
       continue;
     }
 
     // Apply the efficiency "a posteriori" (if told to do so)
     if (fApplyEff) {
       if (!KeepTrackByEff(muonTrack)) {
-        AliInfo(Form("Track DISCARDED --> eff=%d rpc=%d lo=%d",
-          AliESDMuonTrack::GetEffFlag(muonTrack->GetHitsPatternInTrigCh()),
-          AliESDMuonTrack::GetSlatOrInfo(muonTrack->GetHitsPatternInTrigCh()),
-          muonTrack->LoCircuit()
-        ));
+        AliDebug(1, "Track discarded");
         delete muonTrack;
         continue;
       }
-      AliInfo(Form("Track KEPT --> eff=%d rpc=%d lo=%d",
-        AliESDMuonTrack::GetEffFlag(muonTrack->GetHitsPatternInTrigCh()),
-        AliESDMuonTrack::GetSlatOrInfo(muonTrack->GetHitsPatternInTrigCh()),
-        muonTrack->LoCircuit()
-      ));
+      AliDebug(1, "Track kept");
     }
 
-    new (ta[n++]) AliESDMuonTrack(*muonTrack);
+    /////////////////////////////////////////////////////////
+    // From this point on, muonTrack is the KEPT muonTrack //
+    /////////////////////////////////////////////////////////
 
-    Bool_t tri = muonTrack->ContainTriggerData();
-    Bool_t tra = muonTrack->ContainTrackerData();
+    new (ta[n++]) AliESDMuonTrack(*muonTrack);
 
     fHistoPt->Fill(muonTrack->Pt());          // [GeV/c]
     fHistoTheta->Fill( muonTrack->Theta() );  // [rad]
@@ -357,9 +362,7 @@ void AliAnalysisTaskAppMtrEff::UserExec(Option_t *) {
     fHistoP->Fill( muonTrack->P() );          // [GeV/c]
     fHistoDca->Fill( muonTrack->GetDCA() );   // [cm]
 
-    fHistoEffFlag->Fill(
-      AliESDMuonTrack::GetEffFlag( muonTrack->GetHitsPatternInTrigCh() )
-    );
+    fHistoEffFlag->Fill(effFlag);
 
     Int_t hitsNBend = 0;
     Int_t hitsBend = 0;
@@ -370,7 +373,8 @@ void AliAnalysisTaskAppMtrEff::UserExec(Option_t *) {
           muonTrack->GetHitsPatternInTrigCh(), j, i); ///< ptn, cath, chamb
         if (hit) {
           fHistoChHit->Fill( 2.*i + j );
-          (j == 0) ? hitsBend++ : hitsNBend++;  ///< 0 is bending?
+          (j == AliMUONTriggerEfficiencyCells::kNonBendingEff) ?
+            hitsNBend++ : hitsBend++;
         }
       }
     }
@@ -436,14 +440,14 @@ Event::~Event() {
 }
 
 /** Decides whether to keep the specified muon track or not by using efficiency
- *  values from the OCDB.
+ *  values from the OCDB. It returns kTRUE if track has to be kept, kFALSE if it
+ *  has to be rejected.
  */
 Bool_t AliAnalysisTaskAppMtrEff::KeepTrackByEff(
   AliESDMuonTrack *muTrack) const {
 
   UShort_t effFlag = AliESDMuonTrack::GetEffFlag(
-    muTrack->GetHitsPatternInTrigCh()
-  );
+    muTrack->GetHitsPatternInTrigCh());
 
   // In this case, track is not good for efficiency calculation; we should not
   // count it even in total tracks, take care!
@@ -455,8 +459,9 @@ Bool_t AliAnalysisTaskAppMtrEff::KeepTrackByEff(
   Float_t rn[kNTrigCh]; ///< Efficiencies for the nonbending plane
 
   GetTrackEffPerCrossedElements(muTrack, rb, rn);
-  AliInfo(Form("RPC number for this lo (%d) is: %d", muTrack->LoCircuit(),
-    AliESDMuonTrack::GetSlatOrInfo(muTrack->GetHitsPatternInTrigCh()) ));
+
+  //AliInfo(Form("RPC number for this lo (%d) is: %d", muTrack->LoCircuit(),
+  //  AliESDMuonTrack::GetSlatOrInfo(muTrack->GetHitsPatternInTrigCh()) ));
 
   Float_t mtrEffBend  =   rb[0]    *   rb[1]    *   rb[2]    *   rb[3]    +
                         (1.-rb[0]) *   rb[1]    *   rb[2]    *   rb[3]    +
@@ -473,10 +478,10 @@ Bool_t AliAnalysisTaskAppMtrEff::KeepTrackByEff(
   Bool_t hitBend  = (gRandom->Rndm() < mtrEffBend);
   Bool_t hitNBend = (gRandom->Rndm() < mtrEffNBend);
 
-  AliInfo(Form("Effs (bend): %4.2f %4.2f %4.2f %4.2f => %6.4f", rb[0], rb[1],
-    rb[2], rb[3], mtrEffBend));
-  AliInfo(Form("Effs (nbnd): %4.2f %4.2f %4.2f %4.2f => %6.4f", rn[0], rn[1],
-    rn[2], rn[3], mtrEffNBend));
+  AliDebug(1, Form("Effs (bend): %4.2f %4.2f %4.2f %4.2f => %6.4f", rb[0],
+    rb[1], rb[2], rb[3], mtrEffBend));
+  AliDebug(1, Form("Effs (nbnd): %4.2f %4.2f %4.2f %4.2f => %6.4f", rn[0],
+    rn[1], rn[2], rn[3], mtrEffNBend));
 
   /*switch (effFlag) {
     case AliESDMuonTrack::kNoEff:
@@ -501,14 +506,61 @@ Bool_t AliAnalysisTaskAppMtrEff::KeepTrackByEff(
 void AliAnalysisTaskAppMtrEff::GetTrackEffPerCrossedElements(
   AliESDMuonTrack *muTrack, Float_t *effBend, Float_t *effNonBend) const {
 
-  Int_t localBoard = muTrack->LoCircuit();
+  UShort_t effFlag = AliESDMuonTrack::GetEffFlag(
+    muTrack->GetHitsPatternInTrigCh() );
 
-  for (Int_t i=0; i<kNTrigCh; i++) {
-    Int_t detElemId = 1000+100*(i+1);
-    effBend[i] = fTrigChEff->GetCellEfficiency(detElemId, localBoard,
-      AliMUONTriggerEfficiencyCells::kBendingEff);
-    effNonBend[i] = fTrigChEff->GetCellEfficiency(detElemId, localBoard,
-      AliMUONTriggerEfficiencyCells::kNonBendingEff);
+  if (effFlag == AliESDMuonTrack::kNoEff) {
+    for (Int_t i=0; i<kNTrigCh; i++) {
+      effBend[i]    = 0.;
+      effNonBend[i] = 0.;
+    }
+  }
+  else if (effFlag == AliESDMuonTrack::kChEff) {
+
+    // Track crosses different RPCs
+    AliDebug(2, "Track crosses different RPCs");
+
+    const Float_t *chBend;
+    const Float_t *chNonBend;
+    chBend = GetChamberEff(AliMUONTriggerEfficiencyCells::kNonBendingEff);
+    chNonBend = GetChamberEff(AliMUONTriggerEfficiencyCells::kBendingEff);
+
+    memcpy(effBend, chBend, sizeof(Float_t)*kNTrigCh);
+    memcpy(effNonBend, chNonBend, sizeof(Float_t)*kNTrigCh);
+
+  }
+  else if (effFlag == AliESDMuonTrack::kSlatEff) {
+
+    // Track hits the same RPC on all chambers
+    Int_t rpc = AliESDMuonTrack::GetSlatOrInfo(
+      muTrack->GetHitsPatternInTrigCh() );
+
+    AliDebug(2, Form("Track stays on the same RPC: %d", rpc));
+
+    const Float_t *chBend;
+    const Float_t *chNonBend;
+    chBend = GetRpcEff(rpc, AliMUONTriggerEfficiencyCells::kNonBendingEff);
+    chNonBend = GetRpcEff(rpc, AliMUONTriggerEfficiencyCells::kBendingEff);
+
+    memcpy(effBend, chBend, sizeof(Float_t)*kNTrigCh);
+    memcpy(effNonBend, chNonBend, sizeof(Float_t)*kNTrigCh);
+
+  }
+  else if (effFlag == AliESDMuonTrack::kBoardEff) {
+
+    AliDebug(2, "Track stays on the same Local Board");
+
+    // Track hits the same local board on all chambers
+    Int_t localBoard = muTrack->LoCircuit();
+
+    for (Int_t i=0; i<kNTrigCh; i++) {
+      Int_t detElemId = 1000+100*(i+1);
+      effBend[i] = fTrigChEff->GetCellEfficiency(detElemId, localBoard,
+        AliMUONTriggerEfficiencyCells::kBendingEff);
+      effNonBend[i] = fTrigChEff->GetCellEfficiency(detElemId, localBoard,
+        AliMUONTriggerEfficiencyCells::kNonBendingEff);
+    }
+
   }
 
 }
