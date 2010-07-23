@@ -74,26 +74,6 @@ AliAnalysisTaskAppMtrEff::AliAnalysisTaskAppMtrEff(
     fEffCh  = new Float_t[kNTrigCh*2];
     fEffRpc = new Float_t[kNRpc*kNTrigCh*2];
 
-    /*
-    // Check: RPC from Lo
-    for (Int_t i=1; i<=kNTrigLo; i++) {
-      Printf("lo=%d rpc=%d", i, GetRpcFromLo(i));
-    }
-
-    // Check: Lo from RPC
-    Int_t *los;
-    Int_t nLos;
-    for (Int_t i=0; i<kNRpc; i++) {
-      nLos = GetLosFromRpc(i, &los);
-      printf("rpc=%d #lo=%d los={", i, nLos);
-      for (Int_t j=0; j<nLos; j++) {
-        printf("%d", los[j]);
-        if (j<nLos-1) printf(",");
-      }
-      printf("}\n");
-    }
-    */
-
     // Average chamber efficiency
     for (Int_t ch=0; ch<kNTrigCh; ch++) {
       Int_t detElemId = 1000+100*(ch+1);
@@ -108,48 +88,21 @@ AliAnalysisTaskAppMtrEff::AliAnalysisTaskAppMtrEff(
       effBend /= (Float_t)kNTrigLo;
       effNonBend /= (Float_t)kNTrigLo;
 
-      //Printf("ch=%d effb=%.4f effn=%.4f", detElemId, effBend, effNonBend);
-
-      //Printf("fEffCh[%d] = %.4f  // bending",
-      //  ch+AliMUONTriggerEfficiencyCells::kBendingEff*kNTrigCh, effBend);
-      //Printf("fEffCh[%d] = %.4f  // nonbending",
-      //  ch+AliMUONTriggerEfficiencyCells::kNonBendingEff*kNTrigCh, effNonBend);
-
       fEffCh[ch+AliMUONTriggerEfficiencyCells::kBendingEff*kNTrigCh] = effBend;
       fEffCh[ch+AliMUONTriggerEfficiencyCells::kNonBendingEff*kNTrigCh] =
         effNonBend;
     }
-
-    /*
-    const Float_t *ccb;
-    const Float_t *ccn;
-    ccb = GetChamberEff(AliMUONTriggerEfficiencyCells::kNonBendingEff);
-    ccn = GetChamberEff(AliMUONTriggerEfficiencyCells::kBendingEff);
-    for (Int_t k=0; k<kNTrigCh; k++) {
-      Int_t detElemId = 1000+100*(k+1);
-      Printf("ch=%d effb=%.4f effn=%.4f // cross-check", detElemId, ccb[k],
-        ccn[k]);
-    }
-    */
 
     // Average RPC efficiency
     for (Int_t rpc=0; rpc<kNRpc; rpc++) {
       Int_t *los;
       Int_t nLos;
       nLos = GetLosFromRpc(rpc, &los);
-      //printf("rpc=%02d #lo=%02d los={", rpc, nLos);
 
       for (Int_t ch=0; ch<kNTrigCh; ch++) {
         Int_t detElemId = 1000+100*(ch+1);
         Float_t effBend = 0.;
         Float_t effNonBend = 0.;
-
-        /*b = fTrigChEff->GetCellEfficiency(detElemId, los[j],
-          AliMUONTriggerEfficiencyCells::kBendingEff);
-        n = fTrigChEff->GetCellEfficiency(detElemId, los[j],
-          AliMUONTriggerEfficiencyCells::kNonBendingEff);*/
-
-        //printf("(%.2f,%.2f)", b, n);
 
         for (Int_t j=0; j<nLos; j++) {
           effBend += fTrigChEff->GetCellEfficiency(detElemId, los[j],
@@ -162,12 +115,6 @@ AliAnalysisTaskAppMtrEff::AliAnalysisTaskAppMtrEff(
         // RPC and chamber
         effBend /= (Float_t)nLos;
         effNonBend /= (Float_t)nLos;
-        //fEffRpc[rpc*(kNRpc*2)+AliMUONTriggerEfficiencyCells::kBendingEff*kNTrigCh] =
-        //  effBend;
-        //fEffRpc[rpc*(kNRpc*2)+AliMUONTriggerEfficiencyCells::kBendingEff*kNTrigCh] =
-        //  effNonBend;
-
-        //printf("%d(b=%.2f,n=%.2f)", ch, effBend, effNonBend);
 
         Int_t ib = rpc*(kNTrigCh*2) +
           AliMUONTriggerEfficiencyCells::kBendingEff*kNTrigCh+ch;
@@ -176,29 +123,8 @@ AliAnalysisTaskAppMtrEff::AliAnalysisTaskAppMtrEff(
 
         fEffRpc[ib] = effBend;
         fEffRpc[in] = effNonBend;
-
-        //if (ch<kNTrigCh-1) printf(",");
       }
-
-      //printf("}\n");      
-
-      /*
-      // Cross-check
-      const Float_t *ccb;
-      const Float_t *ccn;
-      ccb = GetRpcEff(rpc, AliMUONTriggerEfficiencyCells::kNonBendingEff);
-      ccn = GetRpcEff(rpc, AliMUONTriggerEfficiencyCells::kBendingEff);
-      printf("rpc=%02d        los={", rpc);
-      for (Int_t j=0; j<kNTrigCh; j++) {
-        printf("%d(b=%.2f,n=%.2f)", j, ccb[j], ccn[j]);
-        if (j<kNTrigCh-1) printf(",");
-      }
-      printf("} // cross-check\n\n");
-      */
-
     }
-
-    //gSystem->Exit(66);
 
   }
 
@@ -218,7 +144,7 @@ AliAnalysisTaskAppMtrEff::~AliAnalysisTaskAppMtrEff() {
  */
 void AliAnalysisTaskAppMtrEff::UserCreateOutputObjects() {
 
-  // Create output TTree
+  // Create TTree output object
   fTreeOut = new TTree("muonTracks", "Muon tracks");
   fEvent = NULL;
   fTreeOut->Branch("Events", &fEvent);  // the branch "Events" holds objects of
@@ -237,56 +163,6 @@ void AliAnalysisTaskAppMtrEff::UserCreateOutputObjects() {
   fHistoTrCnt->GetXaxis()->SetBinLabel(kCntEff,  "good for eff");
   fHistoTrCnt->GetXaxis()->SetBinLabel(kCntKept, "kept");
   fHistoList->Add(fHistoTrCnt);
-
-  // Histogram with counts of some track types
-  fHistoTrLoc = new TH1F("hTrLoc", "Tracks locations", 3, 0.5, 3.5);
-  fHistoTrLoc->GetXaxis()->SetBinLabel(kLocTrig, "only trig");
-  fHistoTrLoc->GetXaxis()->SetBinLabel(kLocTrack, "only track");
-  fHistoTrLoc->GetXaxis()->SetBinLabel(kLocBoth, "trig+track");
-  //fHistoList->Add(fHistoTrLoc);
-
-  // Efficiency flags distribution
-  fHistoEffFlag = new TH1F("hEffFlag", "Efficiency flags", 4, -0.5, 3.5);
-  // kNoEff = 0, kChEff = 1, kSlatEff = 2, kBoardEff = 3
-  fHistoEffFlag->GetXaxis()->SetBinLabel(1, "not good");
-  fHistoEffFlag->GetXaxis()->SetBinLabel(2, "diff RPCs");
-  fHistoEffFlag->GetXaxis()->SetBinLabel(3, "same RPC");
-  fHistoEffFlag->GetXaxis()->SetBinLabel(4, "same board");
-  //fHistoList->Add(fHistoEffFlag);
-
-  // Kinematics: theta
-  fHistoTheta = new TH1F("hTheta", "#theta distribution", 1000, 0.,
-    TMath::Pi());
-  fHistoTheta->GetXaxis()->SetTitle("#theta [rad]");
-  //fHistoList->Add(fHistoTheta);
-
-  // Kinematics: total momemtum
-  fHistoP = new TH1F("hP", "Total momentum distribution", 1000, 0., 100.);
-  fHistoP->GetXaxis()->SetTitle("P [GeV/c]");
-  //fHistoList->Add(fHistoP);
-
-  // Kinematics: phi
-  fHistoPhi = new TH1F("hPhi", "#varphi distribution", 1000, 0.,
-    2.*TMath::Pi());
-  fHistoPhi->GetXaxis()->SetTitle("#varphi [rad]");
-  //fHistoList->Add(fHistoPhi);
-
-  // Kinematics: DCA
-  fHistoDca = new TH1F("hDca", "DCA distribution", 1000, 0., 100.);
-  fHistoDca->GetXaxis()->SetTitle("DCA [cm]");
-  //fHistoList->Add(fHistoDca);
-
-  // Hardware: chambers hit
-  fHistoChHit = new TH1F("hChHit", "Chambers hit (per plane)", 8, -0.5, 7.5);
-  //fHistoList->Add(fHistoChHit);
-
-  // Hardware: number of chambers hit (bending plane)
-  fHistoBendHit = new TH1F("hBendHit", "Signals (bending)", 5, -0.5, 4.5);
-  //fHistoList->Add(fHistoBendHit);
-
-  // Hardware: number of chambers hit (nonbending plane)
-  fHistoNBendHit = new TH1F("hNBendHit", "Signals (nonbending)", 5, -0.5, 4.5);
-  //fHistoList->Add(fHistoNBendHit);
 
 }
 
@@ -362,37 +238,7 @@ void AliAnalysisTaskAppMtrEff::UserExec(Option_t *) {
     new (ta[n++]) AliESDMuonTrack(*muonTrack);
 
     fHistoTrCnt->Fill(kCntKept);  ///< Count tracks kept
-
     fHistoPt->Fill(muonTrack->Pt());          // [GeV/c]
-    fHistoTheta->Fill( muonTrack->Theta() );  // [rad]
-    fHistoPhi->Fill( muonTrack->Phi() );      // [rad]
-    fHistoP->Fill( muonTrack->P() );          // [GeV/c]
-    fHistoDca->Fill( muonTrack->GetDCA() );   // [cm]
-
-    fHistoEffFlag->Fill(effFlag);
-
-    Int_t hitsNBend = 0;
-    Int_t hitsBend = 0;
-
-    for (Int_t i=0; i<4; i++) { // chamber (0 to 3)
-      for (Int_t j=0; j<2; j++) { // cathode (0, 1)
-        Bool_t hit = AliESDMuonTrack::IsChamberHit(
-          muonTrack->GetHitsPatternInTrigCh(), j, i); ///< ptn, cath, chamb
-        if (hit) {
-          fHistoChHit->Fill( 2.*i + j );
-          (j == AliMUONTriggerEfficiencyCells::kNonBendingEff) ?
-            hitsNBend++ : hitsBend++;
-        }
-      }
-    }
-
-    fHistoBendHit->Fill(hitsBend);
-    fHistoNBendHit->Fill(hitsNBend);
-
-    // Fill histogram with track locations
-    if ((tri) && (tra)) { fHistoTrLoc->Fill( kLocBoth ); }
-    else if (tri)       { fHistoTrLoc->Fill( kLocTrig ); }
-    else if (tra)       { fHistoTrLoc->Fill( kLocTrack ); }
 
   } // track loop
 

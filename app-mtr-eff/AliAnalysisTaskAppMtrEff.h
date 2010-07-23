@@ -98,21 +98,12 @@ class AliAnalysisTaskAppMtrEff : public AliAnalysisTaskSE {
 
     TList       *fHistoList;            //! List that containts output histos
     TH1F        *fHistoPt;              //! Output Pt distro
-    TH1F        *fHistoTrLoc;           //! Output tracks locations count
     TH1F        *fHistoTrCnt;           //! Tracks count
-    TH1F        *fHistoEffFlag;         //! Efficiency flag of muon tracks
-    TH1F        *fHistoTheta;           //! Theta distro
-    TH1F        *fHistoPhi;             //! Phi distro
-    TH1F        *fHistoP;               //! Total momentum distro
-    TH1F        *fHistoDca;             //! DCA distro
-    TH1F        *fHistoChHit;           //! Chambers hit (per plane)
-    TH1F        *fHistoBendHit;         //! Hits on bending plane
-    TH1F        *fHistoNBendHit;        //! Hits on nonbending plane
 
-    Float_t     *fEffRpc;               //! Efficiencies per RPC
-    Float_t     *fEffCh;                //! Efficiencies per chamber
+    Float_t     *fEffRpc;               //! Array of efficiencies per RPC
+    Float_t     *fEffCh;                //! Array of efficiencies per chamber
 
-    Bool_t       fApplyEff;             //! If kTRUE, apply effs a posteriori
+    Bool_t       fApplyEff;             //! If kTRUE, apply effs "a posteriori"
 
     AliMUONTriggerChamberEfficiency *fTrigChEff;  //! Handler of chamber effs
 
