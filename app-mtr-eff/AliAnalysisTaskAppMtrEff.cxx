@@ -35,7 +35,7 @@ Int_t AliAnalysisTaskAppMtrEff::kNLoPerRpc[18] = { 15, 18, 13, 13, 7, 7, 13, 13,
  */
 AliAnalysisTaskAppMtrEff::AliAnalysisTaskAppMtrEff(
   const char *name, Bool_t applyEfficiencies, Int_t runNum,
-  const char *ocdbTrigChEff, const char *ocdbMagField) :
+  const char *ocdbTrigChEff) :
     AliAnalysisTaskSE(name),
     fTreeOut(0),
     fEvent(0),
@@ -60,9 +60,6 @@ AliAnalysisTaskAppMtrEff::AliAnalysisTaskAppMtrEff(
     if (ocdbTrigChEff) {
       man->SetSpecificStorage("MUON/Calib/TriggerEfficiency", ocdbTrigChEff);
     }
-    if (ocdbMagField) {
-      man->SetSpecificStorage("GRP/GRP/Data", ocdbMagField);
-    }
     man->SetRun(runNum);
 
     AliCDBEntry *entry = man->Get("MUON/Calib/TriggerEfficiency");
@@ -71,9 +68,6 @@ AliAnalysisTaskAppMtrEff::AliAnalysisTaskAppMtrEff(
     fTrigChEff = new AliMUONTriggerChamberEfficiency(
       dynamic_cast<AliMUONTriggerEfficiencyCells*>(obj)
     );
-
-    // Loads the magnetic field for track extrapolations
-    AliMUONCDB::LoadField();
 
     // Averages adjacent RPC efficiencies to be used when a track crosses
     // different RPCs

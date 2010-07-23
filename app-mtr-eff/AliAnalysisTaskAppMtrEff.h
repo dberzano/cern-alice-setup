@@ -74,7 +74,7 @@ class AliAnalysisTaskAppMtrEff : public AliAnalysisTaskSE {
 
     AliAnalysisTaskAppMtrEff(const char *name,
       Bool_t applyEfficiencies = kFALSE, Int_t runNum = -1,
-      const char *ocdbTrigChEff = NULL, const char *ocdbMagField = NULL);
+      const char *ocdbTrigChEff = NULL);
     virtual ~AliAnalysisTaskAppMtrEff();
 
     virtual void UserCreateOutputObjects();

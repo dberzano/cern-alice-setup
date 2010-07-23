@@ -21,16 +21,12 @@
   gSystem->Load("libANALYSISalice");
   gSystem->Load("libMUONtrigger");
 
-  gSystem->Unlink("mtracks.root");
-
+  //TString ocdbTrigChEff = Form("local://%s/ocdb_fulleff", gSystem->pwd());
   TString ocdbTrigChEff = Form("local://%s/ocdb_reff", gSystem->pwd());
-  TString ocdbMagField = Form("local://%s/Bogdan/macros_20100714-164117",
-    gSystem->pwd());
 
   gROOT->LoadMacro("AliAnalysisTaskAppMtrEff.cxx+");
   AliAnalysisTaskAppMtrEff *task =
-    new AliAnalysisTaskAppMtrEff("myEMT", kTRUE, 10001, ocdbTrigChEff,
-    ocdbMagField);
+    new AliAnalysisTaskAppMtrEff("myAppMtrEff", kTRUE, 0, ocdbTrigChEff);
 
   mgr = new AliAnalysisManager("ExtractMT");
   mgr->AddTask(task);
@@ -41,6 +37,9 @@
 
   cInput = mgr->GetCommonInputContainer();
   mgr->ConnectInput(task, 0, cInput);
+
+  // Remove previous output result (WATCH OUT!)
+  gSystem->Unlink("mtracks.root");
 
   cOutput = mgr->CreateContainer("tree", TTree::Class(),
     AliAnalysisManager::kOutputContainer, "mtracks.root");
