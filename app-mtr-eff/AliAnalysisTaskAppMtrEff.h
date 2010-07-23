@@ -65,7 +65,8 @@ class AliAnalysisTaskAppMtrEff : public AliAnalysisTaskSE {
 
   public:
 
-    typedef enum { kLocTrig = 1, kLocTrack = 2, kLocBoth = 3 } MuonTrackLoc_t;
+    typedef enum { kLocTrig = 1, kLocTrack = 2, kLocBoth = 3 } MuTrackLoc_t;
+    typedef enum { kCntAll = 1, kCntEff = 2, kCntKept = 3 } MuTrackCnt_t;
 
     // See http://aliweb.cern.ch/Offline/Activities/Analysis/AnalysisFramework/
     // index.html >> we should not DefineInput/Output in the default constructor
@@ -98,6 +99,7 @@ class AliAnalysisTaskAppMtrEff : public AliAnalysisTaskSE {
     TList       *fHistoList;            //! List that containts output histos
     TH1F        *fHistoPt;              //! Output Pt distro
     TH1F        *fHistoTrLoc;           //! Output tracks locations count
+    TH1F        *fHistoTrCnt;           //! Tracks count
     TH1F        *fHistoEffFlag;         //! Efficiency flag of muon tracks
     TH1F        *fHistoTheta;           //! Theta distro
     TH1F        *fHistoPhi;             //! Phi distro

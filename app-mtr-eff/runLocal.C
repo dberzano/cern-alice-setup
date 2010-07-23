@@ -1,6 +1,6 @@
 /** Modified by Dario Berzano <dario.berzano@gmail.com>
  */
-void runLocal() {
+{
 
   // Base ROOT libraries
   gSystem->Load("libTree");
@@ -23,7 +23,7 @@ void runLocal() {
 
   gSystem->Unlink("mtracks.root");
 
-  TString ocdbTrigChEff = Form("local://%s/OCDB", gSystem->pwd());
+  TString ocdbTrigChEff = Form("local://%s/ocdb_reff", gSystem->pwd());
   TString ocdbMagField = Form("local://%s/Bogdan/macros_20100714-164117",
     gSystem->pwd());
 

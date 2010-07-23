@@ -237,6 +237,13 @@ void AliAnalysisTaskAppMtrEff::UserCreateOutputObjects() {
   fHistoPt->GetXaxis()->SetTitle("Pt [GeV/c]");
   fHistoList->Add(fHistoPt);
 
+  // Number of tracks: total, good for eff, 
+  fHistoTrCnt = new TH1F("hTrCnt", "Tracks count", 3, 0.5, 3.5);
+  fHistoTrCnt->GetXaxis()->SetBinLabel(kCntAll,  "all tracks");
+  fHistoTrCnt->GetXaxis()->SetBinLabel(kCntEff,  "good for eff");
+  fHistoTrCnt->GetXaxis()->SetBinLabel(kCntKept, "kept");
+  fHistoList->Add(fHistoTrCnt);
+
   // Histogram with counts of some track types
   fHistoTrLoc = new TH1F("hTrLoc", "Tracks locations", 3, 0.5, 3.5);
   fHistoTrLoc->GetXaxis()->SetBinLabel(kLocTrig, "only trig");
@@ -328,6 +335,8 @@ void AliAnalysisTaskAppMtrEff::UserExec(Option_t *) {
 
     AliESDMuonTrack* muonTrack = new AliESDMuonTrack( *esdMt );
 
+    fHistoTrCnt->Fill(kCntAll);  ///< Count all tracks
+
     Bool_t tri = muonTrack->ContainTriggerData();
     Bool_t tra = muonTrack->ContainTrackerData();
     UShort_t effFlag = AliESDMuonTrack::GetEffFlag(
@@ -339,6 +348,8 @@ void AliAnalysisTaskAppMtrEff::UserExec(Option_t *) {
       delete muonTrack;
       continue;
     }
+
+    fHistoTrCnt->Fill(kCntEff);  ///< Count tracks good for efficiency
 
     // Apply the efficiency "a posteriori" (if told to do so)
     if (fApplyEff) {
@@ -355,6 +366,8 @@ void AliAnalysisTaskAppMtrEff::UserExec(Option_t *) {
     /////////////////////////////////////////////////////////
 
     new (ta[n++]) AliESDMuonTrack(*muonTrack);
+
+    fHistoTrCnt->Fill(kCntKept);  ///< Count tracks kept
 
     fHistoPt->Fill(muonTrack->Pt());          // [GeV/c]
     fHistoTheta->Fill( muonTrack->Theta() );  // [rad]
@@ -411,12 +424,20 @@ void AliAnalysisTaskAppMtrEff::Terminate(Option_t *) {
   gROOT->SetStyle("Plain");
   gStyle->SetPalette(1);
 
+  Printf("\n");  ///< Clean-up output
+
   TH1F *h;
   TIter i(fHistoList);
 
   while (( h = dynamic_cast<TH1F *>(i.Next()) )) {
     new TCanvas(Form("canvas_%s", h->GetName()), h->GetTitle());
     h->DrawCopy();
+
+    if (strcmp(h->GetName(), "hTrCnt") == 0) {
+      Float_t eff = h->GetBinContent(kCntKept) / h->GetBinContent(kCntEff);
+      AliInfo(Form("Efficiency: %.5f", eff));
+    }
+
   }
 
 }
@@ -482,21 +503,6 @@ Bool_t AliAnalysisTaskAppMtrEff::KeepTrackByEff(
     rb[1], rb[2], rb[3], mtrEffBend));
   AliDebug(1, Form("Effs (nbnd): %4.2f %4.2f %4.2f %4.2f => %6.4f", rn[0],
     rn[1], rn[2], rn[3], mtrEffNBend));
-
-  /*switch (effFlag) {
-    case AliESDMuonTrack::kNoEff:
-      AliInfo("Track not good for efficiency calculation");
-    break;
-    case AliESDMuonTrack::kChEff:
-      AliInfo("Track crosses different RPCs");
-    break;
-    case AliESDMuonTrack::kSlatEff:
-      AliInfo("Track crosses the same RPC in all planes");
-    break;
-    case AliESDMuonTrack::kBoardEff:
-      AliInfo("Track crosses the same local board in all planes");
-    break;
-  }*/
 
   return ((hitBend) && (hitNBend));
 }
