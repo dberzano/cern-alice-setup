@@ -1,4 +1,4 @@
-/** Modified by Dario Berzano <dario.berzano@gmail.com>
+/** By Dario Berzano <dario.berzano@gmail.com>
  */
 {
 
@@ -21,8 +21,8 @@
   gSystem->Load("libANALYSISalice");
   gSystem->Load("libMUONtrigger");
 
-  //TString ocdbTrigChEff = Form("local://%s/ocdb_fulleff", gSystem->pwd());
-  TString ocdbTrigChEff = Form("local://%s/ocdb_reff", gSystem->pwd());
+  //TString ocdbTrigChEff = Form("local://%s/../cdb/fulleff", gSystem->pwd());
+  TString ocdbTrigChEff = Form("local://%s/../cdb/reff", gSystem->pwd());
 
   gROOT->LoadMacro("AliAnalysisTaskAppMtrEff.cxx+");
   AliAnalysisTaskAppMtrEff *task =
@@ -55,7 +55,7 @@
 
   TChain *chain = new TChain("esdTree");
   // good chain
-  chain->Add(Form("%s/Bogdan/macros_20100714-164117/AliESDs.root",
+  chain->Add(Form("%s/../misc/bogdan/macros_20100714-164117/AliESDs.root",
     gSystem->pwd()));
   //chain->Add( "alien:///alice/sim/PDC_09/LHC09a6/92000/993/AliESDs.root" );
   //chain->Add(Form("%s/AliESDs.root",gSystem->pwd()));

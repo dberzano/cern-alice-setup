@@ -164,6 +164,14 @@ void AliAnalysisTaskAppMtrEff::UserCreateOutputObjects() {
   fHistoTrCnt->GetXaxis()->SetBinLabel(kCntKept, "kept");
   fHistoList->Add(fHistoTrCnt);
 
+  // Efficiency flag, to see where the track goes (basically, how the track is
+  // straight)
+  fHistoEffFlag = new TH1F("hEffFlag", "Efficiency flags", 3, 0.5, 3.5);
+  // kNoEff = 0, kChEff = 1, kSlatEff = 2, kBoardEff = 3
+  fHistoEffFlag->GetXaxis()->SetBinLabel(1, "diff RPCs");
+  fHistoEffFlag->GetXaxis()->SetBinLabel(2, "same RPC");
+  fHistoEffFlag->GetXaxis()->SetBinLabel(3, "same board");
+  fHistoList->Add(fHistoEffFlag);
 }
 
 /** This code is the core of the analysis: it is executed once per event. At
@@ -205,7 +213,7 @@ void AliAnalysisTaskAppMtrEff::UserExec(Option_t *) {
 
     AliESDMuonTrack* muonTrack = new AliESDMuonTrack( *esdMt );
 
-    fHistoTrCnt->Fill(kCntAll);  ///< Count all tracks
+    fHistoTrCnt->Fill(kCntAll);  // Count all tracks
 
     Bool_t tri = muonTrack->ContainTriggerData();
     Bool_t tra = muonTrack->ContainTrackerData();
@@ -219,7 +227,8 @@ void AliAnalysisTaskAppMtrEff::UserExec(Option_t *) {
       continue;
     }
 
-    fHistoTrCnt->Fill(kCntEff);  ///< Count tracks good for efficiency
+    fHistoTrCnt->Fill(kCntEff);  // Count tracks good for efficiency
+    fHistoEffFlag->Fill(effFlag);
 
     // Apply the efficiency "a posteriori" (if told to do so)
     if (fApplyEff) {

@@ -99,6 +99,7 @@ class AliAnalysisTaskAppMtrEff : public AliAnalysisTaskSE {
     TList       *fHistoList;            //! List that containts output histos
     TH1F        *fHistoPt;              //! Output Pt distro
     TH1F        *fHistoTrCnt;           //! Tracks count
+    TH1F        *fHistoEffFlag;         //! Efficiency flags
 
     Float_t     *fEffRpc;               //! Array of efficiencies per RPC
     Float_t     *fEffCh;                //! Array of efficiencies per chamber
