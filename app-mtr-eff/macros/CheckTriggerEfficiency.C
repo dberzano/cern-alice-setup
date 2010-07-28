@@ -8,7 +8,7 @@ void CheckTriggerEfficiency(Int_t run = 116380) {
   man->SetDefaultStorage("local://$ALICE_ROOT/OCDB");
 
   man->SetSpecificStorage("MUON/Calib/TriggerEfficiency",
-    Form("local://%s/ocdb_fulleff", gSystem->pwd()));
+    Form("local://%s/../cdb/reff", gSystem->pwd()));
 
   //man->SetSpecificStorage("MUON/Calib/TriggerEfficiency","alien://Folder=/alice/data/2010/OCDB");
 
@@ -38,7 +38,7 @@ void CheckTriggerEfficiency(Int_t run = 116380) {
   AliMUONTriggerChamberEfficiency *eff =
     new AliMUONTriggerChamberEfficiency( (AliMUONTriggerEfficiencyCells*)obj );
 
-  gStyle->SetPalette(1);
+  //gStyle->SetPalette(1);
 
   eff->DisplayEfficiency();
 
