@@ -153,15 +153,17 @@ void AliAnalysisTaskAppMtrEff::UserCreateOutputObjects() {
   fHistoList = new TList();
 
   // Pt distribution
-  fHistoPt = new TH1F("hPt", "Pt distribution", 100, 0., 4.);
+  fHistoPt = new TH1F("hPt", "Pt distribution", 100, 0., 50.);
   fHistoPt->GetXaxis()->SetTitle("Pt [GeV/c]");
   fHistoList->Add(fHistoPt);
 
   // Number of tracks: total, good for eff, 
-  fHistoTrCnt = new TH1F("hTrCnt", "Tracks count", 3, 0.5, 3.5);
+  fHistoTrCnt = new TH1F("hTrCnt", "Tracks count", 5, 0.5, 5.5);
   fHistoTrCnt->GetXaxis()->SetBinLabel(kCntAll,  "all tracks");
   fHistoTrCnt->GetXaxis()->SetBinLabel(kCntEff,  "good for eff");
   fHistoTrCnt->GetXaxis()->SetBinLabel(kCntKept, "kept");
+  fHistoTrCnt->GetXaxis()->SetBinLabel(kCntNoEff, "flagged no eff");
+  fHistoTrCnt->GetXaxis()->SetBinLabel(kCntNoTrig, "not in trigger");
   fHistoList->Add(fHistoTrCnt);
 
   // Efficiency flag, to see where the track goes (basically, how the track is
@@ -220,9 +222,17 @@ void AliAnalysisTaskAppMtrEff::UserExec(Option_t *) {
     UShort_t effFlag = AliESDMuonTrack::GetEffFlag(
       muonTrack->GetHitsPatternInTrigCh() );
 
-    if ((!tri) || (!tra) || (effFlag == AliESDMuonTrack::kNoEff)) {
-      AliDebug(1, "Track does not match both trigger and tracker, or it is not "
-        "good for efficiency calculation");
+    if (effFlag == AliESDMuonTrack::kNoEff) {
+      fHistoTrCnt->Fill(kCntNoEff);
+    }
+
+    if (!tri) {
+      fHistoTrCnt->Fill(kCntNoTrig);
+    }
+
+    if ((!tri) || (effFlag == AliESDMuonTrack::kNoEff)) {
+      AliDebug(1, "Track does not match trigger or it is not flagged as good "
+        "for efficiency calculation");
       delete muonTrack;
       continue;
     }

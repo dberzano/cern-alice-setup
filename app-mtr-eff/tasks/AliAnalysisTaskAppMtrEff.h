@@ -66,7 +66,8 @@ class AliAnalysisTaskAppMtrEff : public AliAnalysisTaskSE {
   public:
 
     typedef enum { kLocTrig = 1, kLocTrack = 2, kLocBoth = 3 } MuTrackLoc_t;
-    typedef enum { kCntAll = 1, kCntEff = 2, kCntKept = 3 } MuTrackCnt_t;
+    typedef enum { kCntAll = 1, kCntEff = 2, kCntKept = 3, kCntNoEff = 4,
+      kCntNoTrig = 5 } MuTrackCnt_t;
 
     // See http://aliweb.cern.ch/Offline/Activities/Analysis/AnalysisFramework/
     // index.html >> we should not DefineInput/Output in the default constructor
