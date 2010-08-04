@@ -146,17 +146,17 @@ AliAnalysisTaskAppMtrEff::~AliAnalysisTaskAppMtrEff() {
  */
 void AliAnalysisTaskAppMtrEff::CreateOutputObjects() {
 
-  // TList of histograms
+  // TList of histograms (empty for the moment)
   fHistoList = new TList();
-
-  fEventEsd = 0x0;
 
   // TTree for MC (generated) muons
   fTreeMc = new TTree("muGen", "Generated MC muons");
+  fEventMc = 0x0;
   fTreeMc->Branch("MuonTracks", &fEventMc);
 
   // TTree for rec muons
   fTreeRec = new TTree("muRec", "Reconstructed muons");
+  fEventEsd = 0x0;
   fTreeRec->Branch("MuonTracks", &fEventEsd);
 }
 
@@ -184,7 +184,7 @@ void AliAnalysisTaskAppMtrEff::ConnectInputData(Option_t *) {
   );
 
   if (esdH) {
-    fESDEvent = esdH->GetEvent();
+    fCurEsdEvt = esdH->GetEvent();
     AliInfo("Accessing ESD events");
   }
   else {
@@ -197,7 +197,7 @@ void AliAnalysisTaskAppMtrEff::ConnectInputData(Option_t *) {
   );
 
   if (mcH) {
-    fMCEvent = mcH->MCEvent();
+    fCurMcEvt = mcH->MCEvent();
     AliInfo("Accessing Monte Carlo events");
   }
   else {
@@ -210,82 +210,47 @@ void AliAnalysisTaskAppMtrEff::ConnectInputData(Option_t *) {
  */
 void AliAnalysisTaskAppMtrEff::Exec(Option_t *) {
 
-  if (!fESDEvent) {
+  if (!fCurEsdEvt) {
     AliError("ESD event not available");
     return;
   }
-  else if (!fMCEvent) {
+  else if (!fCurMcEvt) {
     AliError("MC event not available");
     return;
   }
 
   //////////////////////////////////////////////////////////////////////////////
-  // Monte Carlo events
-  //////////////////////////////////////////////////////////////////////////////
-
-  Int_t nMcTracks = fMCEvent->GetNumberOfTracks();
-
-  if (nMcTracks > 0) {
-
-    // This instance of fEvent is for reconstructed muons
-    fEventMc = new EventMc(
-      "no_file_name",
-      fNevt
-    );
-
-    TClonesArray *tracksArray = fEventMc->GetTracks();
-    TClonesArray &ta = *tracksArray;  // to have easy access to operator[]
-
-    Int_t n = 0;
-    for (Int_t iTrack=0; iTrack<nMcTracks; iTrack++) { 
-
-      AliMCParticle *mcPart = (AliMCParticle *)(fMCEvent->GetTrack(iTrack));
-
-      // Rapidity and Pt cuts (default -4<y<-2.5 and 0<pt<20)
-      //if (!fCFManager->CheckParticleCuts(AliCFManager::kPartAccCuts, mcPart))
-      //  continue;
-
-      // Selection of muons
-      if (TMath::Abs( mcPart->Particle()->GetPdgCode() ) == 13) {
-        new (ta[n++]) AliMCParticle(*mcPart);
-      }
-
-    }
- 
-    if (n > 0) {
-      fTreeMc->Fill();
-    }
- 
-  } // end of monte carlo tracks selection
-
-  //////////////////////////////////////////////////////////////////////////////
   // Reconstructed events
   //////////////////////////////////////////////////////////////////////////////
 
-  Int_t nRecMuTracks = (Int_t)fESDEvent->GetNumberOfMuonTracks();
+  AliESDInputHandler *esdH = dynamic_cast<AliESDInputHandler*>(
+    AliAnalysisManager::GetAnalysisManager()->GetInputEventHandler()
+  );
+
+  // fCurEsdEvt->GetEventNumberInFile() always returns zero, why?! Looking for a
+  // better way to label events
+  Int_t evNumForEsdAndMc = esdH->GetReadEntry();
+
+  Int_t nRecMuTracks = (Int_t)fCurEsdEvt->GetNumberOfMuonTracks();
 
   if (nRecMuTracks > 0) {
 
-    AliESDInputHandler *esdH = dynamic_cast<AliESDInputHandler*>(
-      AliAnalysisManager::GetAnalysisManager()->GetInputEventHandler()
-    );
-
     // This instance of fEvent is for reconstructed muons
     fEventEsd = new EventEsd(
-      (esdH->GetTree()->GetCurrentFile())->GetName(),
-      fNevt
+      evNumForEsdAndMc,
+      (esdH->GetTree()->GetCurrentFile())->GetName()
     );
 
     TClonesArray *tracksArray = fEventEsd->GetTracks();
-    TClonesArray &ta = *tracksArray;  // to have easy access to operator[]
+    TClonesArray &ta = *tracksArray;  // to have easier access to operator[]
 
     Int_t n = 0;
     for (Int_t iTrack = 0; iTrack<nRecMuTracks; iTrack++) {
 
-      AliESDMuonTrack *esdMt = fESDEvent->GetMuonTrack(iTrack);
+      AliESDMuonTrack *esdMt = fCurEsdEvt->GetMuonTrack(iTrack);
 
       if (!esdMt) {
-        AliError(Form("Could not receive track %d", iTrack));
+        AliError(Form("Could not receive ESD muon track %d", iTrack));
         continue;
       }
 
@@ -297,6 +262,43 @@ void AliAnalysisTaskAppMtrEff::Exec(Option_t *) {
     fTreeRec->Fill();
 
   } // end of reconstructed muons processing
+
+  //////////////////////////////////////////////////////////////////////////////
+  // Monte Carlo events
+  //////////////////////////////////////////////////////////////////////////////
+
+  Int_t nMcTracks = fCurMcEvt->GetNumberOfTracks();
+
+  if (nMcTracks > 0) {
+
+    // This instance of fEvent is for reconstructed muons
+    fEventMc = new EventMc(evNumForEsdAndMc);
+
+    TClonesArray *tracksArray = fEventMc->GetTracks();
+    TClonesArray &ta = *tracksArray;  // to have easier access to operator[]
+
+    Int_t n = 0;
+    for (Int_t iTrack=0; iTrack<nMcTracks; iTrack++) { 
+
+      AliMCParticle *mcPart = (AliMCParticle *)(fCurMcEvt->GetTrack(iTrack));
+      TParticle *tPart = mcPart->Particle();
+
+      // Rapidity and Pt cuts (default -4<y<-2.5 and 0<pt<20)
+      //if (!fCFManager->CheckParticleCuts(AliCFManager::kPartAccCuts, mcPart))
+      //  continue;
+
+      // Selection of muons
+      if (TMath::Abs( mcPart->Particle()->GetPdgCode() ) == 13) {
+        new (ta[n++]) TParticle(*tPart);
+      }
+
+    }
+ 
+    if (n > 0) {
+      fTreeMc->Fill();
+    }
+ 
+  } // end of monte carlo tracks selection
 
   //////////////////////////////////////////////////////////////////////////////
   // Post output data

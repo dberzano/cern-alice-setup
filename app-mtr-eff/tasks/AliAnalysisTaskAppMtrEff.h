@@ -42,19 +42,19 @@ class Event : public TObject {
 
 public: 
 
-  Event(const char *esdFileName = "", Int_t evNum = -1) :
-    fTracks(0x0), fESDFileName(esdFileName), fEventInList(evNum) {};
+  Event(Int_t evNum = -1, const char *fileName = "") :
+    fTracks(0x0), fFileName(fileName), fEvNum(evNum) {};
   virtual ~Event() { if (fTracks) delete fTracks; }
 
   virtual TClonesArray *GetTracks() { return fTracks; }
-  virtual const Char_t *GetESDFileName() { return fESDFileName.Data(); }
-  virtual Int_t GetEventNumber() { return fEventInList; }
+  virtual const Char_t *GetFileName() { return fFileName.Data(); }
+  virtual Int_t GetEventNumber() { return fEvNum; }
 
 protected:
 
   TClonesArray *fTracks;
-  TString       fESDFileName;
-  Int_t         fEventInList;
+  TString       fFileName;
+  Int_t         fEvNum;
 
   ClassDef(Event, 1);
 
@@ -66,8 +66,8 @@ class EventEsd : public Event {
 
   public:
 
-    EventEsd(const char *esdFileName = "", Int_t evNum = -1) :
-      Event(esdFileName, evNum) {
+    EventEsd(Int_t evNum = -1, const char *fileName = "") :
+      Event(evNum, fileName) {
       fTracks = new TClonesArray("AliESDMuonTrack", 10);
     }
 
@@ -81,9 +81,9 @@ class EventMc : public Event {
 
   public:
 
-    EventMc(const char *esdFileName = "", Int_t evNum = -1) :
-      Event(esdFileName, evNum) {
-      fTracks = new TClonesArray("AliMCParticle", 10);
+    EventMc(Int_t evNum = -1, const char *fileName = "") :
+      Event(evNum, fileName) {
+      fTracks = new TClonesArray("TParticle", 10);
     }
 
   ClassDef(EventMc, 1);
@@ -140,10 +140,10 @@ class AliAnalysisTaskAppMtrEff : public AliAnalysisTask {
 
     Bool_t       fApplyEff;             //! If kTRUE, apply effs "a posteriori"
 
-    AliESDEvent   *fESDEvent;             //! Points to the current ESD event
-    AliMCEvent    *fMCEvent;              //! Points to the current MC event
+    AliESDEvent   *fCurEsdEvt;          //! Points to the current ESD event
+    AliMCEvent    *fCurMcEvt;           //! Points to the current MC event
 
-    UInt_t         fNevt;                 //! Current event number (zero-based)
+    UInt_t         fNevt;               //! Current event number (zero-based)
 
     AliMUONTriggerChamberEfficiency *fTrigChEff;  //! Handler of chamber effs
 
