@@ -36,7 +36,7 @@ Int_t AliAnalysisTaskAppMtrEff::kNLoPerRpc[18] = { 15, 18, 13, 13, 7, 7, 13, 13,
 AliAnalysisTaskAppMtrEff::AliAnalysisTaskAppMtrEff(
   const char *name, Bool_t applyEfficiencies, Int_t runNum,
   const char *ocdbTrigChEff) :
-    AliAnalysisTaskSE(name),
+    AliAnalysisTask(name, name),
     fTreeOut(0),
     fEvent(0),
     fApplyEff(applyEfficiencies)
@@ -44,13 +44,11 @@ AliAnalysisTaskAppMtrEff::AliAnalysisTaskAppMtrEff(
   // Input slot #0 works with a TChain
   DefineInput(0, TChain::Class());
 
-  // Output slot #0 is already defined in base class
+  // Output slot #0 writes into a TNtuple container
+  DefineOutput(0, TTree::Class());
 
-  // Output slot #1 writes into a TNtuple container
-  DefineOutput(1, TTree::Class());
-
-  // Output slot #2 writes into a TList of histograms
-  DefineOutput(2, TList::Class());
+  // Output slot #1 writes into a TList of histograms
+  DefineOutput(1, TList::Class());
 
   // Decides if to apply or not the trigger decision
   if (fApplyEff) {
@@ -142,51 +140,65 @@ AliAnalysisTaskAppMtrEff::~AliAnalysisTaskAppMtrEff() {
 /** This function is called to create objects that store the output data. It is
  *  thus called only once when running the analysis.
  */
-void AliAnalysisTaskAppMtrEff::UserCreateOutputObjects() {
+void AliAnalysisTaskAppMtrEff::CreateOutputObjects() {
 
   // Create TTree output object
   fTreeOut = new TTree("muonTracks", "Muon tracks");
   fEvent = NULL;
   fTreeOut->Branch("Events", &fEvent);  // the branch "Events" holds objects of
                                         // class event
-  // Output list of TH1Fs
+
   fHistoList = new TList();
 
-  // Pt distribution
-  fHistoPt = new TH1F("hPt", "Pt distribution", 100, 0., 50.);
-  fHistoPt->GetXaxis()->SetTitle("Pt [GeV/c]");
-  fHistoList->Add(fHistoPt);
+}
 
-  // Number of tracks: total, good for eff, 
-  fHistoTrCnt = new TH1F("hTrCnt", "Tracks count", 5, 0.5, 5.5);
-  fHistoTrCnt->GetXaxis()->SetBinLabel(kCntAll,  "all tracks");
-  fHistoTrCnt->GetXaxis()->SetBinLabel(kCntEff,  "good for eff");
-  fHistoTrCnt->GetXaxis()->SetBinLabel(kCntKept, "kept");
-  fHistoTrCnt->GetXaxis()->SetBinLabel(kCntNoEff, "flagged no eff");
-  fHistoTrCnt->GetXaxis()->SetBinLabel(kCntNoTrig, "not in trigger");
-  fHistoList->Add(fHistoTrCnt);
+/**
+ */
+/** Used to connect input data from ESD or AOD to the analysis task. It is
+ *  called only once.
+ */
+void AliAnalysisTaskAppMtrEff::ConnectInputData(Option_t *) {
 
-  // Efficiency flag, to see where the track goes (basically, how the track is
-  // straight)
-  fHistoEffFlag = new TH1F("hEffFlag", "Efficiency flags", 3, 0.5, 3.5);
-  // kNoEff = 0, kChEff = 1, kSlatEff = 2, kBoardEff = 3
-  fHistoEffFlag->GetXaxis()->SetBinLabel(1, "diff RPCs");
-  fHistoEffFlag->GetXaxis()->SetBinLabel(2, "same RPC");
-  fHistoEffFlag->GetXaxis()->SetBinLabel(3, "same board");
-  fHistoList->Add(fHistoEffFlag);
+  TTree* tree = dynamic_cast<TTree*> (GetInputData(0));
+
+  if (!tree) {
+    AliError("Could not read chain from input slot 0");
+  }
+  else {
+
+    // Disable all branches and enable only the needed ones
+    // The next two lines are different when data produced as AliESDEvent is read
+    tree->SetBranchStatus("*", kFALSE);
+    tree->SetBranchStatus("MuonTracks.*", kTRUE);
+
+    AliESDInputHandler *esdH = dynamic_cast<AliESDInputHandler*>(
+      AliAnalysisManager::GetAnalysisManager()->GetInputEventHandler()
+    );
+
+    if (!esdH) {
+      AliError("Could not get the ESD input handler");
+    }
+    else {
+      // Always points to current event
+      fESDEvent = esdH->GetEvent();
+    }
+
+  }
+
 }
 
 /** This code is the core of the analysis: it is executed once per event. At
  *  each loop, fInputEvent of type AliESDEvent points to the current event.
  */
-void AliAnalysisTaskAppMtrEff::UserExec(Option_t *) {
+void AliAnalysisTaskAppMtrEff::Exec(Option_t *) {
 
-  if (!fInputEvent) {
+  if (!fESDEvent) {
     AliError("fInputEvent not available");
     return;
   }
 
-  AliESDEvent *esdEv = dynamic_cast<AliESDEvent *>(fInputEvent);
+  //AliESDEvent *esdEv = dynamic_cast<AliESDEvent *>(fInputEvent);
+  AliESDEvent *esdEv = fESDEvent;
 
   Int_t nTracks = (Int_t)esdEv->GetNumberOfMuonTracks();
   if (nTracks == 0) return;
@@ -200,8 +212,8 @@ void AliAnalysisTaskAppMtrEff::UserExec(Option_t *) {
     (Int_t)esdH->GetReadEntry()
   );
 
-  TClonesArray *tracksArray = fEvent->GetTracks();  // è dentro Event
-  TClonesArray &ta = *tracksArray;  // per accedere all'op. parentesi quadre
+  TClonesArray *tracksArray = fEvent->GetTracks();  // it is inside Event
+  TClonesArray &ta = *tracksArray;  // to have easy access to operator[]
   
   Int_t n = 0;  // conta nel tclonesarray
   for (Int_t iTrack = 0; iTrack < nTracks; iTrack++) {
@@ -215,40 +227,28 @@ void AliAnalysisTaskAppMtrEff::UserExec(Option_t *) {
 
     AliESDMuonTrack* muonTrack = new AliESDMuonTrack( *esdMt );
 
-    fHistoTrCnt->Fill(kCntAll);  // Count all tracks
+    //Bool_t tri = muonTrack->ContainTriggerData();
+    //Bool_t tra = muonTrack->ContainTrackerData();
+    //UShort_t effFlag = AliESDMuonTrack::GetEffFlag(
+    //  muonTrack->GetHitsPatternInTrigCh() );
 
-    Bool_t tri = muonTrack->ContainTriggerData();
-    Bool_t tra = muonTrack->ContainTrackerData();
-    UShort_t effFlag = AliESDMuonTrack::GetEffFlag(
-      muonTrack->GetHitsPatternInTrigCh() );
-
-    if (effFlag == AliESDMuonTrack::kNoEff) {
-      fHistoTrCnt->Fill(kCntNoEff);
-    }
-
-    if (!tri) {
-      fHistoTrCnt->Fill(kCntNoTrig);
-    }
-
-    if ((!tri) || (effFlag == AliESDMuonTrack::kNoEff)) {
-      AliDebug(1, "Track does not match trigger or it is not flagged as good "
-        "for efficiency calculation");
-      delete muonTrack;
-      continue;
-    }
-
-    fHistoTrCnt->Fill(kCntEff);  // Count tracks good for efficiency
-    fHistoEffFlag->Fill(effFlag);
+    // WE MUST DELETE THIS ONE AND CONSIDER EITHER THE DEVIATION OR THE EXTRAP
+    //if ((!tri) || (effFlag == AliESDMuonTrack::kNoEff)) {
+    //  AliDebug(1, "Track does not match trigger or it is not flagged as good "
+    //    "for efficiency calculation");
+    //  delete muonTrack;
+    //  continue;
+    //}
 
     // Apply the efficiency "a posteriori" (if told to do so)
-    if (fApplyEff) {
-      if (!KeepTrackByEff(muonTrack)) {
-        AliDebug(1, "Track discarded");
-        delete muonTrack;
-        continue;
-      }
-      AliDebug(1, "Track kept");
-    }
+    //if (fApplyEff) {
+    //  if (!KeepTrackByEff(muonTrack)) {
+    //    AliDebug(1, "Track discarded");
+    //    delete muonTrack;
+    //    continue;
+    //  }
+    //  AliDebug(1, "Track kept");
+    //}
 
     /////////////////////////////////////////////////////////
     // From this point on, muonTrack is the KEPT muonTrack //
@@ -256,16 +256,15 @@ void AliAnalysisTaskAppMtrEff::UserExec(Option_t *) {
 
     new (ta[n++]) AliESDMuonTrack(*muonTrack);
 
-    fHistoTrCnt->Fill(kCntKept);  ///< Count tracks kept
-    fHistoPt->Fill(muonTrack->Pt());          // [GeV/c]
+    //fHistoPt->Fill(muonTrack->Pt());          // [GeV/c]
 
   } // track loop
 
   fTreeOut->Fill();  // data is posted to the tree
 
   // Output data is posted
-  PostData(1, fTreeOut);
-  PostData(2, fHistoList);
+  PostData(0, fTreeOut);
+  PostData(1, fHistoList);
 
 }      
 
@@ -274,6 +273,7 @@ void AliAnalysisTaskAppMtrEff::UserExec(Option_t *) {
  */
 void AliAnalysisTaskAppMtrEff::Terminate(Option_t *) {
 
+  /*
   fHistoList = dynamic_cast<TList *>( GetOutputData(2) );
   if (!fHistoList) {
     AliError("Output list not available");
@@ -290,7 +290,8 @@ void AliAnalysisTaskAppMtrEff::Terminate(Option_t *) {
 
   while (( h = dynamic_cast<TH1F *>(i.Next()) )) {
     new TCanvas(Form("canvas_%s", h->GetName()), h->GetTitle());
-    h->DrawCopy();
+    h->DrawCopy("");
+    h->DrawCopy("TEXT0 SAME");
 
     if (strcmp(h->GetName(), "hTrCnt") == 0) {
       Float_t eff = h->GetBinContent(kCntKept) / h->GetBinContent(kCntEff);
@@ -298,6 +299,7 @@ void AliAnalysisTaskAppMtrEff::Terminate(Option_t *) {
     }
 
   }
+  */
 
 }
 
@@ -343,6 +345,7 @@ Bool_t AliAnalysisTaskAppMtrEff::KeepTrackByEff(
   //AliInfo(Form("RPC number for this lo (%d) is: %d", muTrack->LoCircuit(),
   //  AliESDMuonTrack::GetSlatOrInfo(muTrack->GetHitsPatternInTrigCh()) ));
 
+  // CAN BE HEAVILY OPTIMIZED, IT IS JUST TO SEE THE FORMULA CLEARLY
   Float_t mtrEffBend  =   rb[0]    *   rb[1]    *   rb[2]    *   rb[3]    +
                         (1.-rb[0]) *   rb[1]    *   rb[2]    *   rb[3]    +
                           rb[0]    * (1.-rb[1]) *   rb[2]    *   rb[3]    +

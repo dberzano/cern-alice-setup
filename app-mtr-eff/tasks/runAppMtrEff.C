@@ -43,32 +43,30 @@ void runAppMtrEff(TString mode) {
   TString output = Form("mtracks-%s.root", mode.Data());
   gSystem->Unlink(output);
 
-  cOutput = mgr->CreateContainer("tree", TTree::Class(),
+  cOutput = mgr->CreateContainer("recoMu", TTree::Class(),
     AliAnalysisManager::kOutputContainer, output);
-  mgr->ConnectOutput(task, 1, cOutput);
+  mgr->ConnectOutput(task, 0, cOutput);
 
   cOutputPt = mgr->CreateContainer("histos", TList::Class(),
     AliAnalysisManager::kOutputContainer, output);
-  mgr->ConnectOutput(task, 2, cOutputPt);
+  mgr->ConnectOutput(task, 1, cOutputPt);
 
   mgr->SetDebugLevel(0); // >0 to disable progressbar, which only appears with 0
   mgr->InitAnalysis();
   mgr->PrintStatus();
 
-  TChain *chain = CreateChainFromFind(
+  /*TChain *chain = CreateChainFromFind(
     Form("/dalice05/berzano/jobs/sim-mu-highp-%s", mode.Data()),
     "AliESDs.root",
     "esdTree"
-  );
+  );*/
 
-  /*
   TChain *chain = new TChain("esdTree");
   chain->Add(Form("%s/../misc/bogdan/macros_20100714-164117/AliESDs.root",
     gSystem->pwd()));
   //TGrid::Connect("alien:");
   //chain->Add( "alien:///alice/sim/PDC_09/LHC09a6/92000/993/AliESDs.root" );
   //chain->Add(Form("%s/AliESDs.root",gSystem->pwd()));
-  */
 
   mgr->StartAnalysis("local", chain);
 

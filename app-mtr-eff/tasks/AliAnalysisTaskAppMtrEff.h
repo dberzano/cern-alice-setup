@@ -3,6 +3,7 @@
 
 // ROOT includes
 #include <TH1F.h>
+#include <TH2F.h>
 #include <TChain.h>
 #include <TTree.h>
 #include <TFile.h>
@@ -61,7 +62,7 @@ private:
  *  this procedure, the OCDB is used, and the map of efficiencies should be
  *  put in the custom specific storage for the OCDB.
  */
-class AliAnalysisTaskAppMtrEff : public AliAnalysisTaskSE {
+class AliAnalysisTaskAppMtrEff : public AliAnalysisTask {
 
   public:
 
@@ -78,9 +79,10 @@ class AliAnalysisTaskAppMtrEff : public AliAnalysisTaskSE {
       const char *ocdbTrigChEff = NULL);
     virtual ~AliAnalysisTaskAppMtrEff();
 
-    virtual void UserCreateOutputObjects();
-    virtual void UserExec(Option_t *opt);
+    virtual void CreateOutputObjects();
+    virtual void Exec(Option_t *opt);
     virtual void Terminate(Option_t *opt);
+    virtual void ConnectInputData(Option_t *opt);
 
   protected:
 
@@ -101,11 +103,15 @@ class AliAnalysisTaskAppMtrEff : public AliAnalysisTaskSE {
     TH1F        *fHistoPt;              //! Output Pt distro
     TH1F        *fHistoTrCnt;           //! Tracks count
     TH1F        *fHistoEffFlag;         //! Efficiency flags
+    TH1F        *fHistoLoDev;           //! Maximum(?!?!?!) deviation from Lo
+    TH2F        *fHistoStripY;          //!
 
     Float_t     *fEffRpc;               //! Array of efficiencies per RPC
     Float_t     *fEffCh;                //! Array of efficiencies per chamber
 
     Bool_t       fApplyEff;             //! If kTRUE, apply effs "a posteriori"
+
+    AliESDEvent *fESDEvent;
 
     AliMUONTriggerChamberEfficiency *fTrigChEff;  //! Handler of chamber effs
 
@@ -115,7 +121,7 @@ class AliAnalysisTaskAppMtrEff : public AliAnalysisTaskSE {
     static Int_t kLoRpc[];
     static Int_t kNLoPerRpc[];
 
-    // Copy constructor and equals operator are disabled for this class
+    // Copy constructor and assignment operator are disabled for this class
     AliAnalysisTaskAppMtrEff(const AliAnalysisTaskAppMtrEff &);
     AliAnalysisTaskAppMtrEff& operator=(
       const AliAnalysisTaskAppMtrEff&);
