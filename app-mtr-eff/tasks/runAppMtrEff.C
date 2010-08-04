@@ -32,9 +32,12 @@ void runAppMtrEff(TString mode) {
   mgr = new AliAnalysisManager("ExtractMT");
   mgr->AddTask(task);
 
-  AliESDInputHandler* esdH = new AliESDInputHandler;
+  AliESDInputHandler* esdH = new AliESDInputHandler();
   esdH->SetReadFriends(kFALSE);
   mgr->SetInputEventHandler(esdH);
+
+  AliMCEventHandler *mcH = new AliMCEventHandler();
+  mgr->SetMCtruthEventHandler(mcH);
 
   cInput = mgr->GetCommonInputContainer();
   mgr->ConnectInput(task, 0, cInput);
@@ -43,15 +46,19 @@ void runAppMtrEff(TString mode) {
   TString output = Form("mtracks-%s.root", mode.Data());
   gSystem->Unlink(output);
 
-  cOutput = mgr->CreateContainer("recoMu", TTree::Class(),
+  cOutputRec = mgr->CreateContainer("recoMu", TTree::Class(),
     AliAnalysisManager::kOutputContainer, output);
-  mgr->ConnectOutput(task, 0, cOutput);
+  mgr->ConnectOutput(task, 0, cOutputRec);
+
+  cOutputMc = mgr->CreateContainer("mcMu", TTree::Class(),
+    AliAnalysisManager::kOutputContainer, output);
+  mgr->ConnectOutput(task, 1, cOutputMc);
 
   cOutputPt = mgr->CreateContainer("histos", TList::Class(),
     AliAnalysisManager::kOutputContainer, output);
-  mgr->ConnectOutput(task, 1, cOutputPt);
+  mgr->ConnectOutput(task, 2, cOutputPt);
 
-  mgr->SetDebugLevel(0); // >0 to disable progressbar, which only appears with 0
+  mgr->SetDebugLevel(1); // >0 to disable progressbar, which only appears with 0
   mgr->InitAnalysis();
   mgr->PrintStatus();
 

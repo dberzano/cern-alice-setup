@@ -31,6 +31,9 @@
 #include "AliMUONCDB.h"
 #include "AliMUONTrack.h"
 #include "AliLog.h"
+#include "AliMCEventHandler.h"
+#include "AliMCParticle.h"
+#include "AliMCEvent.h"
 
 /** Definiton of the Event class. This is a simple container class that contains
  *  a TClonesArray of tracks for a given event.
@@ -39,20 +42,51 @@ class Event : public TObject {
 
 public: 
 
-  Event(const char *esdFileName = "", Int_t evNum = -1);
-  virtual ~Event();
+  Event(const char *esdFileName = "", Int_t evNum = -1) :
+    fTracks(0x0), fESDFileName(esdFileName), fEventInList(evNum) {};
+  virtual ~Event() { if (fTracks) delete fTracks; }
 
-  TClonesArray *GetTracks() { return fTracks; }
-  const Char_t *GetESDFileName() { return fESDFileName.Data(); }
-  Int_t GetEventNumber() { return fEventInList; }
+  virtual TClonesArray *GetTracks() { return fTracks; }
+  virtual const Char_t *GetESDFileName() { return fESDFileName.Data(); }
+  virtual Int_t GetEventNumber() { return fEventInList; }
 
-private:
+protected:
 
   TClonesArray *fTracks;
   TString       fESDFileName;
   Int_t         fEventInList;
 
   ClassDef(Event, 1);
+
+};
+
+/** It inherits from Event and it holds a TClonesArray of AliESDMuonTrack.
+ */
+class EventEsd : public Event {
+
+  public:
+
+    EventEsd(const char *esdFileName = "", Int_t evNum = -1) :
+      Event(esdFileName, evNum) {
+      fTracks = new TClonesArray("AliESDMuonTrack", 10);
+    }
+
+  ClassDef(EventEsd, 1);
+
+};
+
+/** It inherits from Event and it holds a TClonesArray of AliMCParticle.
+ */
+class EventMc : public Event {
+
+  public:
+
+    EventMc(const char *esdFileName = "", Int_t evNum = -1) :
+      Event(esdFileName, evNum) {
+      fTracks = new TClonesArray("AliMCParticle", 10);
+    }
+
+  ClassDef(EventMc, 1);
 
 };
 
@@ -65,10 +99,6 @@ private:
 class AliAnalysisTaskAppMtrEff : public AliAnalysisTask {
 
   public:
-
-    typedef enum { kLocTrig = 1, kLocTrack = 2, kLocBoth = 3 } MuTrackLoc_t;
-    typedef enum { kCntAll = 1, kCntEff = 2, kCntKept = 3, kCntNoEff = 4,
-      kCntNoTrig = 5 } MuTrackCnt_t;
 
     // See http://aliweb.cern.ch/Offline/Activities/Analysis/AnalysisFramework/
     // index.html >> we should not DefineInput/Output in the default constructor
@@ -96,22 +126,24 @@ class AliAnalysisTaskAppMtrEff : public AliAnalysisTask {
 
   private:
 
-    TTree       *fTreeOut;              //! Output tree
-    Event       *fEvent;                //! Output event
+    TTree       *fTreeMc;               //! Output tree for Monte Carlo events
+    TTree       *fTreeRec;              //! Output tree for RECO events
+
+    EventEsd    *fEventEsd;             //! Output reconstructed event
+    EventMc     *fEventMc;              //! Output Monte Carlo event
 
     TList       *fHistoList;            //! List that containts output histos
-    TH1F        *fHistoPt;              //! Output Pt distro
-    TH1F        *fHistoTrCnt;           //! Tracks count
-    TH1F        *fHistoEffFlag;         //! Efficiency flags
-    TH1F        *fHistoLoDev;           //! Maximum(?!?!?!) deviation from Lo
-    TH2F        *fHistoStripY;          //!
+    TH1F        *fHistoPt;              //! Output test Pt distro
 
     Float_t     *fEffRpc;               //! Array of efficiencies per RPC
     Float_t     *fEffCh;                //! Array of efficiencies per chamber
 
     Bool_t       fApplyEff;             //! If kTRUE, apply effs "a posteriori"
 
-    AliESDEvent *fESDEvent;
+    AliESDEvent   *fESDEvent;             //! Points to the current ESD event
+    AliMCEvent    *fMCEvent;              //! Points to the current MC event
+
+    UInt_t         fNevt;                 //! Current event number (zero-based)
 
     AliMUONTriggerChamberEfficiency *fTrigChEff;  //! Handler of chamber effs
 
