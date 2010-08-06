@@ -101,7 +101,7 @@ void Config()
   //=======================================================================
 
     AliGenBox * gener = new AliGenBox(10);  // particles per event [lf]
-    gener->SetMomentumRange(75., 90.);  // was 10 to 20, but we want VERY HIGH P [lf]
+    gener->SetMomentumRange(10., 10.);  // no range, tune it
     gener->SetPhiRange(130., 180.);
     gener->SetThetaRange(174.000,177.000);
     gener->SetPart(kMuonMinus);           // Muons
