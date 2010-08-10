@@ -14,7 +14,7 @@ void runAppMtrEff() {
     gSystem->pwd()) );
   //chain->Add( "alien:///alice/sim/PDC_09/LHC09a6/92000/993/AliESDs.root" );
   gSystem->Unlink("mtracks-test.root");
-  runTask(chain, "mtracks-test.root", cdb);
+  runTask(chain, "mtracks-test.root", kTRUE, cdb);
   */
 
   //////////////////////////////////////////////////////////////////////////////
@@ -30,10 +30,22 @@ void runAppMtrEff() {
   TString output = Form("mtracks-%s.root", effMode.Data());
   TString dest = Form("/dalice05/berzano/outana/app-mtr-eff/sim-%s",
     simMode.Data());
-  runTask(chain, output, cdb);
+
+  // Remove previous data (watch out!)
+  gSystem->Unlink( Form("%s/%s", dest.Data(), output.Data()) );
+
+  if (effMode == "reff") {
+    // Here, efficiencies have already been applied in the sim+rec
+    runTask(chain, output, kFALSE);
+  }
+  else if (effMode == "fulleff") {
+    // Here, we apply the efficiencies
+    runTask(chain, output, kTRUE, cdb);
+  }
+
   gSystem->mkdir(dest, kTRUE);
   gSystem->Exec(Form("mv %s \"%s\"", output.Data(), dest.Data()));
-  Printf("==== Contents of %s ====", dest.Data());
+  Printf("==== Content of %s ====", dest.Data());
   gSystem->Exec(Form("ls -l \"%s\"", dest.Data()));
 
   //////////////////////////////////////////////////////////////////////////////
@@ -52,15 +64,24 @@ void runAppMtrEff() {
   );
   TString output = Form("mtracks-%s.root", effMode.Data());
   TString dest = "/dalice05/berzano/outana/app-mtr-eff/sim-xavier";
-  runTask(chain, output, cdb);
+
+  if (effMode == "reff") {
+    // Here, efficiencies have already been applied in the sim+rec
+    runTask(chain, output, kFALSE);
+  }
+  else if (effMode == "fulleff") {
+    // Here, we apply the efficiencies
+    runTask(chain, output, kTRUE, cdb);
+  }
+
   gSystem->mkdir(dest, kTRUE);
   gSystem->Exec(Form("mv %s \"%s\"", output.Data(), dest.Data()));
-  Printf("==== Contents of %s ====", dest.Data());
+  Printf("==== Content of %s ====", dest.Data());
   gSystem->Exec(Form("ls -l \"%s\"", dest.Data()));*/
 
 }
 
-void runTask(TChain *input, TString output, TString cdb) {
+void runTask(TChain *input, TString output, Bool_t applyEff, TString cdb = "") {
 
   // Base ROOT libraries
   gSystem->Load("libTree");
@@ -84,7 +105,7 @@ void runTask(TChain *input, TString output, TString cdb) {
 
   gROOT->LoadMacro("AliAnalysisTaskAppMtrEff.cxx+");
   AliAnalysisTaskAppMtrEff *task =
-    new AliAnalysisTaskAppMtrEff("myAppMtrEff", kTRUE, 0, cdb);
+    new AliAnalysisTaskAppMtrEff("myAppMtrEff", applyEff, 0, cdb);
 
   mgr = new AliAnalysisManager("ExtractMT");
   mgr->AddTask(task);
