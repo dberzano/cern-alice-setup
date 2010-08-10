@@ -287,7 +287,12 @@ void AliAnalysisTaskAppMtrEff::Exec(Option_t *) {
       //if (!fCFManager->CheckParticleCuts(AliCFManager::kPartAccCuts, mcPart))
       //  continue;
 
-      // Selection of muons
+      // Rapidity and Pt cuts (default -4<y<-2.5 and 0<pt<20) wo/corrfw
+      Double_t rap = Rapidity(tPart->Energy(), tPart->Pz());
+      Double_t pt  = tPart->Pt();
+      if ((pt<0) || (pt>20) || (rap<-4) || (rap>-2.5)) continue;
+
+      // Selection of muons (mu+ = -13, mu- = +13)
       if (TMath::Abs( mcPart->Particle()->GetPdgCode() ) == 13) {
         new (ta[n++]) TParticle(*tPart);
       }
@@ -509,4 +514,17 @@ Int_t AliAnalysisTaskAppMtrEff::GetLosFromRpc(Int_t rpc, Int_t **los) const {
 
   *los = &kLoRpc[startIdx];
   return kNLoPerRpc[rpc];
+}
+
+/** Rapidity.
+ */
+Double_t AliAnalysisTaskAppMtrEff::Rapidity(Double_t e, Double_t pz) {
+  Double_t rap;
+  if (e != pz) {
+    rap = 0.5*TMath::Log((e+pz)/(e-pz));
+  }
+  else {
+    rap = -200;
+  }
+  return rap;
 }

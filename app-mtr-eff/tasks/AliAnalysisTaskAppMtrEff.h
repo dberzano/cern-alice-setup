@@ -123,6 +123,7 @@ class AliAnalysisTaskAppMtrEff : public AliAnalysisTask {
     virtual const Float_t *GetChamberEff(Int_t bendNonBend) const;
     virtual Int_t GetRpcFromLo(Int_t lo) const;
     virtual Int_t GetLosFromRpc(Int_t rpc, Int_t **los) const;
+    static Double_t Rapidity(Double_t e, Double_t pz);
 
   private:
 

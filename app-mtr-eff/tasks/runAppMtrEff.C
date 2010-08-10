@@ -2,28 +2,61 @@
  */
 void runAppMtrEff() {
 
-  TString mode = "fulleff";
-  TString cdb = Form("local://%s/../cdb/%s", gSystem->pwd(), mode.Data());
+  TString effMode = "fulleff";  // "reff", "fulleff"
+  TString cdb = Form("local:///dalice05/berzano/cdb/%s", effMode.Data());
 
+  //////////////////////////////////////////////////////////////////////////////
   // Local run for test (on my Mac)
+  //////////////////////////////////////////////////////////////////////////////
+  /*
   TChain *chain = new TChain("esdTree");
   chain->Add( Form("%s/../misc/bogdan/macros_20100714-164117/AliESDs.root",
     gSystem->pwd()) );
   //chain->Add( "alien:///alice/sim/PDC_09/LHC09a6/92000/993/AliESDs.root" );
   gSystem->Unlink("mtracks-test.root");
   runTask(chain, "mtracks-test.root", cdb);
+  */
 
-  // Run on the LPC farm
-  /*
+  //////////////////////////////////////////////////////////////////////////////
+  // Run on the LPC farm, move results to proper folder, with my data
+  //////////////////////////////////////////////////////////////////////////////
+  TString simMode = "mumin-15gev";
   gROOT->LoadMacro("CreateChainFromFind.C");
   TChain *chain = CreateChainFromFind(
-    Form("/dalice05/berzano/jobs/sim-mu-highp-%s", mode.Data()),
+    Form("/dalice05/berzano/jobs/sim-%s-%s", simMode.Data(), effMode.Data()),
     "AliESDs.root",
     "esdTree"
   );
-  TString output = Form("mtracks-%s", mode.Data());
+  TString output = Form("mtracks-%s.root", effMode.Data());
+  TString dest = Form("/dalice05/berzano/outana/app-mtr-eff/sim-%s",
+    simMode.Data());
   runTask(chain, output, cdb);
-  */
+  gSystem->mkdir(dest, kTRUE);
+  gSystem->Exec(Form("mv %s \"%s\"", output.Data(), dest.Data()));
+  Printf("==== Contents of %s ====", dest.Data());
+  gSystem->Exec(Form("ls -l \"%s\"", dest.Data()));
+
+  //////////////////////////////////////////////////////////////////////////////
+  // Run on the LPC farm, move results to proper folder, with Xavier's data
+  //////////////////////////////////////////////////////////////////////////////
+  /*TString effModeXavier;
+  if (effMode == "reff") effModeXavier = "R";
+  else if (effMode == "fulleff") effModeXavier = "100";
+
+  gROOT->LoadMacro("CreateChainFromFind.C");
+  TChain *chain = CreateChainFromFind(
+    Form("/dalice07/lopez/ALICE/GEN/Eff/OCDB_%s", effModeXavier.Data()),
+    "AliESDs.root",
+    "esdTree",
+    1
+  );
+  TString output = Form("mtracks-%s.root", effMode.Data());
+  TString dest = "/dalice05/berzano/outana/app-mtr-eff/sim-xavier";
+  runTask(chain, output, cdb);
+  gSystem->mkdir(dest, kTRUE);
+  gSystem->Exec(Form("mv %s \"%s\"", output.Data(), dest.Data()));
+  Printf("==== Contents of %s ====", dest.Data());
+  gSystem->Exec(Form("ls -l \"%s\"", dest.Data()));*/
 
 }
 
