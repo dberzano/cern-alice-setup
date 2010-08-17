@@ -100,8 +100,8 @@ void Config()
   //    183.,  245.,  395.,  560., 563., 850., 900.  
   //=======================================================================
 
-    AliGenBox * gener = new AliGenBox(10);  // particles per event [lf]
-    gener->SetMomentumRange(10., 10.);  // no range, tune it
+    AliGenBox * gener = new AliGenBox(@MUONS_PER_EVENT@);  // particles per event [lf]
+    gener->SetMomentumRange(@MOMENTUM_GEV_C@, @MOMENTUM_GEV_C@);  // no range, tune it [lf]
     gener->SetPhiRange(130., 180.);
     gener->SetThetaRange(174.000,177.000);
     gener->SetPart(kMuonMinus);           // Muons

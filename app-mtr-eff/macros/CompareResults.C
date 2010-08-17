@@ -36,7 +36,7 @@ void CompareResults() {
   // TODO
   PlotsMatch(genFull, recFull, "100%", kBlue);
   PlotsMatch(genR, recR, "R", kRed, 26);
-  PlotsMatch(genR, recR, "R fast", kMagenta, 25);
+  PlotsMatch(genFull, recFull, "R fast", kMagenta, 3, kTRUE);
   PlotsMatch(0x0, 0x0, gSystem->BaseName(prefix));
 
   // Close files
@@ -297,7 +297,7 @@ void PlotsRec(TTree *t = 0x0, TString shortLabel = "", Color_t color = kBlack,
 // trigger information for rec and which tracks are in tracker, trigger or both
 ////////////////////////////////////////////////////////////////////////////////
 void PlotsMatch(TTree *tg = 0x0, TTree *tr = 0x0, TString shortLabel = "",
-  Color_t color = kBlack, Style_t markerStyle = 0) {
+  Color_t color = kBlack, Style_t markerStyle = 0, Bool_t flagKept = kFALSE) {
 
   static TCanvas *canvas = 0x0;
   static TLegend *legend = 0x0;
@@ -313,6 +313,12 @@ void PlotsMatch(TTree *tg = 0x0, TTree *tr = 0x0, TString shortLabel = "",
     canvas->Print(out);
     //gSystem->Exec(Form("epstopdf %s && rm %s", out.Data(), out.Data()));
     return;
+  }
+
+  // Let's select only tracks kept by the AnalysisTask, if told
+  TString cond;
+  if (flagKept) {
+    cond = "((fTracks.GetHitsPatternInTrigCh() & 0x8000) != 0)||(fTracks.ContainTriggerData() == 0)";
   }
 
   TString drawOpts;
@@ -343,26 +349,30 @@ void PlotsMatch(TTree *tg = 0x0, TTree *tr = 0x0, TString shortLabel = "",
   // Increment number of times this function was called
   nCalled++;
 
-  // Number of generated events (from the gen tree)
-  canvas->cd(++cc);
-  hName = Form("h%02u_%s_%s_%u", cc, tg->GetName(), canvas->GetName(), nCalled);
-  tg->Project(hName, "@fTracks.size()");
-  gDirectory->GetObject(hName, h);
-  SetHistoStyle(h, markerStyle, color, "Num. gen tracks per event",
-    "dN/dNTrEv [counts]", "", kTRUE);
-  h->Draw(drawOpts);
+  if (!flagKept) {
 
-  // For the legend (call here once after the first plot)
-  legend->AddEntry(h, shortLabel, (markerStyle ? "p" : "l"));
+    // Number of generated events (from the gen tree)
+    canvas->cd(++cc);
+    hName = Form("h%02u_%s_%s_%u", cc, tg->GetName(), canvas->GetName(), nCalled);
+    tg->Project(hName, "@fTracks.size()");
+    gDirectory->GetObject(hName, h);
+    SetHistoStyle(h, markerStyle, color, "Num. gen tracks per event",
+      "dN/dNTrEv [counts]", "", kTRUE);
+    h->Draw(drawOpts);
 
-  // Number of reconstructed events (from the rec tree)
-  canvas->cd(++cc);
-  hName = Form("h%02u_%s_%s_%u", cc, tr->GetName(), canvas->GetName(), nCalled);
-  tr->Project(hName, "@fTracks.size()");
-  gDirectory->GetObject(hName, h);
-  SetHistoStyle(h, markerStyle, color, "Num. total rec tracks per event",
-    "dN/dNTrEv [counts]", "", kTRUE);
-  h->Draw(drawOpts);
+    // Number of reconstructed events (from the rec tree)
+    canvas->cd(++cc);
+    hName = Form("h%02u_%s_%s_%u", cc, tr->GetName(), canvas->GetName(), nCalled);
+    tr->Project(hName, "@fTracks.size()");
+    gDirectory->GetObject(hName, h);
+    SetHistoStyle(h, markerStyle, color, "Num. total rec tracks per event",
+      "dN/dNTrEv [counts]", "", kTRUE);
+    h->Draw(drawOpts);
+
+  }
+  else {
+    cc += 2;
+  }
 
   // Trigger match on reconstructed tracks
   canvas->cd(++cc);
@@ -372,11 +382,14 @@ void PlotsMatch(TTree *tg = 0x0, TTree *tr = 0x0, TString shortLabel = "",
   h->GetXaxis()->SetBinLabel(2, "below pt cut");   // GetMatchTrigger()=1
   h->GetXaxis()->SetBinLabel(3, "match low pt");   // GetMatchTrigger()=2
   h->GetXaxis()->SetBinLabel(4, "match high pt");  // GetMatchTrigger()=3
-  tr->Project(hName, "fTracks.GetMatchTrigger()");
+  tr->Project(hName, "fTracks.GetMatchTrigger()", cond);
   gDirectory->GetObject(hName, h);
   SetHistoStyle(h, markerStyle, color, "Match trigger cuts",
     "dN/dMatch [counts]", "", kTRUE);
   h->Draw(drawOpts);
+
+  // For the legend (call here once after only one plot)
+  legend->AddEntry(h, shortLabel, (markerStyle ? "p" : "l"));
 
   Double_t fracMatch =
     ( h->GetBinContent(2) + h->GetBinContent(3) + h->GetBinContent(4) ) /
@@ -392,11 +405,12 @@ void PlotsMatch(TTree *tg = 0x0, TTree *tr = 0x0, TString shortLabel = "",
   h->GetXaxis()->SetBinLabel(2, "only tracker");   // TrigTrack()=2
   h->GetXaxis()->SetBinLabel(3, "matched");        // TrigTrack()=3
   tr->Project(hName, "TrigTrack(fTracks.ContainTriggerData(),"
-    "fTracks.ContainTrackerData())");
+    "fTracks.ContainTrackerData())", cond);
   gDirectory->GetObject(hName, h);
   SetHistoStyle(h, markerStyle, color, "Match trigger/tracker",
     "dN/dMatch [counts]", "", kTRUE);
   h->Draw(drawOpts);
+  PrintHisto(h, shortLabel);
 
 }
 
@@ -453,9 +467,14 @@ TLegend *StandardLegend() {
 ////////////////////////////////////////////////////////////////////////////////
 void PrintHisto(TH1 *h, TString header) {
 
-  Printf("\n==== %s ====", header.Data());
+  Char_t *title;
 
-  for (Int_t i=1; i<h->GetNbinsX(); i++) {
+  if (*(h->GetTitle()) != '\0') title = h->GetTitle();
+  else title = h->GetXaxis()->GetTitle();
+
+  Printf("\n==== [%s] %s ====", header.Data(), title);
+
+  for (Int_t i=1; i<=h->GetNbinsX(); i++) {
     Printf(">> %-20s : %11.4f",
       h->GetXaxis()->GetBinLabel(i),
       h->GetBinContent(i)

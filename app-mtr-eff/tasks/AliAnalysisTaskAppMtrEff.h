@@ -120,11 +120,14 @@ class AliAnalysisTaskAppMtrEff : public AliAnalysisTask {
     TTree        *fTreeMc;      //! Output tree for generated particles
     TTree        *fTreeRec;     //! Output tree for reconstructed events
 
-    EventMc      *fEventMc;     //! Output Monte Carlo event
-    EventEsd     *fEventEsd;    //! Output reconstructed event
+    EventMc      *fEventMc;     //! Output Monte Carlo event in TTree branch
+    EventEsd     *fEventEsd;    //! Output reconstructed event in TTree branch
+    Int_t         fIsKept;      //! Is track kept in TTree branch
 
-    TList        *fHistoList;   //! List that containts output histos
-    TH1F         *fHistoPt;     //! Output test Pt distro
+    TList        *fListHistos;   //! List that containts output histos
+    TH1F         *fHistoPt;      //! Output test Pt distro
+    TH1I         *fHistoEff;     //!
+    TH1I         *fHistoDev;     //!
 
     Float_t      *fEffRpc;      //! Array of efficiencies per RPC
     Float_t      *fEffCh;       //! Array of efficiencies per chamber

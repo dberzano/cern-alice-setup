@@ -3,7 +3,7 @@
 void runAppMtrEff() {
 
   TString effMode = "fulleff";  // "reff", "fulleff"
-  TString cdb = Form("local:///dalice05/berzano/cdb/%s", effMode.Data());
+  TString cdb = "local:///dalice05/berzano/cdb/reff";
 
   //////////////////////////////////////////////////////////////////////////////
   // Local run for test (on my Mac)
@@ -132,7 +132,7 @@ void runTask(TChain *input, TString output, Bool_t applyEff, TString cdb = "") {
     AliAnalysisManager::kOutputContainer, output);
   mgr->ConnectOutput(task, 2, cOutputPt);
 
-  mgr->SetDebugLevel(1); // >0 to disable progressbar, which only appears with 0
+  mgr->SetDebugLevel(0); // >0 to disable progressbar, which only appears with 0
   mgr->InitAnalysis();
   mgr->PrintStatus();
 

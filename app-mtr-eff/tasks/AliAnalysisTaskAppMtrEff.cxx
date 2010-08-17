@@ -48,10 +48,11 @@ AliAnalysisTaskAppMtrEff::AliAnalysisTaskAppMtrEff(
       dynamic_cast<AliMUONTriggerEfficiencyCells*>(obj)
     );
 
+    // Print some OCDB stuff
+    entry->PrintMetaData();
+
   } // end if fApplyEff
 
-
-  gSystem->Exit(66);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -67,7 +68,11 @@ void AliAnalysisTaskAppMtrEff::CreateOutputObjects() {
 
   // TList of histograms: we can fill it with histograms, if we want, but it is
   // empty at the moment
-  fHistoList = new TList();
+  fListHistos = new TList();
+  fHistoEff = new TH1I("hEff", "Computed track weights", 200, 0.0, 1.2);
+  fHistoDev = new TH1I("hDev", "Deviations (n. local boards)", 6, -3., 3.);
+  fListHistos->Add(fHistoEff);
+  fListHistos->Add(fHistoDev);
 
   // TTree for MC (generated) muons
   fTreeMc = new TTree("muGen", "Generated MC muons");
@@ -173,6 +178,65 @@ void AliAnalysisTaskAppMtrEff::Exec(Option_t *) {
         continue;
       }
 
+      // Here goes the code that selects the track...
+      Bool_t keep = kFALSE;
+
+      Int_t loBo1 = esdMt->LoCircuit();
+      Int_t loBo2;
+      Int_t loBoDev;
+
+      if ((fApplyEff) && (loBo1 != 0)) {
+
+        // Calculate the deviation in terms of number of sw local boards
+        loBoDev = (esdMt->LoDev() + esdMt->LoStripX() - 15)/32;
+        fHistoDev->Fill(loBoDev);
+
+        // Second local board touched
+        loBo2 = loBo1 + loBoDev;
+
+        Float_t mtrEff;
+        Float_t r[4];
+
+        // Get R values from OCDB (bending plane and nonbending use the same
+        // vals)
+        for (Int_t i=0; i<4; i++) {
+          Int_t detElemId = 1000+100*(i+1);
+          if (i < 2) {
+            // Efficiencies on M11, M12
+            r[i] = fTrigChEff->GetCellEfficiency(detElemId, loBo1,
+              AliMUONTriggerEfficiencyCells::kBendingEff);
+          }
+          else {
+            // Efficiencies on M21, M22
+            r[i] = fTrigChEff->GetCellEfficiency(detElemId, loBo2,
+              AliMUONTriggerEfficiencyCells::kBendingEff);
+          }
+        }
+
+        mtrEff  =   r[0]    *   r[1]    *   r[2]    *   r[3]    +
+                  (1.-r[0]) *   r[1]    *   r[2]    *   r[3]    +
+                    r[0]    * (1.-r[1]) *   r[2]    *   r[3]    +
+                    r[0]    *   r[1]    * (1.-r[2]) *   r[3]    +
+                    r[0]    *   r[1]    *   r[2]    * (1.-r[3]);
+
+        fHistoEff->Fill(mtrEff);
+
+        // Initialize properly the gRandom variable for parallel processing!
+        keep = (gRandom->Rndm() < mtrEff);
+
+        // Print status
+        /*AliInfo(Form("EVT %d TRK %d ---> LO1 %d LO2 %d ---> EFF %.2f ---> %s",
+          evNumForEsdAndMc, iTrack, loBo1, loBo2, mtrEff,
+          (keep ? "KEPT" : "**REJ**")
+        ));*/
+
+      }
+
+      if (keep) {
+        esdMt->SetHitsPatternInTrigCh(esdMt->GetHitsPatternInTrigCh() | 0x8000);
+      }
+      // ...end of the code that selects the track
+
       new (ta[n++]) AliESDMuonTrack(*esdMt);
 
     } // track loop
@@ -231,7 +295,7 @@ void AliAnalysisTaskAppMtrEff::Exec(Option_t *) {
   // Output data is posted
   PostData(0, fTreeRec);
   PostData(1, fTreeMc);
-  PostData(2, fHistoList);
+  PostData(2, fListHistos);
 
 }      
 
