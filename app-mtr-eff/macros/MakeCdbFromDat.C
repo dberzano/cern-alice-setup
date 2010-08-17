@@ -6,16 +6,19 @@
 ////////////////////////////////////////////////////////////////////////////////
 void MakeCdbFromDat() {
 
+  const Char_t *aliRoot = gSystem->Getenv("ALICE_ROOT");
+  gSystem->AddIncludePath(Form("-I\"%s/include\"", aliRoot));
+  gSystem->AddIncludePath(Form("-I\"%s/MUON\"", aliRoot));
+
   cout << endl;
   cout << "==== Include path ====" << endl;
   cout << gSystem->GetIncludePath() << endl;
   cout << endl;
 
-  AliMUONTriggerEfficiencyCells *ec =
-    AliMUONTriggerEfficiencyCells("efficiencyCells-50pct.dat");
+  ec = AliMUONTriggerEfficiencyCells("efficiencyCells-50pct.dat");
 
   AliCDBManager *cdb = AliCDBManager::Instance();
-  cdb->SetDefaultStorage(Form("local:///%s/../cdb/50eff/", gSystem->pwd()));
+  cdb->SetDefaultStorage(Form("local://%s/../cdb/50eff/", gSystem->pwd()));
 
   // CDB ID
   AliCDBId id;
@@ -27,7 +30,7 @@ void MakeCdbFromDat() {
 
   // Meta data
   AliCDBMetaData *meta = new AliCDBMetaData();
-  meta->SetComment("MTR with 50% efficiency per local board");
+  meta->SetComment("MTR effcells with 50% efficiency per local board");
 
   // Assemble into one CDB entry
   cdb->Put( (TObject *)ec, id, meta );

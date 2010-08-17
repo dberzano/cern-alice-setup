@@ -23,6 +23,9 @@ do
       --tag    sim-mumin-onemu-${P}gev-${C} \
       --cdb    'local:///dalice05/berzano/cdb/'${C}'/'
 
+    # Remove the Config.C (it can be found in jobs directories)
+    rm Config.C
+
   done
 
 done
