@@ -2,9 +2,9 @@
  */
 void runAppMtrEff() {
 
-  TString effMode = "50pct-maxcorr";
-  //TString effMode = "fulleff";
-  TString cdb = "local:///dalice05/berzano/cdb/50pct-maxcorr";
+  TString cdbMode = "50pct-maxcorr";
+  TString effMode = cdbMode;  // cdbMode or "fulleff"
+  TString cdb = Form("local:///dalice05/berzano/cdb/%s", cdbMode.Data());
 
   //////////////////////////////////////////////////////////////////////////////
   // Local run for test (on my Mac)
@@ -28,7 +28,15 @@ void runAppMtrEff() {
     "AliESDs.root",
     "esdTree"
   );
-  TString output = Form("mtracks-%s.root", effMode.Data());
+
+  TString output;
+  if (cdbMode == effMode) {
+    output = Form("mtracks-%s.root", cdbMode.Data());
+  }
+  else {
+    output = Form("mtracks-%s-%s.root", cdbMode.Data(), effMode.Data());
+  }
+
   TString dest = Form("/dalice05/berzano/outana/app-mtr-eff/sim-%s",
     simMode.Data());
 

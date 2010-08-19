@@ -2,7 +2,7 @@
 
 # Params
 export MOMENTUMS="15"
-export CDBS="fulleff 50pct-maxcorr"
+export CDBS="75pct-maxcorr r-maxcorr"
 
 # For each momentum...
 for P in $MOMENTUMS
@@ -22,6 +22,7 @@ do
     > Config.C
 
     # Launch the jobs (40 000 generated muons total!)
+    echo ""
     ./joblaunch.sh \
       --jobs     40 \
       --events 1000 \

@@ -8,8 +8,15 @@ void CompareResults() {
   //TString prefix = "/dalice05/berzano/outana/app-mtr-eff/sim-xavier";
   TString prefix = "/dalice05/berzano/outana/app-mtr-eff/sim-muplus-onemu-angles-15gev";
 
-  TFile *effFull = TFile::Open(Form("%s/mtracks-fulleff.root", prefix.Data())); 
-  TFile *effR    = TFile::Open(Form("%s/mtracks-50pct-maxcorr.root", prefix.Data()));
+  // CDB tag (used either in slow or fast modes)
+  TString cdbTag = "r-maxcorr";
+
+  TFile *effFull = TFile::Open(
+    Form("%s/mtracks-%s-fulleff.root", prefix.Data(), cdbTag.Data())
+  ); 
+  TFile *effR    = TFile::Open(
+    Form("%s/mtracks-%s.root", prefix.Data(), cdbTag.Data())
+  );
 
   // Generated particles
   TTree *genFull = (TTree *)effFull->Get("muGen");
