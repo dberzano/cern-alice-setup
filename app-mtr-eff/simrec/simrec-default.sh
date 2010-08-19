@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Params
-export MOMENTUMS="10 15 20"
-export CDBS="fulleff reff"
+export MOMENTUMS="15"
+export CDBS="fulleff 50pct-maxcorr"
 
 # For each momentum...
 for P in $MOMENTUMS
@@ -13,14 +13,19 @@ do
 
     # Write options in Config.C
     ./preprocess.sh Config.C.in \
-      MUONS_PER_EVENT  1 \
-      MOMENTUM_GEV_C  $P. > Config.C
+      MUONS_PER_EVENT   1  \
+      MOMENTUM_GEV_C   $P. \
+      PHI_MIN_DEG       0. \
+      PHI_MAX_DEG     360. \
+      THETA_MIN_DEG   170. \
+      THETA_MAX_DEG   180. \
+    > Config.C
 
     # Launch the jobs (40 000 generated muons total!)
     ./joblaunch.sh \
       --jobs     40 \
       --events 1000 \
-      --tag    sim-mumin-onemu-${P}gev-${C} \
+      --tag    sim-muplus-onemu-angles-${P}gev-${C} \
       --cdb    'local:///dalice05/berzano/cdb/'${C}'/'
 
     # Remove the Config.C (it can be found in jobs directories)

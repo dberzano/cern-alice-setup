@@ -102,9 +102,9 @@ void Config()
 
     AliGenBox * gener = new AliGenBox(@MUONS_PER_EVENT@);  // particles per event [lf]
     gener->SetMomentumRange(@MOMENTUM_GEV_C@, @MOMENTUM_GEV_C@);  // no range, tune it [lf]
-    gener->SetPhiRange(130., 180.);
-    gener->SetThetaRange(174.000,177.000);
-    gener->SetPart(kMuonMinus);           // Muons
+    gener->SetPhiRange(@PHI_MIN_DEG@, @PHI_MAX_DEG@);
+    gener->SetThetaRange(@THETA_MIN_DEG@, @THETA_MAX_DEG@);
+    gener->SetPart(kMuonPlus);           // Muons
     gener->SetOrigin(0.,0., 0.);  //vertex position
     gener->SetSigma(0.0, 0.0, 0.0);         //Sigma in (X,Y,Z) (cm) on IP position
     gener->Init();

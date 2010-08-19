@@ -2,8 +2,9 @@
  */
 void runAppMtrEff() {
 
-  TString effMode = "50eff";  // "reff", "fulleff"
-  TString cdb = "local:///dalice05/berzano/cdb/50eff";
+  TString effMode = "50pct-maxcorr";
+  //TString effMode = "fulleff";
+  TString cdb = "local:///dalice05/berzano/cdb/50pct-maxcorr";
 
   //////////////////////////////////////////////////////////////////////////////
   // Local run for test (on my Mac)
@@ -20,7 +21,7 @@ void runAppMtrEff() {
   //////////////////////////////////////////////////////////////////////////////
   // Run on the LPC farm, move results to proper folder, with my data
   //////////////////////////////////////////////////////////////////////////////
-  TString simMode = "mumin-onemu-15gev";
+  TString simMode = "muplus-onemu-angles-15gev";
   gROOT->LoadMacro("CreateChainFromFind.C");
   TChain *chain = CreateChainFromFind(
     Form("/dalice05/berzano/jobs/sim-%s-%s", simMode.Data(), effMode.Data()),
@@ -34,13 +35,13 @@ void runAppMtrEff() {
   // Remove previous data (watch out!)
   gSystem->Unlink( Form("%s/%s", dest.Data(), output.Data()) );
 
-  if (effMode == "50eff") {
-    // Here, efficiencies have already been applied in the sim+rec
-    runTask(chain, output, kFALSE);
-  }
-  else if (effMode == "fulleff") {
+  if (effMode == "fulleff") {
     // Here, we apply the efficiencies
     runTask(chain, output, kTRUE, cdb);
+  }
+  else {
+    // Here, efficiencies have already been applied in the sim+rec
+    runTask(chain, output, kFALSE);
   }
 
   gSystem->mkdir(dest, kTRUE);

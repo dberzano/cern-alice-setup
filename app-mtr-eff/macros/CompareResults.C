@@ -4,10 +4,12 @@ void CompareResults() {
 
   // Change it to point to the data you want to analyze
   //TString prefix = "/dalice05/berzano/outana/app-mtr-eff/sim-mumin-15gev";
-  TString prefix = "/dalice05/berzano/outana/app-mtr-eff/sim-xavier";
+  //TString prefix = "/dalice05/berzano/outana/app-mtr-eff/sim-mumin-onemu-15gev";
+  //TString prefix = "/dalice05/berzano/outana/app-mtr-eff/sim-xavier";
+  TString prefix = "/dalice05/berzano/outana/app-mtr-eff/sim-muplus-onemu-angles-15gev";
 
   TFile *effFull = TFile::Open(Form("%s/mtracks-fulleff.root", prefix.Data())); 
-  TFile *effR    = TFile::Open(Form("%s/mtracks-reff.root", prefix.Data()));
+  TFile *effR    = TFile::Open(Form("%s/mtracks-50pct-maxcorr.root", prefix.Data()));
 
   // Generated particles
   TTree *genFull = (TTree *)effFull->Get("muGen");
@@ -29,7 +31,7 @@ void CompareResults() {
   PlotsGen(0x0, gSystem->BaseName(prefix));
 
   // Plots of reconstructed data
-  /*PlotsRec(recFull, "100%");
+  PlotsRec(recFull, "100%");
   PlotsRec(recR, "R", kRed, 26);
   PlotsRec(0x0, gSystem->BaseName(prefix));
 
@@ -37,7 +39,10 @@ void CompareResults() {
   PlotsMatch(genFull, recFull, "100%", kBlue);
   PlotsMatch(genR, recR, "R", kRed, 26);
   PlotsMatch(genFull, recFull, "R fast", kMagenta, 3, kTRUE);
-  PlotsMatch(0x0, 0x0, gSystem->BaseName(prefix));*/
+  PlotsMatch(0x0, 0x0, gSystem->BaseName(prefix));
+
+  // Percentages
+  MatchPercentages();
 
   // Close files
   effFull->Close();
@@ -306,19 +311,48 @@ void PlotsMatch(TTree *tg = 0x0, TTree *tr = 0x0, TString shortLabel = "",
   // In this special mode, with t = 0x0, legend is drawn and canvas is saved to
   // a pdf file
   if (!tg) {
-    canvas->cd(1);
+    canvas->cd(3);
     legend->Draw();
+
+    // Adjust maximums
+    /*
+    canvas->cd(3);
+    TList *l = gPad->GetListOfPrimitives();
+    TIter it(l);
+    TObject *o;
+    TClass *cl;
+    TH1 *hFirst = 0x0;
+    TH1 *h = 0x0;
+    Double_t ymin, ymax;
+    while (( o = it.Next() )) {
+      cl = TClass::GetClass(o->ClassName());
+      if (cl->InheritsFrom(TH1::Class())) {
+        h = (TH1 *)o;
+        if (hFirst == 0x0) {
+          hFirst = h;
+          ymin = hFirst->GetMinimum();
+          ymax = hFirst->GetMaximum();
+        }
+        else {
+          ymin = TMath::Min(ymin, h->GetMinimum());
+          ymax = TMath::Max(ymax, h->GetMaximum());
+        }
+      }
+    }
+    if (hFirst) {
+      Printf("----> min=%.2f max=%.2f", ymin, ymax);
+      hFirst->GetYaxis()->SetRangeUser(ymin, ymax);
+      gPad->Update();
+      gPad->Modified();
+      canvas->Update();
+    }
+    */
+
     if (shortLabel.IsNull()) shortLabel = canvas->GetName();
     TString out = Form("%s-match.pdf", shortLabel.Data());
     canvas->Print(out);
     //gSystem->Exec(Form("epstopdf %s && rm %s", out.Data(), out.Data()));
     return;
-  }
-
-  // Let's select only tracks kept by the AnalysisTask, if told
-  TString cond;
-  if (flagKept) {
-    cond = "((fTracks.GetHitsPatternInTrigCh() & 0x8000) != 0)||(fTracks.ContainTriggerData() == 0)";
   }
 
   TString drawOpts;
@@ -366,7 +400,7 @@ void PlotsMatch(TTree *tg = 0x0, TTree *tr = 0x0, TString shortLabel = "",
     tr->Project(hName, "@fTracks.size()");
     gDirectory->GetObject(hName, h);
     SetHistoStyle(h, markerStyle, color, "Num. total rec tracks per event",
-      "dN/dNTrEv [counts]", "", kTRUE);
+      "dN/dNTrEv [counts]", "");
     h->Draw(drawOpts);
 
   }
@@ -382,10 +416,46 @@ void PlotsMatch(TTree *tg = 0x0, TTree *tr = 0x0, TString shortLabel = "",
   h->GetXaxis()->SetBinLabel(2, "below pt cut");   // GetMatchTrigger()=1
   h->GetXaxis()->SetBinLabel(3, "match low pt");   // GetMatchTrigger()=2
   h->GetXaxis()->SetBinLabel(4, "match high pt");  // GetMatchTrigger()=3
-  tr->Project(hName, "fTracks.GetMatchTrigger()", cond);
-  gDirectory->GetObject(hName, h);
+
+  // Use it also in the next plot
+  UInt_t nRejMatch = 0;
+
+  if (flagKept) {
+
+    // Construct a histogram with tracks flagged as KEPT
+    tr->Project(hName, "fTracks.GetMatchTrigger()",
+      "((fTracks.GetHitsPatternInTrigCh() & 0x8000) != 0)");
+
+    ///////////////////////// REJECTED TRACKS DESTINY //////////////////////////
+    // Matched    ---> Track only
+    // Trig only  ---> DISAPPEARS
+    // Track only ---> CASE IMPOSSIBLE
+    ////////////////////////////////////////////////////////////////////////////
+
+    // Construct an auxiliary histogram with all the REJECTED and MATCHED tracks
+    nRejMatch = (UInt_t)tr->Project("hAux", "fTracks.GetMatchTrigger()",
+      "(((fTracks.GetHitsPatternInTrigCh() & 0x8000) == 0) && "
+      "(fTracks.ContainTriggerData()) && "
+      "(fTracks.ContainTrackerData()))"
+    );
+
+    // Deletes the created auxiliary histo
+    TH1 *hAux = (TH1 *)gDirectory->Get("hAux");
+    if (hAux) delete hAux;
+
+    // Destiny is: MATCHED ---> TRACK ONLY == (NO TRIG MATCH, bin 0)
+    for (UInt_t k=0; k<nRejMatch; k++) h->Fill(0);
+
+    // Destiny is: TRIG ONLY ---> DISAPPEARS == IGNORE IT
+
+  }
+  else {
+    tr->Project(hName, "fTracks.GetMatchTrigger()");
+  }
+
   SetHistoStyle(h, markerStyle, color, "Match trigger cuts",
-    "dN/dMatch [counts]", "", kTRUE);
+    "dN/dMatch [counts]", "");
+  h->GetYaxis()->SetRangeUser(0., h->GetEntries());
   h->Draw(drawOpts);
 
   // For the legend (call here once after only one plot)
@@ -399,16 +469,37 @@ void PlotsMatch(TTree *tg = 0x0, TTree *tr = 0x0, TString shortLabel = "",
 
   // Tracks that have trigger, tracker or both information
   canvas->cd(++cc);
+
   hName = Form("h%02u_%s_%s_%u", cc, tr->GetName(), canvas->GetName(), nCalled);
   h = new TH1I(hName, hName, 3, 0.5, 3.5);
   h->GetXaxis()->SetBinLabel(1, "only trigger");   // TrigTrack()=1
   h->GetXaxis()->SetBinLabel(2, "only tracker");   // TrigTrack()=2
   h->GetXaxis()->SetBinLabel(3, "matched");        // TrigTrack()=3
-  tr->Project(hName, "TrigTrack(fTracks.ContainTriggerData(),"
-    "fTracks.ContainTrackerData())", cond);
-  gDirectory->GetObject(hName, h);
+
+  if (flagKept) {
+
+    // Construct a histogram with tracks flagged as KEPT
+    tr->Project(hName,
+      "TrigTrack(fTracks.ContainTriggerData(),fTracks.ContainTrackerData())",
+      "((fTracks.GetHitsPatternInTrigCh() & 0x8000) != 0)"
+    );
+
+    // SEE ABOVE FOR EXPLANATION ABOUT TRACKS DESTINY
+
+    // Destiny is: MATCHED ---> TRACK ONLY == bin 2
+    // nRejMatch is already calculated above!
+    for (UInt_t k=0; k<nRejMatch; k++) h->Fill(2);
+
+    // Destiny is: TRIG ONLY ---> DISAPPEARS == IGNORE IT
+
+  }
+  else {
+    tr->Project(hName, "TrigTrack(fTracks.ContainTriggerData(),"
+      "fTracks.ContainTrackerData())");
+  }
+
   SetHistoStyle(h, markerStyle, color, "Match trigger/tracker",
-    "dN/dMatch [counts]", "", kTRUE);
+    "dN/dMatch [counts]", "");
   h->Draw(drawOpts);
   PrintHisto(h, shortLabel);
 
@@ -474,7 +565,7 @@ void PrintHisto(TH1 *h, TString header) {
 
   Printf("\n==== [%s] %s ====", header.Data(), title);
 
-  Printf(">> %-20s : %.0lf", "** ENTRIES **", h->GetEntries());
+  Printf(">> %-20s : %6.0lf", "** ENTRIES **", h->GetEntries());
 
   for (Int_t i=1; i<=h->GetNbinsX(); i++) {
     const char *binLabel = h->GetXaxis()->GetBinLabel(i);
@@ -493,6 +584,32 @@ void PrintHisto(TH1 *h, TString header) {
       );
     }
   }
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Percentages
+////////////////////////////////////////////////////////////////////////////////
+void MatchPercentages() {
+
+  TH1 *h100  = gDirectory->Get("h03_muRec_cMatch_1");
+  TH1 *hSlow = gDirectory->Get("h03_muRec_cMatch_2");
+  TH1 *hFast = gDirectory->Get("h03_muRec_cMatch_3");
+
+  Float_t matchSlow = hSlow->GetBinContent(2) + hSlow->GetBinContent(3) +
+    hSlow->GetBinContent(4);
+
+  Float_t matchFast = hFast->GetBinContent(2) + hFast->GetBinContent(3) +
+    hFast->GetBinContent(4);
+
+  Float_t match100 = h100->GetBinContent(2) + h100->GetBinContent(3) +
+    h100->GetBinContent(4);
+
+  cout << endl;
+  Printf("*** MATCHED TRACKS ***");
+  Printf("slow/total = %7.4f %%", 100.*matchSlow/match100);
+  Printf("fast/total = %7.4f %%", 100.*matchFast/match100);
+  Printf("difference = %7.4f %%", 100.*TMath::Abs(matchSlow-matchFast)/match100);
 
 }
 

@@ -194,35 +194,51 @@ void AliAnalysisTaskAppMtrEff::Exec(Option_t *) {
         // Second local board touched
         loBo2 = loBo1 + loBoDev;
 
-        Float_t mtrEff;
-        Float_t r[4];
+        UChar_t nBendFired = 0;
+        UChar_t nNonBendFired = 0;
 
-        // Get R values from OCDB (bending plane and nonbending use the same
-        // vals)
+        // Count number of triggers
         for (Int_t i=0; i<4; i++) {
           Int_t detElemId = 1000+100*(i+1);
+          Bool_t bendFired, nonBendFired;
+
           if (i < 2) {
-            // Efficiencies on M11, M12
-            r[i] = fTrigChEff->GetCellEfficiency(detElemId, loBo1,
-              AliMUONTriggerEfficiencyCells::kBendingEff);
+            fTrigChEff->IsTriggered(detElemId, loBo1, bendFired, nonBendFired);
           }
           else {
-            // Efficiencies on M21, M22
-            r[i] = fTrigChEff->GetCellEfficiency(detElemId, loBo2,
-              AliMUONTriggerEfficiencyCells::kBendingEff);
+            fTrigChEff->IsTriggered(detElemId, loBo2, bendFired, nonBendFired);
           }
+
+          if (bendFired) nBendFired++;
+          if (nonBendFired) nNonBendFired++;
         }
 
-        mtrEff  =   r[0]    *   r[1]    *   r[2]    *   r[3]    +
-                  (1.-r[0]) *   r[1]    *   r[2]    *   r[3]    +
-                    r[0]    * (1.-r[1]) *   r[2]    *   r[3]    +
-                    r[0]    *   r[1]    * (1.-r[2]) *   r[3]    +
-                    r[0]    *   r[1]    *   r[2]    * (1.-r[3]);
+        // Apply 3/4 on both planes
+        keep = ((nBendFired >= 3) && (nNonBendFired >=3));
+
+        ////////////////////////////////////////////////////////////////////////
+        // Simple method
+        ////////////////////////////////////////////////////////////////////////
+        /*
+        Float_t mtrEff;
+
+        mtrEff  =   b[0]    *   b[1]    *   b[2]    *   b[3]    +
+                  (1.-b[0]) *   b[1]    *   b[2]    *   b[3]    +
+                    b[0]    * (1.-b[1]) *   b[2]    *   b[3]    +
+                    b[0]    *   b[1]    * (1.-b[2]) *   b[3]    +
+                    b[0]    *   b[1]    *   b[2]    * (1.-b[3]);
 
         fHistoEff->Fill(mtrEff);
 
         // Initialize properly the gRandom variable for parallel processing!
         keep = (gRandom->Rndm() < mtrEff);
+        */
+
+
+        ////////////////////////////////////////////////////////////////////////
+        // Realistic method
+        ////////////////////////////////////////////////////////////////////////
+
 
         // Print status
         /*AliInfo(Form("EVT %d TRK %d ---> LO1 %d LO2 %d ---> EFF %.2f ---> %s",
