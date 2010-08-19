@@ -5,7 +5,7 @@ TChain *CreateChainFromFind(TString &path, TString &file, TString &tree,
   Int_t limit = 1e9, Bool_t verbose = kFALSE) {
 
   TChain *ch = new TChain(tree);
-  TString out = gSystem->GetFromPipe( Form("find \"%s/\" -name \"%s\"",
+  TString out = gSystem->GetFromPipe( Form("find \"%s/\" -name \"%s\" | sort",
     path.Data(), file.Data()) );
   TObjArray *aptr = out.Tokenize("\r\n");
   TObjArray &a = *aptr;

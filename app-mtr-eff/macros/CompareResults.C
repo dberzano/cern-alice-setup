@@ -3,8 +3,8 @@
 void CompareResults() {
 
   // Change it to point to the data you want to analyze
-  TString prefix = "/dalice05/berzano/outana/app-mtr-eff/sim-mumin-15gev";
-  //TString prefix = "/dalice05/berzano/outana/app-mtr-eff/sim-xavier";
+  //TString prefix = "/dalice05/berzano/outana/app-mtr-eff/sim-mumin-15gev";
+  TString prefix = "/dalice05/berzano/outana/app-mtr-eff/sim-xavier";
 
   TFile *effFull = TFile::Open(Form("%s/mtracks-fulleff.root", prefix.Data())); 
   TFile *effR    = TFile::Open(Form("%s/mtracks-reff.root", prefix.Data()));
@@ -29,15 +29,15 @@ void CompareResults() {
   PlotsGen(0x0, gSystem->BaseName(prefix));
 
   // Plots of reconstructed data
-  PlotsRec(recFull, "100%");
+  /*PlotsRec(recFull, "100%");
   PlotsRec(recR, "R", kRed, 26);
   PlotsRec(0x0, gSystem->BaseName(prefix));
 
-  // TODO
+  // ...
   PlotsMatch(genFull, recFull, "100%", kBlue);
   PlotsMatch(genR, recR, "R", kRed, 26);
   PlotsMatch(genFull, recFull, "R fast", kMagenta, 3, kTRUE);
-  PlotsMatch(0x0, 0x0, gSystem->BaseName(prefix));
+  PlotsMatch(0x0, 0x0, gSystem->BaseName(prefix));*/
 
   // Close files
   effFull->Close();
@@ -474,11 +474,24 @@ void PrintHisto(TH1 *h, TString header) {
 
   Printf("\n==== [%s] %s ====", header.Data(), title);
 
+  Printf(">> %-20s : %.0lf", "** ENTRIES **", h->GetEntries());
+
   for (Int_t i=1; i<=h->GetNbinsX(); i++) {
-    Printf(">> %-20s : %11.4f",
-      h->GetXaxis()->GetBinLabel(i),
-      h->GetBinContent(i)
-    );
+    const char *binLabel = h->GetXaxis()->GetBinLabel(i);
+    if ((binLabel == 0x0) || (*binLabel == '\0')) {
+      // Without label, use bin value
+      Printf(">> % 20.4lf : %11.4f",
+        h->GetBinCenter(i),
+        h->GetBinContent(i)
+      );
+    }
+    else {
+      // With label
+      Printf(">> %-20s : %11.4f",
+        h->GetXaxis()->GetBinLabel(i),
+        h->GetBinContent(i)
+      );
+    }
   }
 
 }

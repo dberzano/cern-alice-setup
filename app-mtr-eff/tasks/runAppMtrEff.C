@@ -2,8 +2,8 @@
  */
 void runAppMtrEff() {
 
-  TString effMode = "fulleff";  // "reff", "fulleff"
-  TString cdb = "local:///dalice05/berzano/cdb/reff";
+  TString effMode = "50eff";  // "reff", "fulleff"
+  TString cdb = "local:///dalice05/berzano/cdb/50eff";
 
   //////////////////////////////////////////////////////////////////////////////
   // Local run for test (on my Mac)
@@ -20,7 +20,7 @@ void runAppMtrEff() {
   //////////////////////////////////////////////////////////////////////////////
   // Run on the LPC farm, move results to proper folder, with my data
   //////////////////////////////////////////////////////////////////////////////
-  TString simMode = "mumin-15gev";
+  TString simMode = "mumin-onemu-15gev";
   gROOT->LoadMacro("CreateChainFromFind.C");
   TChain *chain = CreateChainFromFind(
     Form("/dalice05/berzano/jobs/sim-%s-%s", simMode.Data(), effMode.Data()),
@@ -34,7 +34,7 @@ void runAppMtrEff() {
   // Remove previous data (watch out!)
   gSystem->Unlink( Form("%s/%s", dest.Data(), output.Data()) );
 
-  if (effMode == "reff") {
+  if (effMode == "50eff") {
     // Here, efficiencies have already been applied in the sim+rec
     runTask(chain, output, kFALSE);
   }
@@ -55,12 +55,11 @@ void runAppMtrEff() {
   if (effMode == "reff") effModeXavier = "R";
   else if (effMode == "fulleff") effModeXavier = "100";
 
-  gROOT->LoadMacro("CreateChainFromFind.C");
-  TChain *chain = CreateChainFromFind(
-    Form("/dalice07/lopez/ALICE/GEN/Eff/OCDB_%s", effModeXavier.Data()),
-    "AliESDs.root",
+  gROOT->LoadMacro("CreateChainFromText.C");
+  TChain *chain = CreateChainFromText(
+    Form("/users/divers/alice/berzano/list_xavier_%s.txt", effMode.Data()),
     "esdTree",
-    1
+    kTRUE
   );
   TString output = Form("mtracks-%s.root", effMode.Data());
   TString dest = "/dalice05/berzano/outana/app-mtr-eff/sim-xavier";
@@ -77,7 +76,8 @@ void runAppMtrEff() {
   gSystem->mkdir(dest, kTRUE);
   gSystem->Exec(Form("mv %s \"%s\"", output.Data(), dest.Data()));
   Printf("==== Content of %s ====", dest.Data());
-  gSystem->Exec(Form("ls -l \"%s\"", dest.Data()));*/
+  gSystem->Exec(Form("ls -l \"%s\"", dest.Data()));
+  */
 
 }
 
