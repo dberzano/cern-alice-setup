@@ -68,7 +68,7 @@ void RootToTxt(TString& in, TString& out, UInt_t effDecimals = 4) {
   }
 
   // List of histograms
-  TList *list = (TList *)f->Get("TrigChEff");
+  TList *list = (TList *)f->Get("triggerChamberEff");
   if (!list) {
     Printf("ROOT file does not contain the list of efficiencies");
     return;
@@ -229,7 +229,7 @@ void TxtToRoot(TString& in, TString& out) {
 
   // The ROOT file is filled with the TList
   TFile *f = TFile::Open(out, "recreate");
-  list->Write("TrigChEff", TObject::kSingleKey);
+  list->Write("triggerChamberEff", TObject::kSingleKey);
   f->Close();
   delete f;
 }

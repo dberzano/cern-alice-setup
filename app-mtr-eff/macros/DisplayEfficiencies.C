@@ -13,7 +13,7 @@ void DisplayEfficiencies(TString input, Int_t run = -1, Bool_t simple = kTRUE) {
 
   if (run < 0) {
     // We are in mode "ROOT file"
-    effCells = new AliMUONTriggerEfficiencyCells(input, "TrigChEff");
+    effCells = new AliMUONTriggerEfficiencyCells(input);
   }
   else {
 
