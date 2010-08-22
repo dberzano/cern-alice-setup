@@ -172,7 +172,7 @@ void TxtToRoot(TString& in, TString& out) {
 
   // Multiply everything by factor, to deal with TGraphAsymmErrors which is used
   // to do the ratio between the histograms
-  const Float_t factor = 1e6;
+  const Float_t factor = 1e3;
 
   // The containing list
   TList *list = new TList();

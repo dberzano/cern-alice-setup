@@ -9,7 +9,7 @@ void ResetCdb(TString inCdb, TString comment = "") {
   cdb->SetDefaultStorage( Form("local://%s/cdb_out", gSystem->pwd()) );
 
   e->GetId().SetFirstRun(0);
-  e->GetId().SetLastRun(999999999);
+  e->GetId().SetLastRun(AliCDBRunRange::Infinity());
   e->GetId().SetVersion(0);
   e->GetId().SetSubVersion(0);
 

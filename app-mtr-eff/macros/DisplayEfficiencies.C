@@ -51,6 +51,16 @@ void DisplayEfficiencies(TString input, Int_t run = -1, Bool_t simple = kTRUE) {
 
     // Use simpler 1D histograms
 
+    // Histograms are stored here
+    TH1F *hBend[4];
+    TH1F *hNonBend[4];
+    TH1F *hBoth[4];
+
+    // Do we have correlation?
+    Bool_t corrAvail = kFALSE;
+    if ((eff->GetCellEfficiency(1100, 1,
+      AliMUONTriggerEfficiencyCells::kBothPlanesEff)) >= 0.) corrAvail = kTRUE;
+
     // Canvases
     TCanvas *cBend = new TCanvas("cBend",
       "Efficiencies on bending plane", 500, 500);
@@ -60,13 +70,12 @@ void DisplayEfficiencies(TString input, Int_t run = -1, Bool_t simple = kTRUE) {
       "Efficiencies on nonbending plane", 500, 500);
     cNonBend->Divide(2, 2);
 
-    TCanvas *cBoth = new TCanvas("cBoth",
-      "Efficiencies on both planes (correlation)", 500, 500);
-    cBoth->Divide(2, 2);
-
-    TH1F *hBend[4];
-    TH1F *hNonBend[4];
-    TH1F *hBoth[4];
+    TCanvas *cBoth;
+    if (corrAvail) {
+      cBoth = new TCanvas("cBoth",
+        "Efficiencies on both planes (correlation)", 500, 500);
+      cBoth->Divide(2, 2);
+    }
 
     for (Int_t i=0; i<4; i++) {
       Int_t detElemId = 1000+100*(i+1);
@@ -77,16 +86,20 @@ void DisplayEfficiencies(TString input, Int_t run = -1, Bool_t simple = kTRUE) {
       hNonBend[i] = new TH1F(Form("hEffNonBend_%d", i),
         Form("Trigger chamber %d", i+1), 234, 0.5, 234.5);
 
-      hBoth[i] = new TH1F(Form("hEffBoth_%d", i),
-        Form("Trigger chamber %d", i+1), 234, 0.5, 234.5);
+      if (corrAvail) {
+        hBoth[i] = new TH1F(Form("hEffBoth_%d", i),
+          Form("Trigger chamber %d", i+1), 234, 0.5, 234.5);
+      }
 
       for (Int_t j=1; j<=234; j++) {
         hBend[i]->SetBinContent(j, eff->GetCellEfficiency(detElemId, j,
           AliMUONTriggerEfficiencyCells::kBendingEff));
         hNonBend[i]->SetBinContent(j, eff->GetCellEfficiency(detElemId, j,
           AliMUONTriggerEfficiencyCells::kBendingEff));
-        hBoth[i]->SetBinContent(j, eff->GetCellEfficiency(detElemId, j,
-          AliMUONTriggerEfficiencyCells::kBothPlanesEff));
+        if (corrAvail) {
+          hBoth[i]->SetBinContent(j, eff->GetCellEfficiency(detElemId, j,
+            AliMUONTriggerEfficiencyCells::kBothPlanesEff));
+        }
       }
 
       cBend->cd(i+1);
@@ -97,14 +110,16 @@ void DisplayEfficiencies(TString input, Int_t run = -1, Bool_t simple = kTRUE) {
       SetHistoStyle(hNonBend[i], 0, kBlue, "Local board", "Efficiency", 0., 1.2);
       hNonBend[i]->Draw();
 
-      cBoth->cd(i+1);
-      SetHistoStyle(hBoth[i], 0, kBlue, "Local board", "Efficiency", 0., 1.2);
-      hBoth[i]->Draw();
+      if (corrAvail) {
+        cBoth->cd(i+1);
+        SetHistoStyle(hBoth[i], 0, kBlue, "Local board", "Efficiency", 0., 1.2);
+        hBoth[i]->Draw();
+      }
     }
 
     cBend->cd(0);
     cNonBend->cd(0);
-    cBoth->cd(0);
+    if (corrAvail) cBoth->cd(0);
   }
 
 }
