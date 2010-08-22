@@ -155,7 +155,7 @@ void RootToTxt(TString& in, TString& out, UInt_t effDecimals = 4) {
 // Converts a text file (old format) with per-board efficiencies into a ROOT
 // file
 ////////////////////////////////////////////////////////////////////////////////
-void TxtToRoot(TString& in, TString& out) {
+void TxtToRoot(TString& in, TString& out, UInt_t effDecimals = 4) {
 
   ifstream is(in);
   if (!is) {
@@ -172,7 +172,8 @@ void TxtToRoot(TString& in, TString& out) {
 
   // Multiply everything by factor, to deal with TGraphAsymmErrors which is used
   // to do the ratio between the histograms
-  const Float_t factor = 1e3;
+  Float_t factor = 1.;
+  for (UInt_t p=0; p<effDecimals; p++) factor *= 10.;
 
   // The containing list
   TList *list = new TList();
@@ -237,16 +238,16 @@ void TxtToRoot(TString& in, TString& out) {
 ////////////////////////////////////////////////////////////////////////////////
 // Automatically selects the way of conversion (txt <-> root)
 ////////////////////////////////////////////////////////////////////////////////
-void MUONConvertTrigBoardEff(TString in, TString out) {
+void MUONConvertTrigBoardEff(TString in, TString out, UInt_t decimals = 3.) {
 
   if (in.EndsWith(".root")) {
-    RootToTxt(in, out);
+    RootToTxt(in, out, decimals);
   }
   else if (out.EndsWith(".root")) {
-    TxtToRoot(in, out);
+    TxtToRoot(in, out, decimals);
   }
   else {
-    Printf("At least one out of the two parameters must be a ROOT file name.");
+    Printf("At least one out of the first two parameters must be a ROOT file name.");
   }
 
 }
