@@ -15,8 +15,12 @@ function Main() {
   cp "$FILE" "$T1"
 
   while [ $# -ge 2 ]; do
-    #echo $1=$2
-    sed -e 's/@'"$1"'@/'"$2"'/g' "$T1" > "$T2"
+    # Escape slashes and backslashes
+    local TO="$2"
+    TO=$(echo "$TO" | perl -ne 's/(\\)/\\\\/g; print $_')
+    TO=$(echo "$TO" | perl -ne 's/(\/)/\\\//g; print $_')
+
+    sed -e 's/@'"$1"'@/'"$TO"'/g' "$T1" > "$T2"
     cp "$T2" "$T1"
     shift 2
   done

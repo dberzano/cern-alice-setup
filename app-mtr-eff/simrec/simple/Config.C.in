@@ -16,7 +16,6 @@ const char* runName[] = {
 };
 
 static Run_t srun  = ppMBias;
-static Int_t sseed = 12345;
 
 void Config()
 {
@@ -180,4 +179,5 @@ void ProcessEnvironmentVars()
       }
     }
   }
+
 }
