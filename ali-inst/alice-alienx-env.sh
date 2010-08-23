@@ -145,13 +145,13 @@ unset NEW_PATH NEW_LD_LIBRARY_PATH
 
 # Unset other environment variables and aliases
 unset MJ ALIEN_DIR GSHELL_ROOT ROOTSYS ALICE ALICE_ROOT ALICE_TARGET \
-  G3_VERSIONS X509_CERT_DIR GSHELL_NO_GCC
+  G3SYS X509_CERT_DIR GSHELL_NO_GCC
 unalias root aliroot > /dev/null 2>&1
 
 # Quit if clean only
 if [ "$OPT_CLEANENV" == 1 ]; then
   unset OPT_QUIET OPT_NONINTERACTIVE OPT_CLEANENV ALICE_PREFIX ALICE_VER \
-    ROOT_VER G3_VER
+    ROOT_VER G3_VER G3SYS
   echo -ne "\033]0;Terminal\007"
   echo ""
   echo " * Environment variables purged."
@@ -167,6 +167,8 @@ fi
 # If MJ is NaN, "let" treats it as "0": always fallback to 1 core
 let MJ++
 export MJ
+
+################################################################################
 
 #
 # AliEn
@@ -197,23 +199,22 @@ export PATH="$ROOTSYS/bin:$PATH"
 export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$ROOTSYS/lib"
 
 #
+# GEANT 3
+#
+
+export G3SYS="$ALICE_PREFIX/geant3/$G3_VER"
+export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$ALICE/geant3/lib/tgt_${ALICE_TARGET}"
+
+#
 # AliRoot
 #
 
-export ALICE="$ALICE_PREFIX/alice"
-export ALICE_ROOT="$ALICE/$ALICE_VER"
+export ALICE_ROOT="$ALICE_PREFIX/aliroot/$ALICE_VER"
 export ALICE_TARGET=`root-config --arch 2> /dev/null`
 export PATH="$PATH:$ALICE_ROOT/bin/tgt_${ALICE_TARGET}"
 export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$ALICE_ROOT/lib/tgt_${ALICE_TARGET}"
 
-#
-# GEANT 3
-#
-
-export G3_VERSIONS="$ALICE/geant3-versions"
-export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$ALICE/geant3/lib/tgt_${ALICE_TARGET}"
-
-ln -fns "$G3_VERSIONS/$G3_VER" "$ALICE/geant3" 2> /dev/null
+################################################################################
 
 #
 # ROOT and AliRoot aliases for AliEn
@@ -234,12 +235,18 @@ export PATH=${PATH#:}
 #
 
 if [ "$OPT_QUIET" != 1 ]; then
-  WHERE_IS_G3=`readlink $ALICE/geant3`
-  if [ "$WHERE_IS_G3" == "" ]; then
+  if [ -x "$G3SYS/lib/tgt_$ALICE_TARGET/libgeant321.so" ]; then
+    WHERE_IS_G3="$G3SYS"
+  else
     WHERE_IS_G3="<not found>"
   fi
   if [ -x "$ALICE_ROOT/bin/tgt_$ALICE_TARGET/aliroot" ]; then
     WHERE_IS_ALIROOT="$ALICE_ROOT"
+    # Try to fetch svn revision number
+    ALIREV=$(cat "$ALICE_ROOT/include/ARVersion.h" 2>/dev/null |
+      perl -ne 'if (/ALIROOT_SVN_REVISION\s+([0-9]+)/) { print "$1"; }')
+    WHERE_IS_ALIROOT="$WHERE_IS_ALIROOT (rev. $ALIREV)"
+    unset ALIREV
   else
     WHERE_IS_ALIROOT="<not found>"
   fi
