@@ -10,8 +10,8 @@ void CompareResults() {
   //TString prefix = "/dalice05/berzano/outana/app-mtr-eff/sim-realistic";
 
   // CDB tag (used either in slow or fast modes)
-  TString cdbTag = "r-maxcorr";
-  //TString cdbTag = "50pct-maxcorr";
+  //TString cdbTag = "r-maxcorr";
+  TString cdbTag = "50pct-maxcorr";
   //TString cdbTag = "75pct-maxcorr";
 
   TFile *effFull = TFile::Open(
@@ -197,8 +197,8 @@ void PlotsRec(TTree *t = 0x0, TString shortLabel = "", Color_t color = kBlack,
   // Let's select only matched and kept tracks
   //const Char_t *cond = "fTracks.ContainTrackerData()==1";
   const Char_t *cond = (flagKept) ?
-    ("( MtIsKeptDestinyMatch(fTracks.ContainTriggerData(), fTracks.ContainTrackerData(), fTracks.GetHitsPatternInTrigCh()) != 0 )") :
-    ("( MtIsKeptDestinyMatch(fTracks.ContainTriggerData(), fTracks.ContainTrackerData(), -1) != 0 )");
+    ("( KeptMatch(fTracks.ContainTriggerData(), fTracks.ContainTrackerData(), fTracks.GetHitsPatternInTrigCh()) != 0 )") :
+    ("( KeptMatch(fTracks.ContainTriggerData(), fTracks.ContainTrackerData(), -1) != 0 )");
 
   // In this special mode, with t = 0x0, legend is drawn and canvas is saved to
   // a pdf file
@@ -401,7 +401,7 @@ void PlotsMatch(TTree *tg = 0x0, TTree *tr = 0x0, TString shortLabel = "",
     tr->Project(
       hName,
       "MtGetMatchTrigger(fTracks.GetMatchTrigger(), fTracks.GetHitsPatternInTrigCh())",
-      "( MtIsKeptDestiny( fTracks.ContainTriggerData(), fTracks.ContainTrackerData(), fTracks.GetHitsPatternInTrigCh()) != 0 )"
+      "( Kept( fTracks.ContainTriggerData(), fTracks.ContainTrackerData(), fTracks.GetHitsPatternInTrigCh()) != 0 )"
     );
   }
   else {
@@ -434,7 +434,7 @@ void PlotsMatch(TTree *tg = 0x0, TTree *tr = 0x0, TString shortLabel = "",
   if (flagKept) {
     tr->Project(hName,
       "TrigTrack(fTracks.ContainTriggerData(),fTracks.ContainTrackerData(),fTracks.GetHitsPatternInTrigCh())",
-      "( MtIsKeptDestiny( fTracks.ContainTriggerData(), fTracks.ContainTrackerData(), fTracks.GetHitsPatternInTrigCh()) != 0 )"
+      "( Kept( fTracks.ContainTriggerData(), fTracks.ContainTrackerData(), fTracks.GetHitsPatternInTrigCh()) != 0 )"
     );
   }
   else {
@@ -610,19 +610,16 @@ Bool_t MtIsKept(UShort_t flag) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-//
+// Decides to count a track only if it matches both trigger and tracker and it
+// was kept by the algo
 ////////////////////////////////////////////////////////////////////////////////
-Bool_t MtIsKeptDestinyMatch(Bool_t trig, Bool_t track, Int_t flag = -1) {
+Bool_t KeptMatch(Bool_t trig, Bool_t track, Int_t flag = -1) {
 
-  UInt_t match = TrigTrack(trig, track);
+  // kept and matches
+  if (((trig) && (track)) && ((flag == -1) || (flag & 0x8000)))
+    return kTRUE;
 
-  // Track does not match
-  if (match != 3) return kFALSE;
-
-  // Track was kept and matches
-  if ((flag == -1) || (MtIsKept(flag))) return kTRUE;
-
-  // Track was refused and does not match
+  // any other case
   return kFALSE;
 
 }
@@ -630,18 +627,12 @@ Bool_t MtIsKeptDestinyMatch(Bool_t trig, Bool_t track, Int_t flag = -1) {
 ////////////////////////////////////////////////////////////////////////////////
 // If track was triggeronly and not kept, discard it
 ////////////////////////////////////////////////////////////////////////////////
-Bool_t MtIsKeptDestiny(Bool_t trig, Bool_t track, Int_t flag) {
+Bool_t Kept(Bool_t trig, Bool_t track, Int_t flag) {
 
-  UInt_t match = TrigTrack(trig, track);
+  if (flag & 0x8000) return kTRUE;        // consider kept tracks
+  if ((trig) && (!track)) return kFALSE;  // discard trigger only
+  return kTRUE;                           // consider match or tracker
 
-  // track was kept, no problems
-  if (MtIsKept(flag)) return kTRUE;
-
-  // match == 1(triggeronly) ==> discarded
-  if (match == 1) { return kFALSE; }
-
-  // match == 2(trackeronly), 3(both) ==> still count track
-  return kTRUE;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
