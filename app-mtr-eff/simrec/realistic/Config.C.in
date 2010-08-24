@@ -160,6 +160,7 @@ void Config(char directory[100]="", char option[6]="myfun")
   cout << ">>> Config.C: Creating AliMUONv1 ..."<<endl;
 
   AliMUON *MUON = new AliMUONv1("MUON","default");
+  MUON->SetTriggerEffCells(1);  // ABSOLUTELY NEEDED [lf]
 
 }
 

@@ -1,8 +1,11 @@
 #!/bin/bash
 
-# Params
+# Choose momentums, space separated (AliGenBox)
 export MOMENTUMS="15"
-export CDBS="r-maxcorr"
+
+# Choose OCDBs
+export CDBS="50pct-maxcorr 75pct-maxcorr r-maxcorr"
+#export CDBS="r-maxcorr"
 
 # Custom AliRoot?
 export ALICE_ROOT="/dalice07/lopez/ALICE/AliRoot/TRUNK"
@@ -31,13 +34,13 @@ do
       THNSPARSE_SRC   /dalice07/lopez/ALICE/GEN/pp7_MB_Gen_New.root \
     > Config.C
 
-    # Launch the jobs (40 000 generated muons total!)
+    # Launch the jobs (30 000 generated muons total!)
     [ $CNT -gt 0 ] && echo ""
     let CNT++
     "$SCRIPTDIR"/joblaunch.sh \
-      --jobs      4 \
-      --events   10 \
-      --tag    sim-xatest-${C} \
+      --jobs     30 \
+      --events 1000 \
+      --tag    sim-realistic-${C} \
       --cdb    'local:///dalice05/berzano/cdb/'${C}'/'
 
     # Remove the Config.C (it can be found in jobs directories)

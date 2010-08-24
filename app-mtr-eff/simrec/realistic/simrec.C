@@ -41,7 +41,7 @@ simrec() {
   TStopwatch sw;
 
   // Simulation
-  gSystem->Exec( Form("aliroot -b -q 'sim.C(%d)'", nEvents) );
+  gSystem->Exec( Form("aliroot -b -q 'sim.C(%d)' > sim.log 2>&1", nEvents) );
 
   // Some more stuff...
   gSystem->mkdir("generated", kTRUE);
@@ -50,7 +50,19 @@ simrec() {
   gSystem->Exec("mv generated/geometry.root .");
 
   // Reconstruction
-  gSystem->Exec("aliroot -b -q rec.C");
+  gSystem->Exec("aliroot -b -q rec.C > rec.log 2>&1");
+
+  // Verify if everything went right (validation). WATCH OUT! AccessPathName
+  // returns kFALSE if the file CAN be accessed!
+  if (!gSystem->AccessPathName("AliESDs.root")) {
+    // File CAN be accessed: move everything in right place
+    gSystem->Exec("mv generated/* .");
+    gSystem->Exec("rm -rf generated/");
+  }
+  else {
+    // Validation error!
+    Printf("**** VALIDATION ERROR! ****");
+  }
 
   Printf("*** Global Timer ***");
   sw.Print();

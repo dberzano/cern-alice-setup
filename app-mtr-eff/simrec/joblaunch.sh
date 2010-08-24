@@ -143,7 +143,17 @@ export LD_LIBRARY_PATH="\$ALICE_ROOT/lib/tgt_\$ARCH:$G3SYS/lib/tgt_\$ARCH:\$ROOT
 
 cd "$OUTPREFIX/$JOBSUBDIR"
 
-aliroot -b -q $MACRO --run $RUN --events $NEVTS $EXTRAOPTS > stdout 2> stderr
+echo ""
+echo "==== Output of df and last lines of dmesg BEFORE jobs ===="
+df > stdout
+dmesg | tail -n20 >> stdout
+
+aliroot -b -q $MACRO --run $RUN --events $NEVTS $EXTRAOPTS >> stdout 2>> stderr
+
+echo ""
+echo "==== Output of df and last lines of dmesg AFTER jobs ===="
+df >> stdout
+dmesg | tail -n20 >> stdout
 EOF
     chmod +x "$OUTPREFIX/$JOBSUBDIR/$TAG.sh"
 
