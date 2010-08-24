@@ -18,6 +18,9 @@
 # Installation prefix of everything
 export ALICE_PREFIX="/opt/alice"
 
+# Your AliEn username
+export alien_API_USER="myalienusername"
+
 # Triads in the form "root geant3 aliroot". Index starts from 1, not 0.
 # More information: http://aliceinfo.cern.ch/Offline/AliRoot/Releases.html
 TRIAD[1]="v5-26-00b v1-11 trunk"
@@ -152,7 +155,6 @@ unalias root aliroot > /dev/null 2>&1
 if [ "$OPT_CLEANENV" == 1 ]; then
   unset OPT_QUIET OPT_NONINTERACTIVE OPT_CLEANENV ALICE_PREFIX ALICE_VER \
     ROOT_VER G3_VER G3SYS
-  echo -ne "\033]0;Terminal\007"
   echo ""
   echo " * Environment variables purged."
   echo ""
@@ -217,11 +219,16 @@ export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$ALICE_ROOT/lib/tgt_${ALICE_TARGET}"
 ################################################################################
 
 #
-# ROOT and AliRoot aliases for AliEn
+# AliEn environment variables and aliases
 #
 
-alias root='[ -e /tmp/gclient_env_$UID ] && [ "$GBBOX_ENVFILE" == "" ] && source /tmp/gclient_env_$UID ; root'
-alias aliroot='[ -e /tmp/gclient_env_$UID ] && [ "$GBBOX_ENVFILE" == "" ] && source /tmp/gclient_env_$UID ; aliroot'
+[ -e /tmp/gclient_env_$UID ] && source /tmp/gclient_env_$UID
+
+alias alien-token-init='alien-token-destroy ; alien-token-init $alien_API_USER ; [ -e /tmp/gclient_env_$UID ] && source /tmp/gclient_env_$UID'
+alias alien-token-destroy='alien-token-destroy ; xrdgsiproxy destroy'
+
+#alias root='[ -e /tmp/gclient_env_$UID ] && [ "$GBBOX_ENVFILE" == "" ] && source /tmp/gclient_env_$UID ; root'
+#alias aliroot='[ -e /tmp/gclient_env_$UID ] && [ "$GBBOX_ENVFILE" == "" ] && source /tmp/gclient_env_$UID ; aliroot'
 
 #
 # Remove initial colons from paths
