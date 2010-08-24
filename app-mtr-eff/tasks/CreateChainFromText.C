@@ -4,8 +4,6 @@
 TChain *CreateChainFromText(TString file, TString &tree,
   Bool_t verbose = kFALSE) {
 
-  Printf("porco il dio di merda cazzo");
-
   if (verbose) Printf("Reading list from %s", file.Data());
 
   TChain *ch = new TChain(tree);

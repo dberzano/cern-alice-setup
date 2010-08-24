@@ -2,7 +2,7 @@
  */
 void runAppMtrEff() {
 
-  TString cdbMode = "r-maxcorr";
+  TString cdbMode = "50pct-maxcorr";
   TString effMode = cdbMode;  // cdbMode or "fulleff"
   TString cdb = Form("local:///dalice05/berzano/cdb/%s", cdbMode.Data());
 
@@ -22,12 +22,22 @@ void runAppMtrEff() {
   // Run on the LPC farm, move results to proper folder, with my data
   //////////////////////////////////////////////////////////////////////////////
   TString simMode = "realistic";
+  /*
   gROOT->LoadMacro("CreateChainFromFind.C");
   TChain *chain = CreateChainFromFind(
     Form("/dalice05/berzano/jobs/sim-%s-%s", simMode.Data(), effMode.Data()),
     "AliESDs.root",
     "esdTree"
   );
+  */
+  gROOT->LoadMacro("CreateChainFromText.C");
+  TChain *chain = CreateChainFromText(
+    Form("/dalice05/berzano/jobs/sim-%s-%s/partial_matching.txt",
+      simMode.Data(), effMode.Data()),
+    "esdTree", kTRUE
+  );
+
+  gSystem->Exit(66);
 
   TString output;
   if (cdbMode == effMode) {
