@@ -1,28 +1,109 @@
-/** CompareResults.C -- by Dario Berzano <dario.berzano@gmail.com>
- */
-
-// Change it to point to the data you want to analyze
-const Char_t *simTag = "sim-real-2mu";
-
-// OCDB efficiency tag
-const Char_t *cdbTag = "50pct-maxcorr";
+////////////////////////////////////////////////////////////////////////////////
+//
+// CompareResults.C -- by Dario Berzano <dario.berzano@gmail.com>
+//
+///////////////////////////////////////////////////////////////////////////////
 
 // AnalysisTask output directory prefix
-const Char_t *anaDir = "/dalice05/berzano/outana/app-mtr-eff";
-
-// The prefix where to read the data from
-TString prefix = Form("%s/%s", anaDir, simTag);
+TString anaDir = "/dalice05/berzano/outana/app-mtr-eff";
 
 // Base name of the output files
-TString baseOut = Form("%s_%s", simTag, cdbTag);
+TString baseOut;
 
-void NewCompareResults() {
+////////////////////////////////////////////////////////////////////////////////
+// Main function
+////////////////////////////////////////////////////////////////////////////////
+void CompareResults() {
+
+  // Ask for the simTag (automatically search in the outana dir)
+  TString simsList = gSystem->GetFromPipe(
+    Form("cd \"%s\" ; find . -type d -name 'sim-*' | sort | cut -b3-", anaDir.Data())
+  );
+
+  TString simTag;
+
+  while (kTRUE) {
+
+    Printf("\nChoose the type of simulation to analyze:\n");
+
+    TObjArray *oa = simsList.Tokenize("\n\r");
+    TObjString *os;
+    TString s;
+    for (UInt_t i=0; i<oa->GetEntries(); i++) {
+      os = (TObjString *)oa->At(i);
+      s = os->GetString();
+      Printf("  %u. %s", i+1, s.Data());
+    }
+
+    TString ans = Getline("\nYour choice: ");
+    UInt_t nAns = ans.Atoi();
+
+    if ((nAns == 0) || (nAns > oa->GetEntries())) {
+      Printf("Not valid");
+    }
+    else {
+      os = (TObjString *)oa->At(nAns-1);
+      simTag = os->GetString();
+      break;
+    }
+  }
+
+  // Ask for the cdbTag (automatically search in the simTag dir)
+  TString cdbList = gSystem->GetFromPipe(
+    Form("cd \"%s/%s\" ; find . -name 'mtracks-*.root' -not -name '*fulleff.root' | sort | cut -b11- | cut -d. -f1", anaDir.Data(), simTag.Data())
+  );
+
+  TString cdbTag;
+
+  while (kTRUE) {
+
+    Printf("\nChoose the type of efficiency for simulation %s\n", simTag.Data());
+
+    TObjArray *oa = cdbList.Tokenize("\n\r");
+    TObjString *os;
+    TString s;
+    for (UInt_t i=0; i<oa->GetEntries(); i++) {
+      os = (TObjString *)oa->At(i);
+      s = os->GetString();
+      Printf("  %u. %s", i+1, s.Data());
+    }
+
+    TString ans = Getline("\nYour choice: ");
+    UInt_t nAns = ans.Atoi();
+
+    if ((nAns == 0) || (nAns > oa->GetEntries())) {
+      Printf("Not valid");
+    }
+    else {
+      os = (TObjString *)oa->At(nAns-1);
+      cdbTag = os->GetString();
+      break;
+    }
+  }
+
+  // Run the analysis
+  TString prefix =  Form("%s/%s", anaDir.Data(), simTag.Data());
+  CompareSingle(prefix, cdbTag);
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Compares data for one value of cdb
+////////////////////////////////////////////////////////////////////////////////
+void CompareSingle(TString prefix, TString cdbTag) {
+
+  cout << endl;
+  Printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+  Printf("!! Analyzing data in %s", prefix.Data());
+  Printf("!! Using fast/slow efficiency OCDB %s", cdbTag.Data());
+  Printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+  cout << endl;
 
   TFile *effFull = TFile::Open(
-    Form("%s/mtracks-%s-fulleff.root", prefix.Data(), cdbTag)
+    Form("%s/mtracks-%s-fulleff.root", prefix.Data(), cdbTag.Data())
   ); 
   TFile *effR    = TFile::Open(
-    Form("%s/mtracks-%s.root", prefix.Data(), cdbTag)
+    Form("%s/mtracks-%s.root", prefix.Data(), cdbTag.Data())
   );
 
   // Generated particles
@@ -43,29 +124,127 @@ void NewCompareResults() {
   gROOT->cd();
 
   // Plots of generated data
-  PlotsGen("full", "100%", genFull);
-  PlotsGen("slow", "R",    genR, kRed, 26);
+  PlotsGen("full", "100%",   genFull);
+  PlotsGen("slow", "R slow", genR, kRed, 26);
   PlotsGen();
 
   // Plots of reconstructed data
   PlotsRec("full", "100%",   recFull);
-  PlotsRec("slow", "R",      recR, kRed);
+  PlotsRec("slow", "R slow", recR, kRed);
   PlotsRec("fast", "R fast", recFull, kMagenta, 0, kTRUE);
   PlotsRec();
 
   // Plots of matching results and more
   PlotsMatch("full", "100%",   genFull, recFull, kBlue);
-  PlotsMatch("slow", "R",      genR, recR, kRed, 26);
+  PlotsMatch("slow", "R slow", genR, recR, kRed, 26);
   PlotsMatch("fast", "R fast", genFull, recFull, kMagenta, 3, kTRUE);
   PlotsMatch();
 
+  // Plots the difference of Rslow and Rfast
+  PlotsRecDiff(kRed);
+
   // Percentages
-  /*MatchPercentages();*/
+  MatchPercentages();
 
   // Close files
   effFull->Close();
   effR->Close();
   Echo();
+
+  cout << endl;
+  Printf("Remember: to save the plots on files, use WritePlots()");
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Difference of histograms. You may want to draw the absolute difference and
+// you may want data to be normalized first
+////////////////////////////////////////////////////////////////////////////////
+TH1 *HistoDiff(TString diffName, TString name1, TString name2,
+  Bool_t norm = kFALSE, Bool_t abs = kFALSE) {
+
+  TH1 *h1 = (TH1 *)gROOT->FindObject(name1);
+  TH1 *h2 = (TH1 *)gROOT->FindObject(name2);
+
+  if ((h1 == 0x0) || (h2 == 0x0)) {
+    Printf("Error: can't find at least one histogram");
+    return 0x0;
+  }
+
+  // Number of bins
+  UInt_t n = h1->GetNbinsX();
+  Double_t e1 = h1->GetEntries();
+  Double_t e2 = h2->GetEntries();
+
+  // Output histogram
+  TH1D *hDiff = new TH1D(diffName, diffName,
+    n,
+    h1->GetBinLowEdge(1),
+    h1->GetBinLowEdge(n+1)
+  );
+  hDiff->GetXaxis()->SetTitle( h1->GetXaxis()->GetTitle() );
+  hDiff->GetYaxis()->SetTitle( h1->GetYaxis()->GetTitle() );
+
+  // Browse both histograms (we suppose they have the same number of bins)
+  for (UInt_t i=1; i<=n; i++) {
+    Double_t diff, v1, v2;
+    v1 = h1->GetBinContent(i);
+    v2 = h2->GetBinContent(i);
+    if (norm) {
+      v1 /= e1;
+      v2 /= e2;
+    }
+    diff = v1-v2;
+    if ((abs) && (diff < 0)) diff = -diff;
+
+    hDiff->SetBinContent(i, diff);
+  }
+
+  // Returns the difference
+  return hDiff;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Read the information from the Monte Carlo tree inside the file
+////////////////////////////////////////////////////////////////////////////////
+void PlotsRecDiff(Color_t color = kBlack, Style_t markerStyle = 0) {
+
+  TCanvas *canvas = 0x0;
+  TLegend *legend = 0x0;
+
+  // This function is called for the first time: create canvas and legend
+  canvas = new TCanvas("c_recdiff", "Difference of reconstructed slow/fast",
+    800, 500);
+  canvas->cd(0);
+  canvas->Divide(3, 2);
+  legend = StandardLegend();
+
+  TString drawOpts = "HIST ";
+  if (markerStyle) drawOpts = "P ";
+  else drawOpts = "HIST ";
+
+  // Variables shared by all histograms
+  TString hName;
+  TH1 *h;
+
+  const Char_t *what[] = { "ptot", "pt", "phi", "theta", "dca", "rabs" };
+  UInt_t n = sizeof(what) / sizeof(Char_t *);
+
+  for (UInt_t i=0; i<n; i++) {
+    canvas->cd(i+1);
+    TString nDiff = Form("h_rec_%s_diff", what[i]);
+    TString nSlow = Form("h_rec_%s_slow", what[i]);
+    TString nFast = Form("h_rec_%s_fast", what[i]);
+    h = HistoDiff(nDiff, nSlow, nFast, kTRUE /* norm */, kTRUE /* abs */);
+    SetHistoStyle(h, markerStyle, color);
+    h->Draw(drawOpts);
+
+    if (i == 0) legend->AddEntry(h, "diff slow fast", (markerStyle ? "p" : "l"));
+  }
+
+  // Finalize
+  canvas->cd(1);
+  legend->Draw();
 
 }
 
@@ -412,7 +591,7 @@ void PlotsMatch(TString tag = "", TString shortLabel = "", TTree *tg = 0x0,
   Double_t fracMatch =
     ( h->GetBinContent(2) + h->GetBinContent(3) + h->GetBinContent(4) ) /
     (Double_t)h->GetEntries();
-  PrintHisto(h, shortLabel);
+  PrintHisto(h, shortLabel, 0);
   Echo(Form(">> %-20s : %11.4f", "match_trig/tot_rec", fracMatch*100.));
 
   // Tracks that have trigger, tracker or both information
@@ -438,7 +617,7 @@ void PlotsMatch(TString tag = "", TString shortLabel = "", TTree *tg = 0x0,
   SetHistoStyle(h, markerStyle, color, "Match trigger/tracker",
     "dN/dMatch [counts]", "");
   h->Draw(drawOpts);
-  PrintHisto(h, shortLabel);
+  PrintHisto(h, shortLabel, 0);
 
 }
 
@@ -456,11 +635,12 @@ void SetHistoStyle(TH1 *h, Style_t markerStyle, Color_t color,
   else h->SetLineColor(color);
 
   h->SetTitle(title);
-  h->GetXaxis()->SetTitle(xLabel);
-  h->GetYaxis()->SetTitle(yLabel);
-  h->GetYaxis()->SetTitleOffset(1.58);
+  if (!xLabel.IsNull()) h->GetXaxis()->SetTitle(xLabel);
+  if (!yLabel.IsNull()) h->GetYaxis()->SetTitle(yLabel);
+
+  h->GetYaxis()->SetTitleOffset(2.00);
   h->SetStats(stats);
-  gPad->SetLeftMargin(0.16);
+  gPad->SetLeftMargin(0.17);
 
 }
 
@@ -487,7 +667,7 @@ TLegend *StandardLegend() {
 ////////////////////////////////////////////////////////////////////////////////
 // Prints every bin of the histogram, with proper bin label, if available
 ////////////////////////////////////////////////////////////////////////////////
-void PrintHisto(TH1 *h, TString header) {
+void PrintHisto(TH1 *h, TString header, UInt_t dec = 2, UInt_t integ = 6) {
 
   Char_t *title;
 
@@ -496,20 +676,26 @@ void PrintHisto(TH1 *h, TString header) {
 
   Echo(Form("\n==== [%s] %s ====", header.Data(), title));
 
+  // ">> % 20.4lf : %11.4f"
+  UInt_t tot = integ+dec+1;
+  if (dec == 0) tot--;
+  TString fmt_num = Form(">> %% 20.4lf : %%%u.%ulf", tot, dec);
+  TString fmt_lab = Form(">> %%-20s : %%%u.%ulf", tot, dec);
+
   Echo(Form(">> %-20s : %6.0lf", "** ENTRIES **", h->GetEntries()));
 
   for (Int_t i=1; i<=h->GetNbinsX(); i++) {
     const char *binLabel = h->GetXaxis()->GetBinLabel(i);
     if ((binLabel == 0x0) || (*binLabel == '\0')) {
       // Without label, use bin value
-      Echo(Form(">> % 20.4lf : %11.4f",
+      Echo(Form(fmt_num.Data(),
         h->GetBinCenter(i),
         h->GetBinContent(i)
       ));
     }
     else {
       // With label
-      Echo(Form(">> %-20s : %11.4f",
+      Echo(Form(fmt_lab.Data(),
         h->GetXaxis()->GetBinLabel(i),
         h->GetBinContent(i)
       ));
@@ -523,9 +709,9 @@ void PrintHisto(TH1 *h, TString header) {
 ////////////////////////////////////////////////////////////////////////////////
 void MatchPercentages() {
 
-  TH1 *h100  = gDirectory->Get("h03_muRec_cMatch_1");
-  TH1 *hSlow = gDirectory->Get("h03_muRec_cMatch_2");
-  TH1 *hFast = gDirectory->Get("h03_muRec_cMatch_3");
+  TH1 *h100  = gDirectory->Get("h_match_trigmatch_full");
+  TH1 *hSlow = gDirectory->Get("h_match_trigmatch_slow");
+  TH1 *hFast = gDirectory->Get("h_match_trigmatch_fast");
 
   Float_t match100Norm  = (h100->GetEntries()  - h100->GetBinContent(1))  / h100->GetEntries();
   Float_t matchSlowNorm = (hSlow->GetEntries() - hSlow->GetBinContent(1)) / hSlow->GetEntries();
@@ -535,9 +721,26 @@ void MatchPercentages() {
   Float_t mtrEffSlow = matchSlowNorm/match100Norm;
   Float_t mtrEffFast = matchFastNorm/match100Norm;
 
-  // R values as if they were actually only one value
-  Float_t rAvgSlow = TMath::Power(mtrEffSlow/5., 0.25);
-  Float_t rAvgFast = TMath::Power(mtrEffFast/5., 0.25);
+  // R values as if they were actually only one value -- we need to solve an
+  // equation!
+  Float_t rAvgSlow, rAvgFast;
+
+  for (UInt_t i=0; i<2; i++) {
+    Double_t mtrEff;
+
+    TF1 f("rToEff", "4*x^3-3*x^4-[0]");
+
+    if (i==0) f.SetParameter(0, mtrEffSlow);
+    else      f.SetParameter(0, mtrEffFast);
+
+    ROOT::Math::WrappedTF1 wf1(f);
+    ROOT::Math::BrentRootFinder brf;
+    brf.SetFunction(wf1, 0, 1);
+    brf.Solve();
+
+    if (i==0) rAvgSlow = brf.Root();
+    else      rAvgFast = brf.Root();
+  }
 
   Echo("");
   Echo(Form("*** MATCHED TRACKS ***"));
@@ -687,25 +890,38 @@ void AutoScale(TVirtualPad *can) {
 
   // Apply changes to the first histogram (which beholds the axis)
   if (hFirst) {
-    Double_t delta1 = can->GetUymax() - can->GetUymin();
-    Double_t delta2 = ymax - ymin;
     Double_t f = 0.1;  // 10%
 
     // Like this, we leave empty the 100.*f % of the future size of the canvas
-    // (umax - ymin)
-    Double_t umax = (ymax - f*ymin) / (1.-f);
+    // (umax - ymin). If one of ymax or ymin is zero, leave no space for it
+
+    Double_t umax, umin;
+
+    if (ymin == 0) {
+      umax = (ymax - f*ymin) / (1.-f);
+      umin = 0.;
+    }
+    else if (ymax == 0) {
+      umax = 0.;
+      umin = (ymin - f*ymax) / (1.-f);
+    }
+    else {
+      umax = ( f*ymin + (f-1.)*ymax ) / (2.*f-1.);
+      umin = ( f*(ymax+ymin) - ymin ) / (2.*f-1.);
+    }
 
     //Printf("----> hname=%s min=%.2f max=%.2f", hFirst->GetName(), ymin, ymax);
-    hFirst->GetYaxis()->SetRangeUser(ymin, umax);
+    hFirst->GetYaxis()->SetRangeUser(umin, umax);
     can->Modified();
   }
 
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// Creates files in the desired format (default: pdf)
+// Creates files from canvases in the desired format (default: pdf)
 ////////////////////////////////////////////////////////////////////////////////
-void WritePlots(TString fmt = "pdf", TString what = "c_gen c_rec c_match") {
+void WritePlots(TString fmt = "pdf",
+  TString what = "c_gen c_rec c_match c_recdiff") {
 
   // ROOT pdf generation *sucks*: create eps then convert to pdf
   Bool_t pdf = kFALSE;
@@ -729,6 +945,9 @@ void WritePlots(TString fmt = "pdf", TString what = "c_gen c_rec c_match") {
         Printf("Converting to pdf...");
         gSystem->Exec(Form("epstopdf %s && rm -f %s", out.Data(), out.Data()));
       }
+    }
+    else {
+      Printf("Warning: can't find TCanvas %s", s.Data());
     }
   }
 }
