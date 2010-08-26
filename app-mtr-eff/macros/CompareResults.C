@@ -1,24 +1,28 @@
 /** CompareResults.C -- by Dario Berzano <dario.berzano@gmail.com>
  */
-void CompareResults() {
 
-  // Change it to point to the data you want to analyze
-  //TString prefix = "/dalice05/berzano/outana/app-mtr-eff/sim-mumin-15gev";
-  //TString prefix = "/dalice05/berzano/outana/app-mtr-eff/sim-mumin-onemu-15gev";
-  //TString prefix = "/dalice05/berzano/outana/app-mtr-eff/sim-xavier";
-  TString prefix = "/dalice05/berzano/outana/app-mtr-eff/sim-muplus-onemu-angles-15gev";
-  //TString prefix = "/dalice05/berzano/outana/app-mtr-eff/sim-realistic";
+// Change it to point to the data you want to analyze
+const Char_t *simTag = "sim-real-2mu";
 
-  // CDB tag (used either in slow or fast modes)
-  //TString cdbTag = "r-maxcorr";
-  TString cdbTag = "50pct-maxcorr";
-  //TString cdbTag = "75pct-maxcorr";
+// OCDB efficiency tag
+const Char_t *cdbTag = "50pct-maxcorr";
+
+// AnalysisTask output directory prefix
+const Char_t *anaDir = "/dalice05/berzano/outana/app-mtr-eff";
+
+// The prefix where to read the data from
+TString prefix = Form("%s/%s", anaDir, simTag);
+
+// Base name of the output files
+TString baseOut = Form("%s_%s", simTag, cdbTag);
+
+void NewCompareResults() {
 
   TFile *effFull = TFile::Open(
-    Form("%s/mtracks-%s-fulleff.root", prefix.Data(), cdbTag.Data())
+    Form("%s/mtracks-%s-fulleff.root", prefix.Data(), cdbTag)
   ); 
   TFile *effR    = TFile::Open(
-    Form("%s/mtracks-%s.root", prefix.Data(), cdbTag.Data())
+    Form("%s/mtracks-%s.root", prefix.Data(), cdbTag)
   );
 
   // Generated particles
@@ -39,26 +43,24 @@ void CompareResults() {
   gROOT->cd();
 
   // Plots of generated data
-  PlotsGen(genFull, "100%");
-  PlotsGen(genR, "R", kRed, 26);
-  PlotsGen(0x0, gSystem->BaseName(prefix));
+  PlotsGen("full", "100%", genFull);
+  PlotsGen("slow", "R",    genR, kRed, 26);
+  PlotsGen();
 
   // Plots of reconstructed data
-  PlotsRec(recFull, "100%");
-  PlotsRec(recR, "R", kRed);
-  PlotsRec(recFull, "R fast", kMagenta, 0, kTRUE);
-  //PlotsRec(recR, "R", kRed, 26);
-  //PlotsRec(recFull, "R fast", kMagenta, 3, kTRUE);
-  PlotsRec(0x0, gSystem->BaseName(prefix));
+  PlotsRec("full", "100%",   recFull);
+  PlotsRec("slow", "R",      recR, kRed);
+  PlotsRec("fast", "R fast", recFull, kMagenta, 0, kTRUE);
+  PlotsRec();
 
-  // ...
-  PlotsMatch(genFull, recFull, "100%", kBlue);
-  PlotsMatch(genR, recR, "R", kRed, 26);
-  PlotsMatch(genFull, recFull, "R fast", kMagenta, 3, kTRUE);
-  PlotsMatch(0x0, 0x0, gSystem->BaseName(prefix));
+  // Plots of matching results and more
+  PlotsMatch("full", "100%",   genFull, recFull, kBlue);
+  PlotsMatch("slow", "R",      genR, recR, kRed, 26);
+  PlotsMatch("fast", "R fast", genFull, recFull, kMagenta, 3, kTRUE);
+  PlotsMatch();
 
   // Percentages
-  MatchPercentages();
+  /*MatchPercentages();*/
 
   // Close files
   effFull->Close();
@@ -70,22 +72,19 @@ void CompareResults() {
 ////////////////////////////////////////////////////////////////////////////////
 // Read the information from the Monte Carlo tree inside the file
 ////////////////////////////////////////////////////////////////////////////////
-void PlotsGen(TTree *t = 0x0, TString shortLabel = "", Color_t color = kBlack,
-  Style_t markerStyle = 0) {
+void PlotsGen(TString tag = "", TString shortLabel = "", TTree *t = 0x0, 
+  Color_t color = kBlack, Style_t markerStyle = 0) {
 
   static TCanvas *canvas = 0x0;
   static TLegend *legend = 0x0;
   static UInt_t nCalled = 0;
 
-  // In this special mode, with t = 0x0, legend is drawn and canvas is saved to
-  // a pdf file
-  if (!t) {
+  // In this special mode, with only one parameter given, legend is drawn and 
+  // canvas is saved to a pdf file
+  if (t == 0x0) {
+    for (UInt_t i=1; i<=8; i++) AutoScale( canvas->cd(i) );
     canvas->cd(1);
     legend->Draw();
-    if (shortLabel.IsNull()) shortLabel = canvas->GetName();
-    TString out = Form("%s-gen.pdf", shortLabel.Data());
-    canvas->Print(out);
-    //gSystem->Exec(Form("epstopdf %s && rm %s", out.Data(), out.Data()));
     return;
   }
 
@@ -93,7 +92,7 @@ void PlotsGen(TTree *t = 0x0, TString shortLabel = "", Color_t color = kBlack,
 
   // This function is called for the first time: create canvas and legend
   if (!canvas) {
-    canvas = new TCanvas("cGen", "Generated particles", 500, 800);
+    canvas = new TCanvas("c_gen", "Generated particles", 500, 800);
     canvas->cd(0);
     canvas->Divide(2, 4);
     legend = StandardLegend();
@@ -117,7 +116,7 @@ void PlotsGen(TTree *t = 0x0, TString shortLabel = "", Color_t color = kBlack,
 
   // Rapidity
   canvas->cd(++cc);
-  hName = Form("h%02u_%s_%s_%u", cc, t->GetName(), canvas->GetName(), nCalled);
+  hName = Form("h_gen_rap_%s", tag.Data());
   t->Project(hName, "Rapidity(fTracks.Energy(),fTracks.Pz())");
   gDirectory->GetObject(hName, h);
   SetHistoStyle(h, markerStyle, color, "Rapidity, y", "dN/dy [counts]");
@@ -128,7 +127,7 @@ void PlotsGen(TTree *t = 0x0, TString shortLabel = "", Color_t color = kBlack,
 
   // Total momentum
   canvas->cd(++cc);
-  hName = Form("h%02u_%s_%s_%u", cc, t->GetName(), canvas->GetName(), nCalled);
+  hName = Form("h_gen_ptot_%s", tag.Data());
   t->Project(hName, "fTracks.P()");
   gDirectory->GetObject(hName, h);
   SetHistoStyle(h, markerStyle, color, "P [GeV/c]", "dN/dP [counts]");
@@ -136,7 +135,7 @@ void PlotsGen(TTree *t = 0x0, TString shortLabel = "", Color_t color = kBlack,
 
   // Transverse momentum
   canvas->cd(++cc);
-  hName = Form("h%02u_%s_%s_%u", cc, t->GetName(), canvas->GetName(), nCalled);
+  hName = Form("h_gen_pt_%s", tag.Data());
   t->Project(hName, "fTracks.Pt()");
   gDirectory->GetObject(hName, h);
   SetHistoStyle(h, markerStyle, color, "Pt [GeV/c]", "dN/dPt [counts]");
@@ -144,7 +143,7 @@ void PlotsGen(TTree *t = 0x0, TString shortLabel = "", Color_t color = kBlack,
 
   // Phi [0.2Pi[
   canvas->cd(++cc);
-  hName = Form("h%02u_%s_%s_%u", cc, t->GetName(), canvas->GetName(), nCalled);
+  hName = Form("h_gen_phi_%s", tag.Data());
   t->Project(hName, "RadToDeg(fTracks.Phi())");
   gDirectory->GetObject(hName, h);
   SetHistoStyle(h, markerStyle, color, "#varphi [deg]", "dN/d#varphi [counts]");
@@ -152,7 +151,7 @@ void PlotsGen(TTree *t = 0x0, TString shortLabel = "", Color_t color = kBlack,
 
   // Theta [-Pi.Pi[
   canvas->cd(++cc);
-  hName = Form("h%02u_%s_%s_%u", cc, t->GetName(), canvas->GetName(), nCalled);
+  hName = Form("h_gen_theta_%s", tag.Data());
   t->Project(hName, "RadToDeg(fTracks.Theta())");
   gDirectory->GetObject(hName, h);
   SetHistoStyle(h, markerStyle, color, "#theta [deg]", "dN/d#theta [counts]");
@@ -160,7 +159,7 @@ void PlotsGen(TTree *t = 0x0, TString shortLabel = "", Color_t color = kBlack,
 
   // Radius
   canvas->cd(++cc);
-  hName = Form("h%02u_%s_%s_%u", cc, t->GetName(), canvas->GetName(), nCalled);
+  hName = Form("h_gen_rad_%s", tag.Data());
   t->Project(hName, "fTracks.R()");
   gDirectory->GetObject(hName, h);
   SetHistoStyle(h, markerStyle, color, "R [cm]", "dN/dR [counts]");
@@ -168,7 +167,7 @@ void PlotsGen(TTree *t = 0x0, TString shortLabel = "", Color_t color = kBlack,
 
   // Charge
   canvas->cd(++cc);
-  hName = Form("h%02u_%s_%s_%u", cc, t->GetName(), canvas->GetName(), nCalled);
+  hName = Form("h_gen_charge_%s", tag.Data());
   t->Project(hName, "-sign(fTracks.GetPdgCode())");
   gDirectory->GetObject(hName, h);
   SetHistoStyle(h, markerStyle, color, "Charge, Q [e]", "dN/dQ [counts]");
@@ -176,7 +175,7 @@ void PlotsGen(TTree *t = 0x0, TString shortLabel = "", Color_t color = kBlack,
 
   // Z of vertex
   canvas->cd(++cc);
-  hName = Form("h%02u_%s_%s_%u", cc, t->GetName(), canvas->GetName(), nCalled);
+  hName = Form("h_gen_vz_%s", tag.Data());
   t->Project(hName, "fTracks.Vz()");
   gDirectory->GetObject(hName, h);
   SetHistoStyle(h, markerStyle, color, "Vz [cm]", "dN/dVz [counts]");
@@ -187,8 +186,8 @@ void PlotsGen(TTree *t = 0x0, TString shortLabel = "", Color_t color = kBlack,
 ////////////////////////////////////////////////////////////////////////////////
 // Read the information from the reconstructed muons tree
 ////////////////////////////////////////////////////////////////////////////////
-void PlotsRec(TTree *t = 0x0, TString shortLabel = "", Color_t color = kBlack,
-  Style_t markerStyle = 0, Bool_t flagKept = kFALSE) {
+void PlotsRec(TString tag = "", TString shortLabel = "", TTree *t = 0x0,
+  Color_t color = kBlack, Style_t markerStyle = 0, Bool_t flagKept = kFALSE) {
 
   static TCanvas *canvas = 0x0;
   static TLegend *legend = 0x0;
@@ -202,13 +201,10 @@ void PlotsRec(TTree *t = 0x0, TString shortLabel = "", Color_t color = kBlack,
 
   // In this special mode, with t = 0x0, legend is drawn and canvas is saved to
   // a pdf file
-  if (!t) {
+  if (t == 0x0) {
+    for (UInt_t i=1; i<=8; i++) AutoScale( canvas->cd(i) );
     canvas->cd(1);
     legend->Draw();
-    if (shortLabel.IsNull()) shortLabel = canvas->GetName();
-    TString out = Form("%s-rec.pdf", shortLabel.Data());
-    canvas->Print(out);
-    //gSystem->Exec(Form("epstopdf %s && rm %s", out.Data(), out.Data()));
     return;
   }
 
@@ -216,7 +212,7 @@ void PlotsRec(TTree *t = 0x0, TString shortLabel = "", Color_t color = kBlack,
 
   // This function is called for the first time: create canvas and legend
   if (!canvas) {
-    canvas = new TCanvas("cRec", "Reconstructed particles", 500, 800);
+    canvas = new TCanvas("c_rec", "Reconstructed matching particles", 500, 800);
     canvas->cd(0);
     canvas->Divide(2, 4);
     legend = StandardLegend();
@@ -240,7 +236,7 @@ void PlotsRec(TTree *t = 0x0, TString shortLabel = "", Color_t color = kBlack,
 
   // Rapidity
   canvas->cd(++cc);
-  hName = Form("h%02u_%s_%s_%u", cc, t->GetName(), canvas->GetName(), nCalled);
+  hName = Form("h_rec_rap_%s", tag.Data());
   t->Project(hName, "Rapidity(fTracks.E(),fTracks.Pz())", cond);
   gDirectory->GetObject(hName, h);
   SetHistoStyle(h, markerStyle, color, "Rapidity, y", "dN/dy [counts]");
@@ -251,7 +247,7 @@ void PlotsRec(TTree *t = 0x0, TString shortLabel = "", Color_t color = kBlack,
 
   // Total momentum
   canvas->cd(++cc);
-  hName = Form("h%02u_%s_%s_%u", cc, t->GetName(), canvas->GetName(), nCalled);
+  hName = Form("h_rec_ptot_%s", tag.Data());
   t->Project(hName, "fTracks.P()", cond);
   gDirectory->GetObject(hName, h);
   SetHistoStyle(h, markerStyle, color, "P [GeV/c]", "dN/dP [counts]");
@@ -259,7 +255,7 @@ void PlotsRec(TTree *t = 0x0, TString shortLabel = "", Color_t color = kBlack,
 
   // Transverse momentum
   canvas->cd(++cc);
-  hName = Form("h%02u_%s_%s_%u", cc, t->GetName(), canvas->GetName(), nCalled);
+  hName = Form("h_rec_pt_%s", tag.Data());
   t->Project(hName, "fTracks.Pt()", cond);
   gDirectory->GetObject(hName, h);
   SetHistoStyle(h, markerStyle, color, "Pt [GeV/c]", "dN/dPt [counts]");
@@ -267,7 +263,7 @@ void PlotsRec(TTree *t = 0x0, TString shortLabel = "", Color_t color = kBlack,
 
   // Phi [0.2Pi[
   canvas->cd(++cc);
-  hName = Form("h%02u_%s_%s_%u", cc, t->GetName(), canvas->GetName(), nCalled);
+  hName = Form("h_rec_phi_%s", tag.Data());
   t->Project(hName, "RadToDeg(fTracks.Phi())", cond);
   gDirectory->GetObject(hName, h);
   SetHistoStyle(h, markerStyle, color, "#varphi [deg]",
@@ -276,16 +272,16 @@ void PlotsRec(TTree *t = 0x0, TString shortLabel = "", Color_t color = kBlack,
 
   // Theta [-Pi.Pi[
   canvas->cd(++cc);
-  hName = Form("h%02u_%s_%s_%u", cc, t->GetName(), canvas->GetName(), nCalled);
+  hName = Form("h_rec_theta_%s", tag.Data());
   t->Project(hName, "RadToDeg(fTracks.Theta())", cond);
   gDirectory->GetObject(hName, h);
   SetHistoStyle(h, markerStyle, color, "#theta [deg]",
     "dN/d#theta [counts]");
   h->Draw(drawOpts);
 
-  // Radius
+  // DCA
   canvas->cd(++cc);
-  hName = Form("h%02u_%s_%s_%u", cc, t->GetName(), canvas->GetName(), nCalled);
+  hName = Form("h_rec_dca_%s", tag.Data());
   t->Project(hName, "fTracks.GetDCA()", cond);
   gDirectory->GetObject(hName, h);
   SetHistoStyle(h, markerStyle, color, "DCA [cm]", "dN/dDCA [counts]");
@@ -293,7 +289,7 @@ void PlotsRec(TTree *t = 0x0, TString shortLabel = "", Color_t color = kBlack,
 
   // R at the end of the absorber
   canvas->cd(++cc);
-  hName = Form("h%02u_%s_%s_%u", cc, t->GetName(), canvas->GetName(), nCalled);
+  hName = Form("h_rec_rabs_%s", tag.Data());
   t->Project(hName, "fTracks.GetRAtAbsorberEnd()", cond);
   gDirectory->GetObject(hName, h);
   SetHistoStyle(h, markerStyle, color, "R_{abs} [cm]", "dN/dRabs [counts]");
@@ -301,7 +297,7 @@ void PlotsRec(TTree *t = 0x0, TString shortLabel = "", Color_t color = kBlack,
 
   // Associated MC particle label
   canvas->cd(++cc);
-  hName = Form("h%02u_%s_%s_%u", cc, t->GetName(), canvas->GetName(), nCalled);
+  hName = Form("h_rec_assmc_%s", tag.Data());
   //h = new TH1I(hName, hName, 13, -2.5, 10.5);
   t->Project(hName, "fTracks.GetLabel()", cond);
   gDirectory->GetObject(hName, h);
@@ -316,22 +312,20 @@ void PlotsRec(TTree *t = 0x0, TString shortLabel = "", Color_t color = kBlack,
 // the number of particles generated and reconstructed for each event, the match
 // trigger information for rec and which tracks are in tracker, trigger or both
 ////////////////////////////////////////////////////////////////////////////////
-void PlotsMatch(TTree *tg = 0x0, TTree *tr = 0x0, TString shortLabel = "",
-  Color_t color = kBlack, Style_t markerStyle = 0, Bool_t flagKept = kFALSE) {
+void PlotsMatch(TString tag = "", TString shortLabel = "", TTree *tg = 0x0,
+  TTree *tr = 0x0, Color_t color = kBlack, Style_t markerStyle = 0,
+  Bool_t flagKept = kFALSE) {
 
   static TCanvas *canvas = 0x0;
   static TLegend *legend = 0x0;
   static UInt_t nCalled = 0;
 
-  // In this special mode, with t = 0x0, legend is drawn and canvas is saved to
-  // a pdf file
-  if (!tg) {
+  // In this special mode, with only one parameter given, legend is drawn and 
+  // canvas is saved to a pdf file
+  if (tg == 0x0) {
+    for (UInt_t i=1; i<=4; i++) AutoScale( canvas->cd(i) );
     canvas->cd(3);
     legend->Draw();
-    if (shortLabel.IsNull()) shortLabel = canvas->GetName();
-    TString out = Form("%s-match.pdf", shortLabel.Data());
-    canvas->Print(out);
-    //gSystem->Exec(Form("epstopdf %s && rm %s", out.Data(), out.Data()));
     return;
   }
 
@@ -339,7 +333,7 @@ void PlotsMatch(TTree *tg = 0x0, TTree *tr = 0x0, TString shortLabel = "",
 
   // This function is called for the first time: create canvas and legend
   if (!canvas) {
-    canvas = new TCanvas("cMatch", "Generated events and matching info",
+    canvas = new TCanvas("c_match", "Generated events and matching info",
       500, 400);
     canvas->cd(0);
     canvas->Divide(2, 2);
@@ -365,18 +359,18 @@ void PlotsMatch(TTree *tg = 0x0, TTree *tr = 0x0, TString shortLabel = "",
 
   if (!flagKept) {
 
-    // Number of generated events (from the gen tree)
+    // Generated multiplicity
     canvas->cd(++cc);
-    hName = Form("h%02u_%s_%s_%u", cc, tg->GetName(), canvas->GetName(), nCalled);
+    hName = Form("h_match_multgen_%s", tag.Data());
     tg->Project(hName, "@fTracks.size()");
     gDirectory->GetObject(hName, h);
     SetHistoStyle(h, markerStyle, color, "Num. gen tracks per event",
       "dN/dNTrEv [counts]", "", kTRUE);
     h->Draw(drawOpts);
 
-    // Number of reconstructed events (from the rec tree)
+    // Reconstructed multiplicity
     canvas->cd(++cc);
-    hName = Form("h%02u_%s_%s_%u", cc, tr->GetName(), canvas->GetName(), nCalled);
+    hName = Form("h_match_multrec_%s", tag.Data());
     tr->Project(hName, "@fTracks.size()");
     gDirectory->GetObject(hName, h);
     SetHistoStyle(h, markerStyle, color, "Num. total rec tracks per event",
@@ -390,7 +384,7 @@ void PlotsMatch(TTree *tg = 0x0, TTree *tr = 0x0, TString shortLabel = "",
 
   // Trigger match on reconstructed tracks
   canvas->cd(++cc);
-  hName = Form("h%02u_%s_%s_%u", cc, tr->GetName(), canvas->GetName(), nCalled);
+  hName = Form("h_match_trigmatch_%s", tag.Data());
   h = new TH1I(hName, hName, 4, -0.5, 3.5);
   h->GetXaxis()->SetBinLabel(1, "no trig match");  // GetMatchTrigger()=0
   h->GetXaxis()->SetBinLabel(2, "below pt cut");   // GetMatchTrigger()=1
@@ -410,7 +404,6 @@ void PlotsMatch(TTree *tg = 0x0, TTree *tr = 0x0, TString shortLabel = "",
 
   SetHistoStyle(h, markerStyle, color, "Match trigger cuts",
     "dN/dMatch [counts]", "");
-  h->GetYaxis()->SetRangeUser(0., h->GetEntries());
   h->Draw(drawOpts);
 
   // For the legend (call here once after only one plot)
@@ -425,7 +418,7 @@ void PlotsMatch(TTree *tg = 0x0, TTree *tr = 0x0, TString shortLabel = "",
   // Tracks that have trigger, tracker or both information
   canvas->cd(++cc);
 
-  hName = Form("h%02u_%s_%s_%u", cc, tr->GetName(), canvas->GetName(), nCalled);
+  hName = Form("h_match_trigtrack_%s", tag.Data());
   h = new TH1I(hName, hName, 3, 0.5, 3.5);
   h->GetXaxis()->SetBinLabel(1, "only trigger");   // TrigTrack()=1
   h->GetXaxis()->SetBinLabel(2, "only tracker");   // TrigTrack()=2
@@ -644,7 +637,7 @@ UInt_t MtGetMatchTrigger(UShort_t match, UShort_t kept = kTRUE) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// 
+// Echo line on an output file and on the screen at the same time
 ////////////////////////////////////////////////////////////////////////////////
 void Echo(const Char_t *s = 0x0, const Char_t *f = 0x0) {
   static ofstream os;
@@ -655,5 +648,87 @@ void Echo(const Char_t *s = 0x0, const Char_t *f = 0x0) {
   else {
     cout << s << endl;
     os << s << endl;
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Auto scale function to fit all the different y scales of the histograms on a
+// given canvas!
+////////////////////////////////////////////////////////////////////////////////
+void AutoScale(TVirtualPad *can) {
+
+  // Get the list of contents of that canvas
+  TList *l = can->GetListOfPrimitives();
+  TIter it(l);
+  TObject *o;
+
+  TH1 *hFirst = 0x0;
+  TH1 *h = 0x0;
+  Double_t ymin, ymax;
+
+  // Browse content (may be any class)
+  while (( o = it.Next() )) {
+    cl = TClass::GetClass(o->ClassName());
+
+    // Consider only histograms
+    if (cl->InheritsFrom(TH1::Class())) {
+      h = (TH1 *)o;
+      if (hFirst == 0x0) {
+        hFirst = h;
+        ymin = hFirst->GetMinimum();
+        ymax = hFirst->GetMaximum();
+      }
+      else {
+        ymin = TMath::Min(ymin, h->GetMinimum());
+        ymax = TMath::Max(ymax, h->GetMaximum());
+      }
+    }
+  }
+
+  // Apply changes to the first histogram (which beholds the axis)
+  if (hFirst) {
+    Double_t delta1 = can->GetUymax() - can->GetUymin();
+    Double_t delta2 = ymax - ymin;
+    Double_t f = 0.1;  // 10%
+
+    // Like this, we leave empty the 100.*f % of the future size of the canvas
+    // (umax - ymin)
+    Double_t umax = (ymax - f*ymin) / (1.-f);
+
+    //Printf("----> hname=%s min=%.2f max=%.2f", hFirst->GetName(), ymin, ymax);
+    hFirst->GetYaxis()->SetRangeUser(ymin, umax);
+    can->Modified();
+  }
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Creates files in the desired format (default: pdf)
+////////////////////////////////////////////////////////////////////////////////
+void WritePlots(TString fmt = "pdf", TString what = "c_gen c_rec c_match") {
+
+  // ROOT pdf generation *sucks*: create eps then convert to pdf
+  Bool_t pdf = kFALSE;
+  if (fmt == "pdf") {
+    pdf = kTRUE;
+    fmt = "eps";
+  }
+
+  TObjArray *oa = what.Tokenize(" ");
+  for (Int_t i=0; i<oa->GetEntries(); i++) {
+    TString s = ((TObjString *)oa->At(i))->GetString();
+    TCanvas *c = gROOT->FindObject(s);
+    if (c != 0x0) {
+      TString out = Form("%s_%s.%s",
+        baseOut.Data(),
+        s(2, s.Length()).Data(),
+        fmt.Data()
+      );
+      c->Print(out);
+      if (pdf) {
+        Printf("Converting to pdf...");
+        gSystem->Exec(Form("epstopdf %s && rm -f %s", out.Data(), out.Data()));
+      }
+    }
   }
 }
