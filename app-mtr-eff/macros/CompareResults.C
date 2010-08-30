@@ -82,6 +82,7 @@ void CompareResults() {
   }
 
   // Run the analysis
+  baseOut = Form("%s_%s", simTag.Data(), cdbTag.Data());
   TString prefix =  Form("%s/%s", anaDir.Data(), simTag.Data());
   CompareSingle(prefix, cdbTag);
 
@@ -115,7 +116,7 @@ void CompareSingle(TString prefix, TString cdbTag) {
   TTree *recR    = (TTree *)effR->Get("muRec");
 
   // Inits text output
-  Echo(0x0, Form("%s.txt", gSystem->BaseName(prefix)));
+  Echo(0x0, Form("%s.txt", baseOut.Data()));
 
   // Sets the global favorite ROOT style
   SetStyle();
