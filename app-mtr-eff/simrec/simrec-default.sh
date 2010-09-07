@@ -4,8 +4,7 @@
 export MOMENTUMS="15"
 
 # Choose OCDBs
-export CDBS="50pct-maxcorr 75pct-maxcorr r-maxcorr"
-#export CDBS="r-maxcorr"
+export CDBS="fulleff 50pct-maxcorr 75pct-maxcorr r-maxcorr"
 
 # Custom AliRoot?
 export ALICE_ROOT="/dalice07/lopez/ALICE/AliRoot/TRUNK"
@@ -25,7 +24,7 @@ do
 
     # Write options in Config.C
     "$SCRIPTDIR"/preprocess.sh Config.C.in \
-      MUONS_PER_EVENT   1  \
+      MUONS_PER_EVENT   2  \
       MOMENTUM_GEV_C   $P. \
       PHI_MIN_DEG       0. \
       PHI_MAX_DEG     360. \
@@ -40,7 +39,7 @@ do
     "$SCRIPTDIR"/joblaunch.sh \
       --jobs     30 \
       --events 1000 \
-      --tag    sim-realistic-${C} \
+      --tag    sim-real-2mu-${C} \
       --cdb    'local:///dalice05/berzano/cdb/'${C}'/'
 
     # Remove the Config.C (it can be found in jobs directories)

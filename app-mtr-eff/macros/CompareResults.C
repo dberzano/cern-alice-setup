@@ -951,4 +951,13 @@ void WritePlots(TString fmt = "pdf",
       Printf("Warning: can't find TCanvas %s", s.Data());
     }
   }
+
+  // Writes the text too, to pdf
+  gSystem->mkdir("tmp/");
+  gSystem->Exec("echo '\\documentclass[a4paper,12pt]{article}\\begin{document}\\pagestyle{empty}\\begin{verbatim}' > tmp/latex.tex");
+  gSystem->Exec( Form("cat %s.txt >> tmp/latex.tex", baseOut.Data()) );
+  gSystem->Exec("echo '\\end{verbatim}\\end{document}' >> tmp/latex.tex");
+  gSystem->Exec("cd tmp ; pdflatex latex.tex");
+
+
 }

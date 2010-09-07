@@ -1,9 +1,36 @@
 /** By Dario Berzano <dario.berzano@gmail.com>
  */
-void runAppMtrEff() {
+void runMultiple() {
+  TString cdbModes[] = { "r-maxcorr" };
+  UInt_t nModes = sizeof(cdbModes)/sizeof(TString);
 
-  TString cdbMode = "50pct-maxcorr";
-  TString effMode = cdbMode;  // cdbMode or "fulleff"
+  loadLibs();
+  gROOT->LoadMacro("AliAnalysisTaskAppMtrEff.cxx++");
+
+  for (UInt_t i=0; i<nModes; i++) {
+
+    for (UInt_t j=0; j<2; j++) {
+      TString cmd = Form("screen -dmS ali%u%u aliroot -b -q runAppMtrEff.C'(\"%s\", \"%s\")'",
+        i, j,
+        cdbModes[i].Data(),
+        (j==0) ? "" : "fulleff");
+      gSystem->Exec(cmd.Data());
+    }
+
+  }
+
+}
+
+void runAppMtrEff(
+  TString cdbMode = "r-maxcorr",
+  TString effMode = "fulleff", /* fulleff */
+  TString simMode = "real-2mu"
+) {
+
+  if (effMode.IsNull()) effMode = cdbMode;
+
+  //TString cdbMode = "50pct-maxcorr";
+  //TString effMode = cdbMode;  // cdbMode or "fulleff"
   TString cdb = Form("local:///dalice05/berzano/cdb/%s", cdbMode.Data());
 
   //////////////////////////////////////////////////////////////////////////////
@@ -21,23 +48,21 @@ void runAppMtrEff() {
   //////////////////////////////////////////////////////////////////////////////
   // Run on the LPC farm, move results to proper folder, with my data
   //////////////////////////////////////////////////////////////////////////////
-  TString simMode = "realistic";
-  /*
+  //TString simMode = "realistic";
   gROOT->LoadMacro("CreateChainFromFind.C");
   TChain *chain = CreateChainFromFind(
     Form("/dalice05/berzano/jobs/sim-%s-%s", simMode.Data(), effMode.Data()),
     "AliESDs.root",
     "esdTree"
   );
-  */
+  /*
   gROOT->LoadMacro("CreateChainFromText.C");
   TChain *chain = CreateChainFromText(
     Form("/dalice05/berzano/jobs/sim-%s-%s/partial_matching.txt",
       simMode.Data(), effMode.Data()),
     "esdTree", kTRUE
   );
-
-  gSystem->Exit(66);
+  */
 
   TString output;
   if (cdbMode == effMode) {
@@ -100,7 +125,7 @@ void runAppMtrEff() {
 
 }
 
-void runTask(TChain *input, TString output, Bool_t applyEff, TString cdb = "") {
+void loadLibs() {
 
   // Base ROOT libraries
   gSystem->Load("libTree");
@@ -121,6 +146,15 @@ void runTask(TChain *input, TString output, Bool_t applyEff, TString cdb = "") {
   gSystem->Load("libANALYSIS");
   gSystem->Load("libANALYSISalice");
   gSystem->Load("libMUONtrigger");
+  
+}
+
+void runTask(TChain *input, TString output, Bool_t applyEff, TString cdb = "") {
+
+  loadLibs();
+
+  // Remove extra error messages, leave the progress bar alone STP!
+  AliLog::SetGlobalLogLevel(AliLog::kError);
 
   gROOT->LoadMacro("AliAnalysisTaskAppMtrEff.cxx+");
   AliAnalysisTaskAppMtrEff *task =

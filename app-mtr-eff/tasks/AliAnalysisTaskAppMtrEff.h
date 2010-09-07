@@ -128,6 +128,8 @@ class AliAnalysisTaskAppMtrEff : public AliAnalysisTask {
     TH1F         *fHistoPt;      //! Output test Pt distro
     TH1I         *fHistoEff;     //!
     TH1I         *fHistoDev;     //!
+    TH1I         *fHisto4434Bend;    //!
+    TH1I         *fHisto4434NonBend;    //!
 
     Float_t      *fEffRpc;      //! Array of efficiencies per RPC
     Float_t      *fEffCh;       //! Array of efficiencies per chamber

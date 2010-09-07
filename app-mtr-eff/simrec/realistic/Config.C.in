@@ -101,7 +101,7 @@ void Config(char directory[100]="", char option[6]="myfun")
 
              if (!strcmp(option,"myfun")) {
                       AliGenTHnSparse *gener = new AliGenTHnSparse();
-                      gener->SetNumberParticles(10);                
+                      gener->SetNumberParticles(@MUONS_PER_EVENT@);                
                       gener->SetPart(13,kTRUE);
                       gener->SetThnSparse("@THNSPARSE_SRC@","Thn4MC");
                       gener->Init(); 
