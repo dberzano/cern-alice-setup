@@ -201,13 +201,6 @@ export PATH="$ROOTSYS/bin:$PATH"
 export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$ROOTSYS/lib"
 
 #
-# GEANT 3
-#
-
-export G3SYS="$ALICE_PREFIX/geant3/$G3_VER"
-export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$ALICE/geant3/lib/tgt_${ALICE_TARGET}"
-
-#
 # AliRoot
 #
 
@@ -215,6 +208,13 @@ export ALICE_ROOT="$ALICE_PREFIX/aliroot/$ALICE_VER"
 export ALICE_TARGET=`root-config --arch 2> /dev/null`
 export PATH="$PATH:$ALICE_ROOT/bin/tgt_${ALICE_TARGET}"
 export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$ALICE_ROOT/lib/tgt_${ALICE_TARGET}"
+
+#
+# GEANT 3
+#
+
+export G3SYS="$ALICE_PREFIX/geant3/$G3_VER"
+export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$G3SYS/lib/tgt_${ALICE_TARGET}"
 
 ################################################################################
 
