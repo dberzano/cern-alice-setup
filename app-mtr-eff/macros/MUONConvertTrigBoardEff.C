@@ -155,7 +155,8 @@ void RootToTxt(TString& in, TString& out, UInt_t effDecimals = 4) {
 // Converts a text file (old format) with per-board efficiencies into a ROOT
 // file
 ////////////////////////////////////////////////////////////////////////////////
-void TxtToRoot(TString& in, TString& out, UInt_t effDecimals = 4) {
+void TxtToRoot(TString& in, TString& out, UInt_t effDecimals = 4,
+  Bool_t maxCorr = kFALSE) {
 
   ifstream is(in);
   if (!is) {
@@ -177,6 +178,8 @@ void TxtToRoot(TString& in, TString& out, UInt_t effDecimals = 4) {
 
   // The containing list
   TList *list = new TList();
+  TH1 *h1 = 0x0;
+  TH1 *h2 = 0x0;
 
   // Dummy histograms for denominators
   for (UInt_t i=11; i<=14; i++) {
@@ -212,13 +215,28 @@ void TxtToRoot(TString& in, TString& out, UInt_t effDecimals = 4) {
       }
 
       TH1F *hEffs = CreateBoardHisto(cathStr, nChamShort, list);
+      if (nCath == 0) h1 = hEffs;
+      else if (nCath == 1) h2 = hEffs;
 
       // Read 234 values, one for each local board
       for (UInt_t i=1; i<=234; i++) {
         Float_t eff;
         is >> eff;
         Int_t bin = hEffs->GetBin(i);  // in principle, bin == i
-        hEffs->SetBinContent(bin, TMath::Nint(factor*eff));
+
+        if ((nCath == AliMUONTriggerEfficiencyCells::kBothPlanesEff) &&
+          (maxCorr)) {
+
+          // Don't use this value! Use the minimum of the other two!
+          Float_t corr = TMath::Max(h1->GetBinContent(bin),
+            h2->GetBinContent(bin));
+          hEffs->SetBinContent(bin, corr);
+
+        }
+        else {
+          hEffs->SetBinContent(bin, TMath::Nint(factor*eff));
+        }
+
         //Printf("%s[%d] = %.2f // board %u", hEffs->GetName(), bin, eff, i);
       }
 
@@ -238,16 +256,18 @@ void TxtToRoot(TString& in, TString& out, UInt_t effDecimals = 4) {
 ////////////////////////////////////////////////////////////////////////////////
 // Automatically selects the way of conversion (txt <-> root)
 ////////////////////////////////////////////////////////////////////////////////
-void MUONConvertTrigBoardEff(TString in, TString out, UInt_t decimals = 3.) {
+void MUONConvertTrigBoardEff(TString in, TString out, UInt_t decimals = 3.,
+  Bool_t maxCorr = kFALSE) {
 
   if (in.EndsWith(".root")) {
     RootToTxt(in, out, decimals);
   }
   else if (out.EndsWith(".root")) {
-    TxtToRoot(in, out, decimals);
+    TxtToRoot(in, out, decimals, maxCorr);
   }
   else {
-    Printf("At least one out of the first two parameters must be a ROOT file name.");
+    Printf("At least one out of the first two parameters must be a "
+      "ROOT file name.");
   }
 
 }

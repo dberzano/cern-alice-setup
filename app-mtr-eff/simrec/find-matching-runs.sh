@@ -2,9 +2,11 @@
 
 declare -a JOBS
 #JOBS=( sim-realistic-r-maxcorr sim-realistic-50pct-maxcorr sim-realistic-75pct-maxcorr sim-realistic-fulleff )
-JOBS=( sim-realistic-75pct-maxcorr sim-realistic-fulleff )
+#JOBS=( sim-realistic-75pct-maxcorr sim-realistic-fulleff )
+JOBS=( sim-real-2mu-fulleff sim-real-2mu-r-maxcorr sim-real-2mu-50pct-maxcorr sim-real-2mu-75pct-maxcorr )
 
 export PREFIX="/dalice05/berzano/jobs"
+#export PREFIX="$HOME/Temp/outsim"
 export MAXRUNS=100
 export NJOBS=${#JOBS[@]}
 export LISTNAME="partial_matching.txt"

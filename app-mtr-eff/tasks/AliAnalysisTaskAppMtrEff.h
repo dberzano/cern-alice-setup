@@ -128,8 +128,8 @@ class AliAnalysisTaskAppMtrEff : public AliAnalysisTask {
     TH1F         *fHistoPt;      //! Output test Pt distro
     TH1I         *fHistoEff;     //!
     TH1I         *fHistoDev;     //!
-    TH1I         *fHisto4434Bend;    //!
-    TH1I         *fHisto4434NonBend;    //!
+    TH1I         *fHisto4434b;   //!
+    TH1I         *fHisto4434n;   //!
 
     Float_t      *fEffRpc;      //! Array of efficiencies per RPC
     Float_t      *fEffCh;       //! Array of efficiencies per chamber
@@ -145,6 +145,8 @@ class AliAnalysisTaskAppMtrEff : public AliAnalysisTask {
     AliAnalysisTaskAppMtrEff(const AliAnalysisTaskAppMtrEff &);
     AliAnalysisTaskAppMtrEff& operator=(
       const AliAnalysisTaskAppMtrEff&);
+
+    Bool_t KeepMuTrack(AliESDMuonTrack *esdMt);
  
     ClassDef(AliAnalysisTaskAppMtrEff, 1);
 };

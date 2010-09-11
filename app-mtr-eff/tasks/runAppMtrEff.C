@@ -1,7 +1,10 @@
 /** By Dario Berzano <dario.berzano@gmail.com>
  */
+
+TString taskPrefix = "/dalice05/berzano";
+
 void runMultiple() {
-  TString cdbModes[] = { "r-maxcorr" };
+  TString cdbModes[] = { "50pct-maxcorr", "75pct-maxcorr", "r-maxcorr" };
   UInt_t nModes = sizeof(cdbModes)/sizeof(TString);
 
   loadLibs();
@@ -23,15 +26,13 @@ void runMultiple() {
 
 void runAppMtrEff(
   TString cdbMode = "r-maxcorr",
-  TString effMode = "fulleff", /* fulleff */
+  TString effMode = "", /* fulleff */
   TString simMode = "real-2mu"
 ) {
 
   if (effMode.IsNull()) effMode = cdbMode;
 
-  //TString cdbMode = "50pct-maxcorr";
-  //TString effMode = cdbMode;  // cdbMode or "fulleff"
-  TString cdb = Form("local:///dalice05/berzano/cdb/%s", cdbMode.Data());
+  TString cdb = Form("local://%s/cdb/%s", taskPrefix.Data(), cdbMode.Data());
 
   //////////////////////////////////////////////////////////////////////////////
   // Local run for test (on my Mac)
@@ -48,21 +49,22 @@ void runAppMtrEff(
   //////////////////////////////////////////////////////////////////////////////
   // Run on the LPC farm, move results to proper folder, with my data
   //////////////////////////////////////////////////////////////////////////////
-  //TString simMode = "realistic";
+  /*
   gROOT->LoadMacro("CreateChainFromFind.C");
   TChain *chain = CreateChainFromFind(
-    Form("/dalice05/berzano/jobs/sim-%s-%s", simMode.Data(), effMode.Data()),
+    Form("%s/jobs/sim-%s-%s", taskPrefix.Data(), simMode.Data(), effMode.Data()),
     "AliESDs.root",
-    "esdTree"
-  );
-  /*
-  gROOT->LoadMacro("CreateChainFromText.C");
-  TChain *chain = CreateChainFromText(
-    Form("/dalice05/berzano/jobs/sim-%s-%s/partial_matching.txt",
-      simMode.Data(), effMode.Data()),
-    "esdTree", kTRUE
+    "esdTree",
+    1e9,
+    kTRUE
   );
   */
+  gROOT->LoadMacro("CreateChainFromText.C");
+  TChain *chain = CreateChainFromText(
+    Form("%s/jobs/sim-%s-%s/partial_matching.txt",
+      taskPrefix.Data(), simMode.Data(), effMode.Data()),
+    "esdTree", kTRUE
+  );
 
   TString output;
   if (cdbMode == effMode) {
@@ -72,7 +74,8 @@ void runAppMtrEff(
     output = Form("mtracks-%s-%s.root", cdbMode.Data(), effMode.Data());
   }
 
-  TString dest = Form("/dalice05/berzano/outana/app-mtr-eff/sim-%s",
+  TString dest = Form("%s/outana/app-mtr-eff/sim-%s",
+    taskPrefix.Data(),
     simMode.Data());
 
   // Remove previous data (watch out!)
@@ -153,8 +156,21 @@ void runTask(TChain *input, TString output, Bool_t applyEff, TString cdb = "") {
 
   loadLibs();
 
+  // Print a banner
+  cout << endl;
+  cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << endl;
+  if (applyEff) {
+    cout << "!! I am APPLYING efficiencies (FAST method)" << endl;
+    cout << "!! OCDB: " << cdb << endl;
+  }
+  else {
+    cout << "!! I am NOT applying efficiencies" << endl;
+  }
+  cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << endl;
+  cout << endl;
+
   // Remove extra error messages, leave the progress bar alone STP!
-  AliLog::SetGlobalLogLevel(AliLog::kError);
+  AliLog::SetGlobalLogLevel(AliLog::kFatal);
 
   gROOT->LoadMacro("AliAnalysisTaskAppMtrEff.cxx+");
   AliAnalysisTaskAppMtrEff *task =
@@ -186,6 +202,7 @@ void runTask(TChain *input, TString output, Bool_t applyEff, TString cdb = "") {
   mgr->ConnectOutput(task, 2, cOutputPt);
 
   mgr->SetDebugLevel(0); // >0 to disable progressbar, which only appears with 0
+  mgr->SetUseProgressBar(kTRUE);
   mgr->InitAnalysis();
   mgr->PrintStatus();
 

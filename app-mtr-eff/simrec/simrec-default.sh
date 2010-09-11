@@ -7,7 +7,7 @@ export MOMENTUMS="15"
 export CDBS="fulleff 50pct-maxcorr 75pct-maxcorr r-maxcorr"
 
 # Custom AliRoot?
-export ALICE_ROOT="/dalice07/lopez/ALICE/AliRoot/TRUNK"
+#export ALICE_ROOT="/dalice07/lopez/ALICE/AliRoot/TRUNK"
 
 # Script dir
 export SCRIPTDIR=$(dirname "$0")
@@ -37,10 +37,15 @@ do
     [ $CNT -gt 0 ] && echo ""
     let CNT++
     "$SCRIPTDIR"/joblaunch.sh \
-      --jobs     30 \
-      --events 1000 \
-      --tag    sim-real-2mu-${C} \
+      --jobs   1 \
+      --events 1 \
+      --tag    testme-${C} \
       --cdb    'local:///dalice05/berzano/cdb/'${C}'/'
+    #"$SCRIPTDIR"/joblaunch.sh \
+    #  --jobs     30 \
+    #  --events 1000 \
+    #  --tag    sim-real-2mu-${C} \
+    #  --cdb    'local:///dalice05/berzano/cdb/'${C}'/'
 
     # Remove the Config.C (it can be found in jobs directories)
     rm Config.C

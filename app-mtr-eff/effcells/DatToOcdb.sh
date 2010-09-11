@@ -11,7 +11,7 @@ for F in "$@"
 do
   BN=${F%.*}
   RN="$BN.root"
-  aliroot -q ../macros/MUONConvertTrigBoardEff.C'("'"${F}"'", "'"${RN}"'")'
+  aliroot -q ../macros/MUONConvertTrigBoardEff.C'("'"${F}"'", "'"${RN}"'", 4, kTRUE)'
   aliroot -q $ALICE_ROOT/MUON/MUONTriggerChamberEfficiency.C'("'"${RN}"'", "local://./cdb/'"${BN}"'")'
 done
 

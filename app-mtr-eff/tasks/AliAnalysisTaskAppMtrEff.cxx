@@ -71,22 +71,19 @@ void AliAnalysisTaskAppMtrEff::CreateOutputObjects() {
   fListHistos = new TList();
   fHistoEff  = new TH1I("hEff",  "Computed track weights", 200, 0.0, 1.2);
   fHistoDev  = new TH1I("hDev",  "Deviations (n. local boards)", 6, -3., 3.);
-  fHisto4434Bend = new TH1I("h4434Bend", "Matching planes (bend)", 5, -0.5, 4.5);
-  fHisto4434Bend->GetXaxis()->SetBinLabel(1, "0/4");  // bin 1 --> val 0
-  fHisto4434Bend->GetXaxis()->SetBinLabel(2, "1/4");  // bin 2 --> val 1
-  fHisto4434Bend->GetXaxis()->SetBinLabel(3, "2/4");  // bin 3 --> val 2
-  fHisto4434Bend->GetXaxis()->SetBinLabel(4, "3/4");  // bin 4 --> val 3
-  fHisto4434Bend->GetXaxis()->SetBinLabel(5, "4/4");  // bin 5 --> val 4
-  fHisto4434NonBend = new TH1I("h4434NonBend", "Matching planes (nonbend)", 5, -0.5, 4.5);
-  fHisto4434NonBend->GetXaxis()->SetBinLabel(1, "0/4");  // bin 1 --> val 0
-  fHisto4434NonBend->GetXaxis()->SetBinLabel(2, "1/4");  // bin 2 --> val 1
-  fHisto4434NonBend->GetXaxis()->SetBinLabel(3, "2/4");  // bin 3 --> val 2
-  fHisto4434NonBend->GetXaxis()->SetBinLabel(4, "3/4");  // bin 4 --> val 3
-  fHisto4434NonBend->GetXaxis()->SetBinLabel(5, "4/4");  // bin 5 --> val 4
+
+  fHisto4434b = new TH1I("h4434b", "3/4 vs. 4/4 triggers (bend)", 2, 2.5, 4.5);
+  fHisto4434b->GetXaxis()->SetBinLabel(1, "3/4");
+  fHisto4434b->GetXaxis()->SetBinLabel(2, "4/4");
+
+  fHisto4434n = new TH1I("h4434n", "3/4 vs. 4/4 triggers (nonbend)", 2, 2.5, 4.5);
+  fHisto4434n->GetXaxis()->SetBinLabel(1, "3/4");
+  fHisto4434n->GetXaxis()->SetBinLabel(2, "4/4");
+
   fListHistos->Add(fHistoEff);
   fListHistos->Add(fHistoDev);
-  fListHistos->Add(fHisto4434Bend);
-  fListHistos->Add(fHisto4434NonBend);
+  fListHistos->Add(fHisto4434b);
+  fListHistos->Add(fHisto4434n);
 
   // TTree for MC (generated) muons
   fTreeMc = new TTree("muGen", "Generated MC muons");
@@ -202,157 +199,17 @@ void AliAnalysisTaskAppMtrEff::Exec(Option_t *) {
           if (AliESDMuonTrack::IsChamberHit(ptn, 0, i)) nMatchBend++;
           if (AliESDMuonTrack::IsChamberHit(ptn, 1, i)) nMatchNonBend++;
         }
-        fHisto4434Bend->Fill(nMatchBend);
-        fHisto4434NonBend->Fill(nMatchNonBend);
+
+        fHisto4434b->Fill( nMatchBend );
+        fHisto4434n->Fill( nMatchNonBend );
+
       }
 
       // Here goes the code that selects the track...
       Bool_t keep = kFALSE;
 
-      Int_t loBo1 = esdMt->LoCircuit();
-      Int_t loBo2;
-      Int_t loBoDev;
-
-      if ((fApplyEff) && (loBo1 != 0)) {
-
-        // Calculate the deviation in terms of number of sw local boards
-        loBoDev = (esdMt->LoDev() + esdMt->LoStripX() - 15)/32;
-        fHistoDev->Fill(loBoDev);
-
-        // Second local board touched
-        loBo2 = loBo1 + loBoDev;
-
-        UChar_t nBendFired = 0;
-        UChar_t nNonBendFired = 0;
-
-        // Count number of triggers
-        for (Int_t i=0; i<4; i++) {
-          Int_t detElemId = 1000+100*(i+1);
-          Bool_t bendFired, nonBendFired;
-
-          //////////////////////////////////////////////////////////////////////
-          //////////////////////////////////////////////////////////////////////
-
-          /*
-          if (i < 2) {
-            // On MT1
-            fTrigChEff->IsTriggered(detElemId, loBo1, bendFired, nonBendFired);
-          }
-          else {
-            // On MT2
-            fTrigChEff->IsTriggered(detElemId, loBo2, bendFired, nonBendFired);
-          }
-          */
-
-          //////////////////////////////////////////////////////////////////////
-          //////////////////////////////////////////////////////////////////////
-
-          Float_t pb, pn, pbn, pcond;  // bend, nonbend, corr
-
-          Int_t loBo;
-          if (i < 2) loBo = loBo1;  // MT1
-          else       loBo = loBo2;  // MT2
-
-          pb  = fTrigChEff->GetCellEfficiency(detElemId, loBo, AliMUONTriggerEfficiencyCells::kBendingEff);
-          pn  = fTrigChEff->GetCellEfficiency(detElemId, loBo, AliMUONTriggerEfficiencyCells::kNonBendingEff);
-          pbn = fTrigChEff->GetCellEfficiency(detElemId, loBo, AliMUONTriggerEfficiencyCells::kBothPlanesEff);
-
-          //Printf("debug: det=%d lobo=%d pb=%.2f pn=%.2f pbn=%.2f", detElemId, loBo, pb, pn, pbn);
-
-          // Check if the plane has already been rejected
-          Bool_t preBendFired, preNonBendFired;
-          preBendFired    = AliESDMuonTrack::IsChamberHit(ptn, AliMUONTriggerEfficiencyCells::kBendingEff, i);
-          preNonBendFired = AliESDMuonTrack::IsChamberHit(ptn, AliMUONTriggerEfficiencyCells::kNonBendingEff, i);
-
-          // Apply IsTriggered algorithm by taking into account already non-hit
-          // planes on this detElemId
-          if ((preBendFired) && (preNonBendFired)) {
-
-            // Both planes touched: re-extract probability for both
-
-            bendFired = ( gRandom->Rndm() < pb  );
-
-            if (pbn > 0.) {
-              if (bendFired) pcond = pbn/pb;              // P(N|B)
-              else if (pb == 1.) {
-                pcond = pn;  // P(N|!B) == P(N) (to solve indetermination)
-              }
-              else {
-                pcond = (pn-pbn) / (1.-pb);  // P(N|!B)
-              }
-            }
-            else pcond = pn;  // P(N), uncorrelated
-
-            nonBendFired = ( gRandom->Rndm() < pcond );
-
-            //Printf("[%d] both fired: b=%d n=%d", i, bendFired, nonBendFired);
-
-          }
-          else if (preBendFired) {
-
-            // Non-bending plane was not touched
-            nonBendFired = kFALSE;
-
-            if ((pbn > 0.) && (pn < 1.)) pcond = (pb-pbn)/(1.-pn);  // P(B|!N)
-            else                         pcond = pb;
-
-            bendFired = ( gRandom->Rndm() < pcond );
-
-            //Printf("[%d] no nonbend: b=%d n=%d", i, bendFired, nonBendFired);
-          }
-          else if (preNonBendFired) {
-
-            // Bending plane was not touched
-            bendFired = kFALSE;
-
-            if ((pbn > 0.) && (pb < 1.)) pcond = (pn-pbn)/(1.-pb);  // P(N|!B)
-            else                         pcond = pn;
-
-            nonBendFired = ( gRandom->Rndm() < pcond );
-
-            //Printf("[%d] no bend   : b=%d n=%d", i, bendFired, nonBendFired);
-          }
-
-          //////////////////////////////////////////////////////////////////////
-          //////////////////////////////////////////////////////////////////////
-
-          if (bendFired) nBendFired++;
-          if (nonBendFired) nNonBendFired++;
-        }
-
-        // Apply 3/4 on both planes
-        keep = ((nBendFired >= 3) && (nNonBendFired >=3));
-
-        ////////////////////////////////////////////////////////////////////////
-        // Simple method
-        ////////////////////////////////////////////////////////////////////////
-        /*
-        Float_t mtrEff;
-
-        mtrEff  =   b[0]    *   b[1]    *   b[2]    *   b[3]    +
-                  (1.-b[0]) *   b[1]    *   b[2]    *   b[3]    +
-                    b[0]    * (1.-b[1]) *   b[2]    *   b[3]    +
-                    b[0]    *   b[1]    * (1.-b[2]) *   b[3]    +
-                    b[0]    *   b[1]    *   b[2]    * (1.-b[3]);
-
-        fHistoEff->Fill(mtrEff);
-
-        // Initialize properly the gRandom variable for parallel processing!
-        keep = (gRandom->Rndm() < mtrEff);
-        */
-
-
-        ////////////////////////////////////////////////////////////////////////
-        // Realistic method
-        ////////////////////////////////////////////////////////////////////////
-
-
-        // Print status
-        /*AliInfo(Form("EVT %d TRK %d ---> LO1 %d LO2 %d ---> EFF %.2f ---> %s",
-          evNumForEsdAndMc, iTrack, loBo1, loBo2, mtrEff,
-          (keep ? "KEPT" : "**REJ**")
-        ));*/
-
+      if ((fApplyEff) && (esdMt->LoCircuit() != 0)) {
+        keep = KeepMuTrack(esdMt);
       }
 
       if (keep) {
@@ -439,4 +296,129 @@ Double_t AliAnalysisTaskAppMtrEff::Rapidity(Double_t e, Double_t pz) {
     rap = -200;
   }
   return rap;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Decides whether to keep the given muon track or not
+////////////////////////////////////////////////////////////////////////////////
+Bool_t AliAnalysisTaskAppMtrEff::KeepMuTrack(AliESDMuonTrack *esdMt) {
+
+  Int_t loBo1 = esdMt->LoCircuit();
+  Int_t loBo2;
+  Int_t loBoDev;
+  UShort_t ptn = esdMt->GetHitsPatternInTrigCh();
+
+  // Calculate the deviation in terms of number of sw local boards
+  loBoDev = (esdMt->LoDev() + esdMt->LoStripX() - 15)/32;
+  fHistoDev->Fill(loBoDev);
+
+  // Second local board touched
+  loBo2 = loBo1 + loBoDev;
+
+  UChar_t nBendFired = 0;
+  UChar_t nNonBendFired = 0;
+
+  // Count number of triggers
+  for (Int_t i=0; i<4; i++) {
+    Int_t detElemId = 1000+100*(i+1);
+    Bool_t bendFired, nonBendFired;
+
+    //////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////
+
+    /*
+    if (i < 2) {
+      // On MT1
+      fTrigChEff->IsTriggered(detElemId, loBo1, bendFired, nonBendFired);
+    }
+    else {
+      // On MT2
+      fTrigChEff->IsTriggered(detElemId, loBo2, bendFired, nonBendFired);
+    }
+    */
+
+    //////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////
+
+    Float_t pb, pn, pbn, pcond;  // bend, nonbend, corr
+
+    Int_t loBo;
+    if (i < 2) loBo = loBo1;  // MT1
+    else       loBo = loBo2;  // MT2
+
+    pb  = fTrigChEff->GetCellEfficiency(detElemId, loBo,
+            AliMUONTriggerEfficiencyCells::kBendingEff);
+    pn  = fTrigChEff->GetCellEfficiency(detElemId, loBo,
+            AliMUONTriggerEfficiencyCells::kNonBendingEff);
+    pbn = fTrigChEff->GetCellEfficiency(detElemId, loBo,
+            AliMUONTriggerEfficiencyCells::kBothPlanesEff);
+
+    //Printf("debug: det=%d lobo=%d pb=%.2f pn=%.2f pbn=%.2f", detElemId, loBo, pb, pn, pbn);
+
+    // Check if the plane has already been rejected
+    Bool_t preBendFired, preNonBendFired;
+    preBendFired    = AliESDMuonTrack::IsChamberHit(ptn,
+      AliMUONTriggerEfficiencyCells::kBendingEff, i);
+    preNonBendFired = AliESDMuonTrack::IsChamberHit(ptn,
+      AliMUONTriggerEfficiencyCells::kNonBendingEff, i);
+
+    // Apply IsTriggered algorithm by taking into account already non-hit
+    // planes on this detElemId
+    if ((preBendFired) && (preNonBendFired)) {
+
+      // Both planes touched: re-extract probability for both (like the
+      // IsTrigger() function)
+
+      bendFired = ( gRandom->Rndm() < pb  );
+
+      if (pbn > 0.) {
+        if (bendFired) pcond = pbn/pb;              // P(N|B)
+        else {
+          pcond = (pn-pbn) / (1.-pb);  // P(N|!B)
+        }
+        // REM: when pb==1, we ALWAYS have bendFired==kTRUE
+      }
+      else pcond = pn;  // P(N), uncorrelated
+
+      nonBendFired = ( gRandom->Rndm() < pcond );
+
+      //Printf("[%d] both fired: b=%d n=%d", i, bendFired, nonBendFired);
+
+    }
+    else if (preBendFired) {
+
+      // Non-bending plane was not touched
+      nonBendFired = kFALSE;
+
+      if ((pbn > 0.) && (pn < 1.)) pcond = (pb-pbn)/(1.-pn);  // P(B|!N)
+      else                         pcond = pb;
+
+      bendFired = ( gRandom->Rndm() < pcond );
+
+      //Printf("[%d] no nonbend: b=%d n=%d", i, bendFired, nonBendFired);
+    }
+    else if (preNonBendFired) {
+
+      // Bending plane was not touched
+      bendFired = kFALSE;
+
+      if ((pbn > 0.) && (pb < 1.)) pcond = (pn-pbn)/(1.-pb);  // P(N|!B)
+      else                         pcond = pn;
+
+      nonBendFired = ( gRandom->Rndm() < pcond );
+
+      //Printf("[%d] no bend   : b=%d n=%d", i, bendFired, nonBendFired);
+    }
+
+    //////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////
+
+    if (bendFired) nBendFired++;
+    if (nonBendFired) nNonBendFired++;
+  }
+
+  // Apply 3/4 on both planes
+  Bool_t keep = ((nBendFired >= 3) && (nNonBendFired >=3));
+
+  return keep;
 }

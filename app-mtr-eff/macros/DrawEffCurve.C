@@ -2,8 +2,8 @@ void DrawEffCurve() {
 
   gROOT->SetStyle("Plain");
 
-  TH1F *hRpcEff = new TH1F("hRpcEff", "", 1000, 0., 1);
-  TH1F *hMtrEff = new TH1F("hMtrEff", "", 1000, 0., 1);
+  TH1F *hRpcEff = new TH1F("hRpcEff", "", 1000, 0., 1.1);
+  TH1F *hMtrEff = new TH1F("hMtrEff", "", 1000, 0., 1.1);
 
   UInt_t nBins = hRpcEff->GetNbinsX();
 
@@ -30,5 +30,8 @@ void DrawEffCurve() {
   hMtrEff->Draw("same");
 
   l->Draw();
+
+  //hRpcEff->GetXaxis()->SetRangeUser(0., 1.);
+  //gPad->Modified();
 
 }

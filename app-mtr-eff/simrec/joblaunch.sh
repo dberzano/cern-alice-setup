@@ -28,6 +28,15 @@ export JOBSDELSCRIPT="jobsdelall.sh"
 # Name of the script to view the status of the launched jobs
 export JOBSSTATSCRIPT="jobstatall.sh"
 
+# Interesting files to copy
+export FILES_TO_COPY="galice.root AliESDs.root Kinematics.root TrackRefs.root $MISC_LOG sim.log rec.log misc.log"
+
+# Temporary directory, local for the worker node
+export TMP_WN_PREFIX="/users_local1/berzano"
+
+# Log file for miscellaneous things that do not fit into sim or rec
+export MISC_LOG="misc.log"
+
 # AliRoot environment -- variables are exported only if they are not yet set
 export ALIPREFIX="/dalice05/berzano/alisw"
 [ "$ALICE_ROOT" == "" ] && export ALICE_ROOT="$ALIPREFIX/alice/trunk"
@@ -143,22 +152,56 @@ export LD_LIBRARY_PATH="\$ALICE_ROOT/lib/tgt_\$ARCH:$G3SYS/lib/tgt_\$ARCH:\$ROOT
 
 cd "$OUTPREFIX/$JOBSUBDIR"
 
-echo ""
-echo "==== Output of df and last lines of dmesg BEFORE jobs ===="
-df > stdout
-dmesg | tail -n20 >> stdout
+# Copy everything to a temporary directory on each worker
+mkdir -p "$TMP_WN_PREFIX"
+T=\$(mktemp -d "$TMP_WN_PREFIX/jobtmp_XXXXX")
+cp * .* \$T/ 2> /dev/null
+cd \$T/
 
-aliroot -b -q $MACRO --run $RUN --events $NEVTS $EXTRAOPTS >> stdout 2>> stderr
+echo "" > $MISC_LOG
+echo "==== Environment ====" >> $MISC_LOG
+env >> $MISC_LOG
 
-echo ""
-echo "==== Output of df and last lines of dmesg AFTER jobs ===="
-df >> stdout
-dmesg | tail -n20 >> stdout
+echo "" >> $MISC_LOG
+echo "==== Output of df and last lines of dmesg BEFORE jobs ====" >> $MISC_LOG
+df >> $MISC_LOG
+dmesg | tail -n20 >> $MISC_LOG
+
+echo "" >> $MISC_LOG
+echo "==== AliRoot steer for Sim and Rec (see sim.log, rec.log) ====" >> $MISC_LOG
+aliroot -b -q $MACRO --run $RUN --events $NEVTS $EXTRAOPTS >> $MISC_LOG 2>&1
+
+echo "" >> $MISC_LOG
+echo "==== Output of df and last lines of dmesg AFTER jobs ====" >> $MISC_LOG
+df >> $MISC_LOG
+dmesg | tail -n20 >> $MISC_LOG
+
+# Copy only desired files on destdir
+for F in $FILES_TO_COPY
+do
+  cp \$F "$OUTPREFIX/$JOBSUBDIR/\$F" >> $MISC_LOG 2>&1
+done
+
+# Remove temporary garbage on the WN
+cd /
+rm -rf \$T
+
+# Archive macros
+cd "$OUTPREFIX/$JOBSUBDIR"
+tar cjf exec.tar.bz2 $MACRO $DEPS $TAG.sh
+rm -f $MACRO $DEPS $TAG.sh
+
+# Archive logs
+bzip2 -9 misc.log
+bzip2 -9 sim.log
+bzip2 -9 rec.log
+
 EOF
     chmod +x "$OUTPREFIX/$JOBSUBDIR/$TAG.sh"
 
     # Launch the job
-    JOBID=`cd "$OUTPREFIX/$JOBSUBDIR" ; qsub $TAG.sh`
+    mkdir -p "$OUTPREFIX/outputs"
+    JOBID=`cd "$OUTPREFIX/outputs" ; qsub $OUTPREFIX/$JOBSUBDIR/$TAG.sh`
 
     # Add in the list of jobs to kill (or stat)
     echo "qdel $JOBID" >> "$OUTPREFIX/$JOBSDELSCRIPT"

@@ -17,7 +17,7 @@ void CompareResults() {
 
   // Ask for the simTag (automatically search in the outana dir)
   TString simsList = gSystem->GetFromPipe(
-    Form("cd \"%s\" ; find . -type d -name 'sim-*' | sort | cut -b3-", anaDir.Data())
+    Form("cd \"%s\" ; find . -maxdepth 1 -type d -name 'sim-*' | sort | cut -b3-", anaDir.Data())
   );
 
   TString simTag;
@@ -952,12 +952,12 @@ void WritePlots(TString fmt = "pdf",
     }
   }
 
-  // Writes the text too, to pdf
-  gSystem->mkdir("tmp/");
+  // Writes the text too, to pdf -- and it works well!
+  /*gSystem->mkdir("tmp/");
   gSystem->Exec("echo '\\documentclass[a4paper,12pt]{article}\\begin{document}\\pagestyle{empty}\\begin{verbatim}' > tmp/latex.tex");
   gSystem->Exec( Form("cat %s.txt >> tmp/latex.tex", baseOut.Data()) );
   gSystem->Exec("echo '\\end{verbatim}\\end{document}' >> tmp/latex.tex");
-  gSystem->Exec("cd tmp ; pdflatex latex.tex");
+  gSystem->Exec("cd tmp ; pdflatex latex.tex");*/
 
 
 }
