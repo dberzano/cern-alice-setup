@@ -1,8 +1,11 @@
-void Trig4434() {
+void Trig4434(TString bn) {
 
   gROOT->SetStyle("Plain");
 
-  TFile *f = TFile::Open("mtracks-r-maxcorr.root");
+  //TFile *f = TFile::Open("mtracks-r-maxcorr.root");
+  TFile *f = TFile::Open(
+    Form("/Users/volpe/Desktop/mtracks-%s.root", bn.Data())
+  );
   if (!f) {
     Printf("Can't open file");
     return;
@@ -33,24 +36,49 @@ void Trig4434() {
   c->Divide(2, 1);
 
   c->cd(1);
-  hb->Scale( 100./hb->GetEntries() );
-  hb->GetYaxis()->SetTitle("triggered tracks [%]");
-  hb->SetLineColor(kRed);
+  SetStyle(hb, kRed);
   hb->Draw();
-  AutoScale(gPad);
+  //AutoScale(gPad);
 
   c->cd(2);
-  hn->Scale( 100./hn->GetEntries() );
-  hn->GetYaxis()->SetTitle("triggered tracks [%]");
-  hn->SetLineColor(kBlue);
+  SetStyle(hn, kBlue);
   hn->Draw();
-  AutoScale(gPad);
+  //AutoScale(gPad);
 
   c->cd(0);
+  c->Print(
+    Form(
+      "%s/%s.eps",
+      gSystem->DirName(f->GetName()),
+      bn.Data()
+    )
+  );
+  gSystem->Exec(
+    Form(
+      "epstopdf %s/%s.eps && rm %s/%s.eps",
+      gSystem->DirName(f->GetName()),
+      bn.Data(),
+      gSystem->DirName(f->GetName()),
+      bn.Data()
+    )
+  );
 
   f->Close();
   delete f;
 
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Common histo styles
+////////////////////////////////////////////////////////////////////////////////
+void SetStyle(TH1 *h, Color_t col) {
+  h->GetYaxis()->SetTitleOffset(2.00);
+  h->SetStats(kFALSE);
+  h->Scale( 100./h->GetEntries() );
+  h->GetYaxis()->SetTitle("triggered tracks [%]");
+  h->SetLineColor(col);
+  gPad->SetLeftMargin(0.17);
+  h->GetYaxis()->SetRangeUser(0., 105.);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

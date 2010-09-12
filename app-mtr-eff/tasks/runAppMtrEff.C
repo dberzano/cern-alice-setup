@@ -2,6 +2,7 @@
  */
 
 TString taskPrefix = "/dalice05/berzano";
+Bool_t restoreMcLabel = kFALSE;
 
 void runMultiple() {
   TString cdbModes[] = { "50pct-maxcorr", "75pct-maxcorr", "r-maxcorr" };
@@ -9,6 +10,11 @@ void runMultiple() {
 
   loadLibs();
   gROOT->LoadMacro("AliAnalysisTaskAppMtrEff.cxx++");
+  if (restoreMcLabel) {
+    gROOT->LoadMacro(
+      "$ALICE_ROOT/PWG3/muondep/AliAnalysisTaskESDMCLabelAddition.cxx++"
+    );
+  }
 
   for (UInt_t i=0; i<nModes; i++) {
 
@@ -166,6 +172,8 @@ void runTask(TChain *input, TString output, Bool_t applyEff, TString cdb = "") {
   else {
     cout << "!! I am NOT applying efficiencies" << endl;
   }
+  cout << "!! I am " << (restoreMcLabel ? "RESTORING" : "NOT restoring") <<
+    " missing MC labels!" << endl;
   cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << endl;
   cout << endl;
 
@@ -173,10 +181,21 @@ void runTask(TChain *input, TString output, Bool_t applyEff, TString cdb = "") {
   AliLog::SetGlobalLogLevel(AliLog::kFatal);
 
   gROOT->LoadMacro("AliAnalysisTaskAppMtrEff.cxx+");
+  //gSystem->Exit(66);
   AliAnalysisTaskAppMtrEff *task =
     new AliAnalysisTaskAppMtrEff("myAppMtrEff", applyEff, 0, cdb);
 
   mgr = new AliAnalysisManager("ExtractMT");
+
+  AliAnalysisTask *taskAddLab = 0x0;
+  if (restoreMcLabel) {
+    gROOT->LoadMacro(
+      "$ALICE_ROOT/PWG3/muondep/AliAnalysisTaskESDMCLabelAddition.cxx+"
+    );
+    taskAddLab = new AliAnalysisTaskESDMCLabelAddition("myAppAddLabel");
+    mgr->AddTask(taskAddLab);
+  }
+
   mgr->AddTask(task);
 
   AliESDInputHandler* esdH = new AliESDInputHandler();
@@ -186,7 +205,15 @@ void runTask(TChain *input, TString output, Bool_t applyEff, TString cdb = "") {
   AliMCEventHandler *mcH = new AliMCEventHandler();
   mgr->SetMCtruthEventHandler(mcH);
 
+  //////////////////////////////////////////////////////////////////////////////
+  ///////////////////////////////////// IO /////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////
+
   cInput = mgr->GetCommonInputContainer();
+
+  if (restoreMcLabel) {
+    mgr->ConnectInput(taskAddLab, 0, cInput);
+  }
   mgr->ConnectInput(task, 0, cInput);
 
   cOutputRec = mgr->CreateContainer("recoMu", TTree::Class(),
@@ -200,6 +227,10 @@ void runTask(TChain *input, TString output, Bool_t applyEff, TString cdb = "") {
   cOutputPt = mgr->CreateContainer("histos", TList::Class(),
     AliAnalysisManager::kOutputContainer, output);
   mgr->ConnectOutput(task, 2, cOutputPt);
+
+  //////////////////////////////////////////////////////////////////////////////
+  ////////////////////////////////// End of IO /////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////
 
   mgr->SetDebugLevel(0); // >0 to disable progressbar, which only appears with 0
   mgr->SetUseProgressBar(kTRUE);

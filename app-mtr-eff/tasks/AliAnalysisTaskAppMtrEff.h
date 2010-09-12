@@ -9,6 +9,7 @@
 #include <TRandom3.h>
 #include <TString.h>
 #include <TClonesArray.h>
+#include <THnSparse.h>
 
 // AliRoot includes
 #include "AliLog.h"
@@ -130,6 +131,10 @@ class AliAnalysisTaskAppMtrEff : public AliAnalysisTask {
     TH1I         *fHistoDev;     //!
     TH1I         *fHisto4434b;   //!
     TH1I         *fHisto4434n;   //!
+    THnSparseI   *fHistoEffTrackNum; //!
+    THnSparseI   *fHistoEffTrackDen; //!
+    Double_t     *fBufFill;          //!
+    UInt_t glob; //!
 
     Float_t      *fEffRpc;      //! Array of efficiencies per RPC
     Float_t      *fEffCh;       //! Array of efficiencies per chamber
@@ -147,8 +152,14 @@ class AliAnalysisTaskAppMtrEff : public AliAnalysisTask {
       const AliAnalysisTaskAppMtrEff&);
 
     Bool_t KeepMuTrack(AliESDMuonTrack *esdMt);
+
+    static Double_t RadToDeg(Double_t rad);
  
     ClassDef(AliAnalysisTaskAppMtrEff, 1);
 };
+
+inline Double_t AliAnalysisTaskAppMtrEff::RadToDeg(Double_t rad) {
+  return 180.*rad/TMath::Pi();
+}
 
 #endif // ALIANALYSISTASKAPPMTREFF_H

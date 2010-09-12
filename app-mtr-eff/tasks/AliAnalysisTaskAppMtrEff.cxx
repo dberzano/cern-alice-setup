@@ -53,12 +53,17 @@ AliAnalysisTaskAppMtrEff::AliAnalysisTaskAppMtrEff(
 
   } // end if fApplyEff
 
+  fBufFill = new Double_t[4];
+  glob = 0;
+
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // Destructor
 ////////////////////////////////////////////////////////////////////////////////
-AliAnalysisTaskAppMtrEff::~AliAnalysisTaskAppMtrEff() {}
+AliAnalysisTaskAppMtrEff::~AliAnalysisTaskAppMtrEff() {
+  delete[] fBufFill;
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // This function is called to create objects that store the output data. It is
@@ -84,6 +89,18 @@ void AliAnalysisTaskAppMtrEff::CreateOutputObjects() {
   fListHistos->Add(fHistoDev);
   fListHistos->Add(fHisto4434b);
   fListHistos->Add(fHisto4434n);
+
+  // The histogram (sparse) that contains efficiencies per track
+  Int_t nbins[]   = {   50,   50,   50,   50 };
+  Double_t xmin[] = {   0.,   0., 170.,   0. };
+  Double_t xmax[] = {  20., 360., 180.,  80. };
+  //                  _p__, _ph_, _th_, _r__
+
+  fHistoEffTrackNum = new THnSparseI("hEffTrackNum", "", 4, nbins, xmin, xmax);
+  fHistoEffTrackDen = new THnSparseI("hEffTrackNum", "", 4, nbins, xmin, xmax);
+
+  fListHistos->Add( fHistoEffTrackNum );
+  fListHistos->Add( fHistoEffTrackDen );
 
   // TTree for MC (generated) muons
   fTreeMc = new TTree("muGen", "Generated MC muons");
@@ -205,15 +222,35 @@ void AliAnalysisTaskAppMtrEff::Exec(Option_t *) {
 
       }
 
-      // Here goes the code that selects the track...
-      Bool_t keep = kFALSE;
+      // Here goes the code that selects the track... by default, keep all
+      // tracks, i.e. do not apply RPC efficiency
+      Bool_t keep = kTRUE;
 
       if ((fApplyEff) && (esdMt->LoCircuit() != 0)) {
         keep = KeepMuTrack(esdMt);
       }
 
       if (keep) {
+
+        // Set the "void" bit to true (temporary solution!)
         esdMt->SetHitsPatternInTrigCh(esdMt->GetHitsPatternInTrigCh() | 0x8000);
+
+        // Count the track in numerators!
+        Int_t lab = esdMt->GetLabel();
+        if (lab >= 0) {
+          AliMCParticle *mcPart = (AliMCParticle *)(fCurMcEvt->GetTrack( lab ));
+          if (mcPart) {
+            TParticle *tPart = mcPart->Particle();
+
+            fBufFill[0] = tPart->P();
+            fBufFill[1] = RadToDeg( tPart->Phi() );
+            fBufFill[2] = RadToDeg( tPart->Theta() );
+            fBufFill[3] = tPart->R();
+            fHistoEffTrackNum->Fill( fBufFill );
+            //Printf("Ok, filled!!! YEPYEP!!!");
+          }
+        }
+
       }
       // ...end of the code that selects the track
 
@@ -257,7 +294,17 @@ void AliAnalysisTaskAppMtrEff::Exec(Option_t *) {
 
       // Selection of muons (mu+ = -13, mu- = +13)
       if (TMath::Abs( mcPart->Particle()->GetPdgCode() ) == 13) {
+
+        // Put the muon into the TClonesArray
         new (ta[n++]) TParticle(*tPart);
+
+        // Put the muon into the histogram of the *denominators* (total counts)
+        fBufFill[0] = mcPart->P();
+        fBufFill[1] = RadToDeg( mcPart->Phi() );
+        fBufFill[2] = RadToDeg( mcPart->Theta() );
+        fBufFill[3] = tPart->R();
+        fHistoEffTrackDen->Fill( fBufFill );
+
       }
 
     }
@@ -320,8 +367,10 @@ Bool_t AliAnalysisTaskAppMtrEff::KeepMuTrack(AliESDMuonTrack *esdMt) {
 
   // Count number of triggers
   for (Int_t i=0; i<4; i++) {
+
     Int_t detElemId = 1000+100*(i+1);
-    Bool_t bendFired, nonBendFired;
+    Bool_t bendFired = kFALSE;
+    Bool_t nonBendFired = kFALSE;
 
     //////////////////////////////////////////////////////////////////////
     //////////////////////////////////////////////////////////////////////
