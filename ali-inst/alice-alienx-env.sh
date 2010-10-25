@@ -225,7 +225,6 @@ export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$G3SYS/lib/tgt_${ALICE_TARGET}"
 [ -e /tmp/gclient_env_$UID ] && source /tmp/gclient_env_$UID
 
 alias alien-token-init='alien-token-init $alien_API_USER ; [ -e /tmp/gclient_env_$UID ] && source /tmp/gclient_env_$UID'
-alias alien-token-destroy='alien-token-destroy'
 
 #alias root='[ -e /tmp/gclient_env_$UID ] && [ "$GBBOX_ENVFILE" == "" ] && source /tmp/gclient_env_$UID ; root'
 #alias aliroot='[ -e /tmp/gclient_env_$UID ] && [ "$GBBOX_ENVFILE" == "" ] && source /tmp/gclient_env_$UID ; aliroot'
