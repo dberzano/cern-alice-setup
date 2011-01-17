@@ -18,12 +18,14 @@
 # Installation prefix of everything
 export ALICE_PREFIX="/opt/alice"
 
-# Your AliEn username
-export alien_API_USER="myalienusername"
+# By uncommenting this line, alien-token-init will automatically use the
+# variable as your default AliEn user without explicitly specifying it after the
+# command
+#export alien_API_USER="myalienusername"
 
 # Triads in the form "root geant3 aliroot". Index starts from 1, not 0.
 # More information: http://aliceinfo.cern.ch/Offline/AliRoot/Releases.html
-TRIAD[1]="v5-26-00b v1-11 trunk"
+TRIAD[1]="v5-27-06b v1-11 trunk"
 TRIAD[2]="trunk v1-11 trunk"
 # ...add more "triads" here without skipping array indices...
 
@@ -224,7 +226,7 @@ export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$G3SYS/lib/tgt_${ALICE_TARGET}"
 
 [ -e /tmp/gclient_env_$UID ] && source /tmp/gclient_env_$UID
 
-alias alien-token-init='alien-token-init $alien_API_USER ; [ -e /tmp/gclient_env_$UID ] && source /tmp/gclient_env_$UID'
+alias alien-token-env-init='alien-token-init $alien_API_USER ; [ -e /tmp/gclient_env_$UID ] && source /tmp/gclient_env_$UID'
 
 #alias root='[ -e /tmp/gclient_env_$UID ] && [ "$GBBOX_ENVFILE" == "" ] && source /tmp/gclient_env_$UID ; root'
 #alias aliroot='[ -e /tmp/gclient_env_$UID ] && [ "$GBBOX_ENVFILE" == "" ] && source /tmp/gclient_env_$UID ; aliroot'
