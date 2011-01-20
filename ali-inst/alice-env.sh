@@ -146,7 +146,7 @@ function AliCleanEnv() {
 
   # Unset other environment variables and aliases
   unset MJ ALIEN_DIR GSHELL_ROOT ROOTSYS ALICE ALICE_ROOT ALICE_INSTALL \
-    ALICE_TARGET GEANT3DIR X509_CERT_DIR GSHELL_NO_GCC
+    ALICE_TARGET GEANT3DIR X509_CERT_DIR GSHELL_NO_GCC ALICE
 }
 
 # Sets the number of parallel workers for make to the number of cores plus one
@@ -199,6 +199,8 @@ function AliExportVars() {
   #
   # AliRoot
   #
+
+  export ALICE="$ALICE_PREFIX"
 
   # Let's detect AliRoot CMake builds
   if [ ! -e "$ALICE_PREFIX/aliroot/$ALICE_VER/Makefile" ]; then
