@@ -265,7 +265,6 @@ function AliMain() {
 
   local C T
   local OPT_QUIET OPT_NONINTERACTIVE OPT_CLEANENV
-  export ROOT_VER G3_VER ALICE_VER
 
   # Parse command line options
   while [ $# -gt 0 ]; do
@@ -313,13 +312,12 @@ function AliMain() {
 
     # Export all the needed variables
     AliExportVars
-    unset ALICE_VER ROOT_VER G3_VER
 
     # Prints out settings, if requested
     [ "$OPT_QUIET" != 1 ] && AliPrintVars
 
   else
-    unset ALICE_PREFIX
+    unset ALICE_PREFIX ROOT_VER G3_VER ALICE_VER
     [ "$OPT_QUIET" != 1 ] && echo -e "\033[1;33mALICE environment variables cleaned\033[m"
   fi
 
