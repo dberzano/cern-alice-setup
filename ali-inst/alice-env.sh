@@ -139,12 +139,14 @@ function AliCleanPath() {
 # variables
 function AliCleanEnv() {
   AliRemovePaths PATH xrdgsiproxy aliroot root
-  AliRemovePaths LD_LIBRARY_PATH libCint.so libSTEER.so libXrdSec.so libgeant321.so
-  AliRemovePaths DYLD_LIBRARY_PATH libCint.so libSTEER.so libXrdSec.so libgeant321.so
+  AliRemovePaths LD_LIBRARY_PATH libCint.so libSTEER.so libXrdSec.so \
+    libgeant321.so
+  AliRemovePaths DYLD_LIBRARY_PATH libCint.so libSTEER.so libXrdSec.so \
+    libgeant321.so
 
   # Unset other environment variables and aliases
   unset MJ ALIEN_DIR GSHELL_ROOT ROOTSYS ALICE ALICE_ROOT ALICE_INSTALL \
-    ALICE_TARGET G3SYS X509_CERT_DIR GSHELL_NO_GCC
+    ALICE_TARGET GEANT3DIR X509_CERT_DIR GSHELL_NO_GCC
 }
 
 # Sets the number of parallel workers for make to the number of cores plus one
@@ -198,53 +200,69 @@ function AliExportVars() {
   # AliRoot
   #
 
-  export ALICE_ROOT="$ALICE_PREFIX/aliroot/$ALICE_VER"
-
-  # Are we using cmake (no Makefile in source dir)?
-  if [ ! -e "$ALICE_ROOT/Makefile" ]; then
-    export ALICE_ROOT="$ALICE_ROOT/build"
+  # Let's detect AliRoot CMake builds
+  if [ ! -e "$ALICE_PREFIX/aliroot/$ALICE_VER/Makefile" ]; then
+    export ALICE_ROOT="$ALICE_PREFIX/aliroot/$ALICE_VER/src"
+    export ALICE_INSTALL="$ALICE_PREFIX/aliroot/$ALICE_VER/build"
+  else
+    export ALICE_ROOT="$ALICE_PREFIX/aliroot/$ALICE_VER"
     export ALICE_INSTALL="$ALICE_ROOT"
   fi
 
   export ALICE_TARGET=`root-config --arch 2> /dev/null`
-  export PATH="$PATH:$ALICE_ROOT/bin/tgt_${ALICE_TARGET}"
-  export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$ALICE_ROOT/lib/tgt_${ALICE_TARGET}"
-  export DYLD_LIBRARY_PATH="$DYLD_LIBRARY_PATH:$ALICE_ROOT/lib/tgt_${ALICE_TARGET}"
+  export PATH="$PATH:${ALICE_INSTALL}/bin/tgt_${ALICE_TARGET}"
+  export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:${ALICE_INSTALL}/lib/tgt_${ALICE_TARGET}"
+  export DYLD_LIBRARY_PATH="$DYLD_LIBRARY_PATH:${ALICE_INSTALL}/lib/tgt_${ALICE_TARGET}"
 
   #
   # Geant 3
   #
 
-  export G3SYS="$ALICE_PREFIX/geant3/$G3_VER"
-  export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$G3SYS/lib/tgt_${ALICE_TARGET}"
+  export GEANT3DIR="$ALICE_PREFIX/geant3/$G3_VER"
+  export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$GEANT3DIR/lib/tgt_${ALICE_TARGET}"
  
 }
 
 # Prints out the ALICE paths. In AliRoot, the SVN revision number is also echoed
 function AliPrintVars() {
 
-  local WHERE_IS_G3 WHERE_IS_ALIROOT WHERE_IS_ROOT WHERE_IS_ALIEN ALIREV
+  local WHERE_IS_G3 WHERE_IS_ALIROOT WHERE_IS_ROOT WHERE_IS_ALIEN \
+    WHERE_IS_ALISRC WHERE_IS_ALIINST ALIREV
   local NOTFOUND='\033[1;31m<not found>\033[m'
 
-  if [ -x "$G3SYS/lib/tgt_$ALICE_TARGET/libgeant321.so" ]; then
-    WHERE_IS_G3="$G3SYS"
+  # Detect Geant3 installation path
+  if [ -x "$GEANT3DIR/lib/tgt_$ALICE_TARGET/libgeant321.so" ]; then
+    WHERE_IS_G3="$GEANT3DIR"
   else
     WHERE_IS_G3="$NOTFOUND"
   fi
-  if [ -x "$ALICE_ROOT/bin/tgt_$ALICE_TARGET/aliroot" ]; then
-    WHERE_IS_ALIROOT="$ALICE_ROOT"
-    # Try to fetch svn revision number
-    ALIREV=$(cat "$ALICE_ROOT/include/ARVersion.h" 2>/dev/null |
-      perl -ne 'if (/ALIROOT_SVN_REVISION\s+([0-9]+)/) { print "$1"; }')
-    WHERE_IS_ALIROOT="$WHERE_IS_ALIROOT \033[1;33m(rev. $ALIREV)\033[m"
+
+  # Detect AliRoot source location
+  if [ -r "$ALICE_ROOT/CMakeLists.txt" ] || [ -r "$ALICE_ROOT/Makefile" ]; then
+    WHERE_IS_ALISRC="$ALICE_ROOT"
   else
-    WHERE_IS_ALIROOT="$NOTFOUND"
+    WHERE_IS_ALISRC="$NOTFOUND"
   fi
+
+  # Detect AliRoot build/install location
+  if [ -r "$ALICE_INSTALL/bin/tgt_$ALICE_TARGET/aliroot" ]; then
+    WHERE_IS_ALIINST="$ALICE_INSTALL"
+    # Try to fetch svn revision number
+    ALIREV=$(cat "$ALICE_INSTALL/include/ARVersion.h" 2>/dev/null |
+      perl -ne 'if (/ALIROOT_SVN_REVISION\s+([0-9]+)/) { print "$1"; }')
+    [ "$ALIREV" != "" ] && WHERE_IS_ALIINST="$WHERE_IS_ALIINST \033[1;33m(rev. $ALIREV)\033[m"
+  else
+    WHERE_IS_ALIINST="$NOTFOUND"
+  fi
+
+  # Detect ROOT location
   if [ -x "$ROOTSYS/bin/root.exe" ]; then
     WHERE_IS_ROOT="$ROOTSYS"
   else
     WHERE_IS_ROOT="$NOTFOUND"
   fi
+
+  # Detect AliEn location
   if [ -x "$GSHELL_ROOT/bin/aliensh" ]; then
     WHERE_IS_ALIEN="$GSHELL_ROOT"
   else
@@ -252,15 +270,16 @@ function AliPrintVars() {
   fi
 
   echo ""
-  echo -e "  \033[1;36mAliEn\033[m   $WHERE_IS_ALIEN"
-  echo -e "  \033[1;36mROOT\033[m    $WHERE_IS_ROOT"
-  echo -e "  \033[1;36mGeant3\033[m  $WHERE_IS_G3"
-  echo -e "  \033[1;36mAliRoot\033[m $WHERE_IS_ALIROOT"
+  echo -e "  \033[1;36mAliEn\033[m           $WHERE_IS_ALIEN"
+  echo -e "  \033[1;36mROOT\033[m            $WHERE_IS_ROOT"
+  echo -e "  \033[1;36mGeant3\033[m          $WHERE_IS_G3"
+  echo -e "  \033[1;36mAliRoot source\033[m  $WHERE_IS_ALISRC"
+  echo -e "  \033[1;36mAliRoot build\033[m   $WHERE_IS_ALIINST"
   echo ""
 
 }
 
-# Entry point
+# Main function: takes parameters from the command line
 function AliMain() {
 
   local C T
