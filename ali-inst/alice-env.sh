@@ -2,7 +2,7 @@
 # alice-alienx-env.sh - by Dario Berzano <dario.berzano@gmail.com>
 #
 # This script is meant to be sourced in order to prepare the environment to run
-# ALICE Offline Framework applications (AliEn, ROOT, Geant 3 and Aliroot).
+# ALICE Offline Framework applications (AliEn, ROOT, Geant 3 and AliRoot).
 #
 # On a typical setup, only the first lines of this script ought to be changed.
 #
@@ -64,10 +64,10 @@ function AliMenu() {
 
   echo -e "\n$M\n"
   for ((C=1; $C<=${#TRIAD[@]}; C++)); do
-    echo -e "     \033[1;36m($C)\033[m \033[1;35m${TRIAD[$C]}\033[m"
+    echo -e "  \033[1;36m($C)\033[m \033[1;35m${TRIAD[$C]}\033[m"
   done
   echo "";
-  echo -e "     \033[1;36m(0)\033[m \033[1;33mClean environment\033[m"
+  echo -e "  \033[1;36m(0)\033[m \033[1;33mClean environment\033[m"
   while [ 1 ]; do
     echo ""
     echo -n "Your choice: "
@@ -265,6 +265,7 @@ function AliMain() {
 
   local C T
   local OPT_QUIET OPT_NONINTERACTIVE OPT_CLEANENV
+  export ROOT_VER G3_VER ALICE_VER
 
   # Parse command line options
   while [ $# -gt 0 ]; do
@@ -312,11 +313,13 @@ function AliMain() {
 
     # Export all the needed variables
     AliExportVars
+    unset ALICE_VER ROOT_VER G3_VER
 
     # Prints out settings, if requested
     [ "$OPT_QUIET" != 1 ] && AliPrintVars
 
   else
+    unset ALICE_PREFIX
     [ "$OPT_QUIET" != 1 ] && echo -e "\033[1;33mALICE environment variables cleaned\033[m"
   fi
 
@@ -332,6 +335,6 @@ function AliMain() {
 #
 
 AliMain "$@"
-unset N_TRIAD TRIAD ALICE_PREFIX
+unset N_TRIAD TRIAD
 unset AliCleanEnv AliCleanPath AliExportVars AliMain AliMenu AliPrintVars \
   AliRemovePaths AliSetParallelMake
