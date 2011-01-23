@@ -126,13 +126,17 @@ function AliRemovePaths() {
 
 # Cleans leading, trailing and double colons from the variable whose name is
 # passed as the only argument of the string
-function AliCleanPath() {
+function AliCleanPathList() {
   local VARNAME="$1"
   local STR=`eval echo \\$$VARNAME`
-  STR=`echo "$STR" | sed s/::/:/g`
+  local PREV_STR
+  while [ "$PREV_STR" != "$STR" ]; do
+    PREV_STR="$STR"
+    STR=`echo "$STR" | sed s/::/:/g`
+  done
   STR=${STR#:}
   STR=${STR%:}
-  eval export $VARNAME="$STR"
+  eval export $VARNAME=\"$STR\"
 }
 
 # Cleans up the environment from previously set (DY)LD_LIBRARY_PATH and PATH
@@ -343,9 +347,9 @@ function AliMain() {
   fi
 
   # Cleans up artifacts in paths
-  AliCleanPath LD_LIBRARY_PATH
-  AliCleanPath DYLD_LIBRARY_PATH
-  AliCleanPath PATH
+  AliCleanPathList LD_LIBRARY_PATH
+  AliCleanPathList DYLD_LIBRARY_PATH
+  AliCleanPathList PATH
 
 }
 
@@ -355,5 +359,5 @@ function AliMain() {
 
 AliMain "$@"
 unset N_TRIAD TRIAD
-unset AliCleanEnv AliCleanPath AliExportVars AliMain AliMenu AliPrintVars \
+unset AliCleanEnv AliCleanPathList AliExportVars AliMain AliMenu AliPrintVars \
   AliRemovePaths AliSetParallelMake
