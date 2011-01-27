@@ -1,5 +1,5 @@
 #
-# alice-alienx-env.sh - by Dario Berzano <dario.berzano@gmail.com>
+# alice-alienx-env.sh - by Dario Berzano <dario.berzano@to.infn.it>
 #
 # This script is meant to be sourced in order to prepare the environment to run
 # ALICE Offline Framework applications (AliEn, ROOT, Geant 3 and AliRoot).
@@ -185,12 +185,7 @@ function AliExportVars() {
 
   export PATH="$PATH:$GSHELL_ROOT/bin"
   export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$GSHELL_ROOT/lib"
-
-  # Source AliEn environment if possible
-  [ -e /tmp/gclient_env_$UID ] && source /tmp/gclient_env_$UID
-
-  # Obtain a token and source AliEn environment
-  [ "$alien_API_USER" != "" ] && alias alien-token-env-init='alien-token-init $alien_API_USER ; [ -e /tmp/gclient_env_$UID ] && source /tmp/gclient_env_$UID'
+  export DYLD_LIBRARY_PATH="$DYLD_LIBRARY_PATH:$GSHELL_ROOT/lib"
 
   #
   # ROOT
