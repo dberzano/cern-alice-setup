@@ -228,8 +228,38 @@ function AliExportVars() {
 function AliPrintVars() {
 
   local WHERE_IS_G3 WHERE_IS_ALIROOT WHERE_IS_ROOT WHERE_IS_ALIEN \
-    WHERE_IS_ALISRC WHERE_IS_ALIINST ALIREV
+    WHERE_IS_ALISRC WHERE_IS_ALIINST ALIREV MSG LEN I
   local NOTFOUND='\033[1;31m<not found>\033[m'
+
+  # Check if Globus certificate is expiring soon
+  local CERT="$HOME/.globus/usercert.pem"
+  which openssl > /dev/null 2>&1
+  if [ $? == 0 ]; then
+    if [ -r "$CERT" ]; then
+      openssl x509 -in "$CERT" -noout -checkend 604800
+      if [ $? == 1 ]; then
+        MSG="Your certificate is going to expire before one week!"
+      else
+        openssl x509 -in "$CERT" -noout -checkend 0
+        if [ $? == 1 ]; then
+          MSG="Your certificate is expired!"
+        fi
+      fi
+    else
+      MSG="Can't find certificate $CERT"
+    fi
+  fi
+
+  # Print a message if an error checking the certificate has occured
+  if [ "$MSG" != "" ]; then
+    echo -e '\033[1;31m'
+    LEN=${#MSG}
+    let LEN=LEN+4
+    for ((I=0; I<LEN; I++)); do echo -n '*'; done
+    echo -e "\n* $MSG *"
+    for ((I=0; I<LEN; I++)); do echo -n '*'; done
+    echo -e '\033[m'
+  fi
 
   # Detect Geant3 installation path
   if [ -x "$GEANT3DIR/lib/tgt_$ALICE_TARGET/libgeant321.so" ]; then
