@@ -238,11 +238,11 @@ function AliPrintVars() {
     if [ -r "$CERT" ]; then
       openssl x509 -in "$CERT" -noout -checkend 604800
       if [ $? == 1 ]; then
-        MSG="Your certificate is going to expire before one week!"
+        MSG="Your certificate is going to expire before one week"
       else
         openssl x509 -in "$CERT" -noout -checkend 0
         if [ $? == 1 ]; then
-          MSG="Your certificate is expired!"
+          MSG="Your certificate is expired"
         fi
       fi
     else
@@ -252,13 +252,7 @@ function AliPrintVars() {
 
   # Print a message if an error checking the certificate has occured
   if [ "$MSG" != "" ]; then
-    echo -e '\033[1;31m'
-    LEN=${#MSG}
-    let LEN=LEN+4
-    for ((I=0; I<LEN; I++)); do echo -n '*'; done
-    echo -e "\n* $MSG *"
-    for ((I=0; I<LEN; I++)); do echo -n '*'; done
-    echo -e '\033[m'
+    echo -e "\n\033[1;41m!!! ${MSG} !!!\033[m"
   fi
 
   # Detect Geant3 installation path
