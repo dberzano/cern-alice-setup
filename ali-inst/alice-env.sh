@@ -252,7 +252,7 @@ function AliPrintVars() {
 
   # Print a message if an error checking the certificate has occured
   if [ "$MSG" != "" ]; then
-    echo -e "\n\033[1;41m!!! ${MSG} !!!\033[m"
+    echo -e "\n\033[41m\033[1;37m!!! ${MSG} !!!\033[m"
   fi
 
   # Detect Geant3 installation path
