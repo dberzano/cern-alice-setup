@@ -183,6 +183,32 @@ function ModuleAliRoot() {
 
 }
 
+# Download URL $1 to file $2 using wget or curl
+function Dl() {
+  which curl > /dev/null 2>&1
+  if [ $? == 0 ]; then
+    curl -o "$2" "$1"
+    return $?
+  else
+    wget -O "$2" "$1"
+    return $?
+  fi
+}
+
+# Install AliEn
+function ModuleAliEn() {
+  local ALIEN_INSTALLER="/tmp/alien-installer-$USER"
+  Banner "Installing AliEn..."
+  SwallowFatal "Sourcing envvars" source "$ENVSCRIPT" -n
+  SwallowFatal "Downloading AliEn installer" \
+    Dl http://alien.cern.ch/alien-installer "$ALIEN_INSTALLER"
+  SwallowFatal "Making AliEn installer executable" \
+    chmod +x "$ALIEN_INSTALLER"
+  SwallowFatal "Installing AliEn" \
+    "$ALIEN_INSTALLER" -install-dir "$ALIEN_DIR" -batch -notorrent
+  rm -f "$ALIEN_INSTALLER"
+}
+
 # Module to create prefix directory
 function ModulePrepare() {
   local TF
@@ -221,11 +247,12 @@ function RemoveLogs() {
 # Main function
 function Main() {
 
-  local DO_ROOT DOALIROOT DO_GEANT3 DO_STHG
+  local DO_ROOT DOALIROOT DO_GEANT3 DO_ALIEN DO_STHG
   DO_ROOT=0
   DO_ALIROOT=0
   DO_GEANT3=0
   DO_STRUCT=0
+  DO_ALIEN=0
   DO_STHG=0
 
   ENVSCRIPT="$PWD/alice-env.sh"
@@ -239,13 +266,14 @@ function Main() {
       --root) DO_ROOT=1 ;;
       --geant3) DO_GEANT3=1 ;;
       --aliroot) DO_ALIROOT=1 ;;
+      --alien) DO_ALIEN=1 ;;
       --all) DO_STRUCT=1 ; DO_ROOT=1 ; DO_GEANT3=1 ; DO_ALIROOT=1 ;;
       *) echo -e "Unknown parameter: \033[1;36m$1\033[m" ; exit 1 ;;
     esac
     shift
   done
 
-  let "DO_STHG=DO_ROOT+DO_GEANT3+DO_ALIROOT+DO_STRUCT"
+  let "DO_STHG=DO_ALIEN+DO_ROOT+DO_GEANT3+DO_ALIROOT+DO_STRUCT+DO_ALIEN"
 
   if [ $DO_STHG == 0 ]; then
     echo ""
@@ -253,7 +281,7 @@ function Main() {
     echo ""
     echo -e "  To build everything:           \033[1;33m$0 --all\033[m"
     echo -e "  To create directory structure: \033[1;33m[sudo] $0 --prepare\033[m"
-    echo -e "  To build only something:       \033[1;33m$0 [--root] [--geant3] [--aliroot]\033[m"
+    echo -e "  To build only something:       \033[1;33m$0 [--root] [--geant3] [--aliroot] [--alien]\033[m"
     echo ""
   fi
 
@@ -268,6 +296,7 @@ function Main() {
     Fatal "I'm refusing to continue the installation as root user"
   fi
 
+  [ $DO_ALIEN == 1 ]   && ModuleAliEn
   [ $DO_ROOT == 1 ]    && ModuleRoot
   [ $DO_GEANT3 == 1 ]  && ModuleGeant3
   [ $DO_ALIROOT == 1 ] && ModuleAliRoot
