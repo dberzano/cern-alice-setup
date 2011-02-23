@@ -105,7 +105,7 @@ function ModuleRoot() {
   Banner "Compiling ROOT..."
   SwallowFatal "Sourcing envvars" source "$ENVSCRIPT" -n
 
-  if [ -d "$ROOTSYS" ]; then
+  if [ ! -d "$ROOTSYS" ]; then
     SwallowFatal "Creating ROOT directory" mkdir -p "$ROOTSYS"
   fi
 
@@ -140,6 +140,14 @@ function ModuleGeant3() {
   fi
 
   SwallowFatal "Moving into Geant3 directory" cd "$GEANT3DIR"
+
+  if [ ! -e make ]; then
+    [ $G3_VER == "trunk" ] && \
+      CMD="svn co https://root.cern.ch/svn/geant3/trunk ." || \
+      CMD="svn co https://root.cern.ch/svn/geant3/tags/$G3_VER ."
+    SwallowFatal "Downloading Geant3 $G3_VER" $CMD
+  fi
+
   SwallowFatal "Building Geant3" make
 }
 
@@ -267,7 +275,7 @@ function Main() {
       --geant3) DO_GEANT3=1 ;;
       --aliroot) DO_ALIROOT=1 ;;
       --alien) DO_ALIEN=1 ;;
-      --all) DO_STRUCT=1 ; DO_ROOT=1 ; DO_GEANT3=1 ; DO_ALIROOT=1 ;;
+      --all) DO_ALIEN=1 ; DO_STRUCT=1 ; DO_ROOT=1 ; DO_GEANT3=1 ; DO_ALIROOT=1 ;;
       *) echo -e "Unknown parameter: \033[1;36m$1\033[m" ; exit 1 ;;
     esac
     shift
