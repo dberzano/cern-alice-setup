@@ -51,7 +51,8 @@ fi
 # Unmodifiable variables
 #
 
-export ALICE_ENV_REV_STR="$Rev$"
+export ALICE_ENV_REV=$(echo '$Rev$' | \
+  perl -ne '/\$Rev:\s+([0-9]+)/; print "$1"')
 
 #
 # Functions
