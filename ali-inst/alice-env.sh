@@ -95,6 +95,7 @@ function AliMenu() {
 
 # Checks periodically (once a day) if there is an update to this script
 function AliCheckUpdate() {
+  echo "Nothing to do"
 }
 
 # Removes directories from the specified PATH-like variable that contain the
