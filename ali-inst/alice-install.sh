@@ -76,7 +76,7 @@ function SwallowStep() {
   let TS_DELTA=$(date +%s)-TS_START
 
   # Prints progress
-  echo -ne '\r                                                                                               \r'
+  echo -ne '\r                                                  \r'
   PCT_FMT=$( printf "%3d%%" $PCT )
   echo -ne "[\033[1;34m$PCT_FMT\033[m] $OP \033[1;36m$(NiceTime $TS_DELTA)\033[m"
 

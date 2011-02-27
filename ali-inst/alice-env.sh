@@ -12,6 +12,13 @@
 #
 
 #
+# SVN Test
+#
+
+export SVN_REVISION="$Rev$"
+
+
+#
 # Customizable variables
 #
 
@@ -149,7 +156,7 @@ function AliCleanEnv() {
     libgeant321.so
 
   # Unset other environment variables and aliases
-  unset MJ ALIEN_DIR GSHELL_ROOT ROOTSYS ALICE ALICE_ROOT ALICE_INSTALL \
+  unset MJ ALIEN_DIR GSHELL_ROOT ROOTSYS ALICE ALICE_ROOT ALICE_BUILD \
     ALICE_TARGET GEANT3DIR X509_CERT_DIR GSHELL_NO_GCC ALICE
 }
 
@@ -204,16 +211,16 @@ function AliExportVars() {
   # Let's detect AliRoot CMake builds
   if [ ! -e "$ALICE_PREFIX/aliroot/$ALICE_VER/Makefile" ]; then
     export ALICE_ROOT="$ALICE_PREFIX/aliroot/$ALICE_VER/src"
-    export ALICE_INSTALL="$ALICE_PREFIX/aliroot/$ALICE_VER/build"
+    export ALICE_BUILD="$ALICE_PREFIX/aliroot/$ALICE_VER/build"
   else
     export ALICE_ROOT="$ALICE_PREFIX/aliroot/$ALICE_VER"
-    export ALICE_INSTALL="$ALICE_ROOT"
+    export ALICE_BUILD="$ALICE_ROOT"
   fi
 
   export ALICE_TARGET=`root-config --arch 2> /dev/null`
-  export PATH="$PATH:${ALICE_INSTALL}/bin/tgt_${ALICE_TARGET}"
-  export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:${ALICE_INSTALL}/lib/tgt_${ALICE_TARGET}"
-  export DYLD_LIBRARY_PATH="$DYLD_LIBRARY_PATH:${ALICE_INSTALL}/lib/tgt_${ALICE_TARGET}"
+  export PATH="$PATH:${ALICE_BUILD}/bin/tgt_${ALICE_TARGET}"
+  export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:${ALICE_BUILD}/lib/tgt_${ALICE_TARGET}"
+  export DYLD_LIBRARY_PATH="$DYLD_LIBRARY_PATH:${ALICE_BUILD}/lib/tgt_${ALICE_TARGET}"
 
   #
   # Geant 3
@@ -270,10 +277,10 @@ function AliPrintVars() {
   fi
 
   # Detect AliRoot build/install location
-  if [ -r "$ALICE_INSTALL/bin/tgt_$ALICE_TARGET/aliroot" ]; then
-    WHERE_IS_ALIINST="$ALICE_INSTALL"
+  if [ -r "$ALICE_BUILD/bin/tgt_$ALICE_TARGET/aliroot" ]; then
+    WHERE_IS_ALIINST="$ALICE_BUILD"
     # Try to fetch svn revision number
-    ALIREV=$(cat "$ALICE_INSTALL/include/ARVersion.h" 2>/dev/null |
+    ALIREV=$(cat "$ALICE_BUILD/include/ARVersion.h" 2>/dev/null |
       perl -ne 'if (/ALIROOT_SVN_REVISION\s+([0-9]+)/) { print "$1"; }')
     [ "$ALIREV" != "" ] && WHERE_IS_ALIINST="$WHERE_IS_ALIINST \033[1;33m(rev. $ALIREV)\033[m"
   else
