@@ -1,5 +1,5 @@
 #
-# alice-alienx-env.sh - by Dario Berzano <dario.berzano@to.infn.it>
+# alice-env.sh - by Dario Berzano <dario.berzano@to.infn.it>
 #
 # This script is meant to be sourced in order to prepare the environment to run
 # ALICE Offline Framework applications (AliEn, ROOT, Geant 3 and AliRoot).
@@ -10,8 +10,6 @@
 #
 # For updates: http://newton.ph.unito.it/~berzano/w/doku.php?id=alice:compile
 #
-
-SVNREVSTR="$Rev$"
 
 #
 # Customizable variables
@@ -50,6 +48,12 @@ fi
 ################################################################################
 
 #
+# Unmodifiable variables
+#
+
+export ALICE_ENV_REV_STR="$Rev$"
+
+#
 # Functions
 #
 
@@ -86,6 +90,10 @@ function AliMenu() {
     echo "Invalid choice."
   done
 
+}
+
+# Checks periodically (once a day) if there is an update to this script
+function AliCheckUpdate() {
 }
 
 # Removes directories from the specified PATH-like variable that contain the
