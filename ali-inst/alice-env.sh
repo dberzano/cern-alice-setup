@@ -11,12 +11,7 @@
 # For updates: http://newton.ph.unito.it/~berzano/w/doku.php?id=alice:compile
 #
 
-#
-# SVN Test
-#
-
-export SVN_REVISION="$Rev$"
-
+SVNREVSTR="$Rev$"
 
 #
 # Customizable variables
