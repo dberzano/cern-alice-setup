@@ -31,7 +31,7 @@ else
 
   # Triads in the form "root geant3 aliroot". Index starts from 1, not 0.
   # More information: http://aliceinfo.cern.ch/Offline/AliRoot/Releases.html
-  TRIAD[1]="v5-27-06b v1-11 trunk"
+  TRIAD[1]="v5-27-06d v1-11 trunk"
   TRIAD[2]="trunk v1-11 trunk"
   # ...add more "triads" here without skipping array indices...
 
@@ -51,8 +51,15 @@ fi
 # Unmodifiable variables
 #
 
+# This one is automatically set by SVN; the regex extracts the sole revnum
 export ALICE_ENV_REV=$(echo '$Rev$' | \
   perl -ne '/\$Rev:\s+([0-9]+)/; print "$1"')
+
+# Remote URL of this very script
+export ALICE_ENV_URL="http://db-alice-analysis.googlecode.com/svn/trunk/ali-inst/alice-env.sh"
+
+# File that holds the timestamp of last check
+export ALICE_ENV_LASTCHECK="/tmp/alice-env-lastcheck-$USER"
 
 #
 # Functions
@@ -93,9 +100,52 @@ function AliMenu() {
 
 }
 
-# Checks periodically (once a day) if there is an update to this script
+# Checks periodically (twice a day) if there is an update to this script
 function AliCheckUpdate() {
-  echo "Nothing to do"
+
+  local NOWTS THENTS DELTAS CUR_REV RET
+
+  RET=0
+
+  THENTS=$(cat "$ALICE_ENV_LASTCHECK" 2> /dev/null)
+  [ "$THENTS" == "" ] && THENTS=0
+
+  NOWTS=$(date +%s)
+
+  let DELTAS=NOWTS-THENTS
+
+  if [ $DELTAS -gt 43200 ]; then
+
+    CUR_REV=$( LANG=C svn info "$ALICE_ENV_URL" 2> /dev/null | \
+      grep -i 'last changed rev' | cut -d':' -f2 )
+    CUR_REV=$(expr $CUR_REV + 0 2> /dev/null)
+
+    if [ $? == 0 ]; then
+      # svn info succeeded: compare versions
+      if [ $CUR_REV -gt $ALICE_ENV_REV ]; then
+        echo ""
+        echo -e "\033[41m\033[1;37m!!! Update of this script is needed !!!\033[m"
+        echo ""
+        echo "Do the following:"
+        echo ""
+        echo "cd $ALICE_PREFIX"
+        echo "svn export $ALICE_ENV_URL"
+        echo "source $(basename $ALICE_ENV_URL)"
+        echo ""
+        RET=1
+      fi
+    fi
+
+    # Recheck in one hour
+    let NOWTS=NOWTS-43200+3600
+    echo $NOWTS > "$ALICE_ENV_LASTCHECK"
+
+  else
+    # Write check date on file, if wrong
+    [ $DELTAS -le 0 ] && echo $NOWTS > "$ALICE_ENV_LASTCHECK"
+  fi
+
+  return $RET
 }
 
 # Removes directories from the specified PATH-like variable that contain the
@@ -248,11 +298,11 @@ function AliPrintVars() {
   which openssl > /dev/null 2>&1
   if [ $? == 0 ]; then
     if [ -r "$CERT" ]; then
-      openssl x509 -in "$CERT" -noout -checkend 604800
+      openssl x509 -in "$CERT" -noout -checkend 604800 > /dev/null 2>&1
       if [ $? == 1 ]; then
         MSG="Your certificate is going to expire before one week"
       else
-        openssl x509 -in "$CERT" -noout -checkend 0
+        openssl x509 -in "$CERT" -noout -checkend 0 > /dev/null 2>&1
         if [ $? == 1 ]; then
           MSG="Your certificate is expired"
         fi
@@ -320,7 +370,7 @@ function AliPrintVars() {
 function AliMain() {
 
   local C T
-  local OPT_QUIET OPT_NONINTERACTIVE OPT_CLEANENV
+  local OPT_QUIET OPT_NONINTERACTIVE OPT_CLEANENV OPT_DONTUPDATE
 
   # Parse command line options
   while [ $# -gt 0 ]; do
@@ -330,15 +380,28 @@ function AliMain() {
       "-n") OPT_NONINTERACTIVE=1 ;;
       "-i") OPT_NONINTERACTIVE=0 ;;
       "-c") OPT_CLEANENV=1; ;;
+      "-u") OPT_DONTUPDATE=1 ;;
     esac
     shift
   done
 
-  # Always non-interactive when cleaning environment
+  # Always non-interactive+do not update when cleaning environment
   if [ "$OPT_CLEANENV" == 1 ]; then
     OPT_NONINTERACTIVE=1
+    OPT_DONTUPDATE=1
     N_TRIAD=0
   fi
+
+  # Check for updates
+  #if [ "$OPT_DONTUPDATE" != 1 ]; then
+  #  AliCheckUpdate
+  #  if [ $? != 0 ]; then
+  #    MSG="\033[1;35mEnvironment variables not loaded: to avoid checking for"
+  #    MSG="${MSG} updates, source this\nscript with option \033[1;33m-u\033[m\n"
+  #    echo -e "$MSG"
+  #    return 0
+  #  fi
+  #fi
 
   [ "$OPT_NONINTERACTIVE" != 1 ] && AliMenu
 
@@ -390,5 +453,6 @@ function AliMain() {
 
 AliMain "$@"
 unset N_TRIAD TRIAD
+unset ALICE_ENV_LASTCHECK ALICE_ENV_REV ALICE_ENV_URL
 unset AliCleanEnv AliCleanPathList AliExportVars AliMain AliMenu AliPrintVars \
   AliRemovePaths AliSetParallelMake
