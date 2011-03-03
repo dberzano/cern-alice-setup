@@ -238,8 +238,8 @@ function ModuleAliRoot() {
     Swallow -f "Creating AliRoot source directory" mkdir -p "$ALICE_ROOT"
   fi
 
-  if [ ! -d "$ALICE_INSTALL" ]; then
-    Swallow -f "Creating AliRoot build directory" mkdir -p "$ALICE_INSTALL"
+  if [ ! -d "$ALICE_BUILD" ]; then
+    Swallow -f "Creating AliRoot build directory" mkdir -p "$ALICE_BUILD"
   fi
 
   Swallow -f "Moving into AliRoot source directory" cd "$ALICE_ROOT"
@@ -252,7 +252,7 @@ function ModuleAliRoot() {
   fi
 
   Swallow -f "Updating AliRoot" svn up
-  Swallow -f "Moving into AliRoot build directory" cd "$ALICE_INSTALL"
+  Swallow -f "Moving into AliRoot build directory" cd "$ALICE_BUILD"
 
   if [ ! -e "Makefile" ]; then
     Swallow -f "Bootstrapping AliRoot build with cmake" cmake "$ALICE_ROOT"
@@ -261,7 +261,7 @@ function ModuleAliRoot() {
   SwallowProgress -f "Building AliRoot" make -j$MJ
 
   Swallow -f "Symlinking AliRoot include directory" \
-    ln -nfs "$ALICE_INSTALL"/include "$ALICE_ROOT"/include
+    ln -nfs "$ALICE_BUILD"/include "$ALICE_ROOT"/include
 
   Swallow -f "Sourcing envvars" source "$ENVSCRIPT" -n
   Swallow -f "Testing ROOT with AliRoot libraries" \
