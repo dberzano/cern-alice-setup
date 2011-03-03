@@ -15,6 +15,7 @@ export SWALLOW_LOG="/tmp/$USER-build-alice"
 export ERR="$SWALLOW_LOG.err"
 export OUT="$SWALLOW_LOG.out"
 export ENVSCRIPT=""
+export SVNOPT="--non-interactive --trust-server-cert"
 
 #
 # Functions
@@ -191,8 +192,8 @@ function ModuleRoot() {
 
   if [ ! -e $ROOTSYS/configure ]; then
     [ $ROOT_VER == "trunk" ] && \
-      CMD="svn co https://root.cern.ch/svn/root/trunk ." || \
-      CMD="svn co https://root.cern.ch/svn/root/tags/$ROOT_VER ."
+      CMD="svn co $SVNOPT https://root.cern.ch/svn/root/trunk ." || \
+      CMD="svn co $SVNOPT https://root.cern.ch/svn/root/tags/$ROOT_VER ."
     Swallow -f "Downloading ROOT $ROOT_VER" $CMD
   fi
 
@@ -221,8 +222,8 @@ function ModuleGeant3() {
 
   if [ ! -e make ]; then
     [ $G3_VER == "trunk" ] && \
-      CMD="svn co https://root.cern.ch/svn/geant3/trunk ." || \
-      CMD="svn co https://root.cern.ch/svn/geant3/tags/$G3_VER ."
+      CMD="svn co $SVNOPT https://root.cern.ch/svn/geant3/trunk ." || \
+      CMD="svn co $SVNOPT https://root.cern.ch/svn/geant3/tags/$G3_VER ."
     Swallow -f "Downloading Geant3 $G3_VER" $CMD
   fi
 
@@ -246,8 +247,8 @@ function ModuleAliRoot() {
 
   if [ ! -d "STEER" ]; then
     [ "$ALICE_VER" == "trunk" ] && \
-      CMD="svn co https://alisoft.cern.ch/AliRoot/trunk ." || \
-      CMD="svn co https://alisoft.cern.ch/AliRoot/tags/$ALICE_VER ."
+      CMD="svn co $SVNOPT https://alisoft.cern.ch/AliRoot/trunk ." || \
+      CMD="svn co $SVNOPT https://alisoft.cern.ch/AliRoot/tags/$ALICE_VER ."
     Swallow -f "Downloading AliRoot $ALICE_VER" $CMD
   fi
 
