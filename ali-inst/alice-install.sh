@@ -15,7 +15,6 @@ export SWALLOW_LOG="/tmp/$USER-build-alice"
 export ERR="$SWALLOW_LOG.err"
 export OUT="$SWALLOW_LOG.out"
 export ENVSCRIPT=""
-export SVNOPT="--non-interactive --trust-server-cert"
 
 #
 # Functions
@@ -50,12 +49,12 @@ function NiceTime() {
 # Prints the command name when it is started.
 #  - $1: command description
 function SwallowStart() {
-  local MSG OP CMD
+  local MSG OP
 
   OP="$1"
-  CMD="$2"
+  shift
 
-  MSG='*** ['"$(DateTime)"'] BEGIN CWD='"$PWD"' CMD='"$CMD"' ***'
+  MSG='*** ['"$(DateTime)"'] BEGIN OP='"$OP"' CWD='"$PWD"' CMD='"$@"' ***'
   echo -e "$MSG" >> "$OUT"
   echo -e "$MSG" >> "$ERR"
 
@@ -90,6 +89,7 @@ function SwallowStep() {
 #  - $2: the exit code of command
 #  - $3: start timestamp (seconds) (optional)
 #  - $4: end timestamp (seconds) (optional)
+#  - $@: the command (from $5 on)
 function SwallowEnd() {
 
   local TS_END TS_START OP MSG RET
@@ -98,6 +98,9 @@ function SwallowEnd() {
   RET=$2
   TS_START=${3-0}  # defaults to 0
   TS_END=${4-0}
+
+  # After this line, $@ will contain the command
+  shift 4
 
   let TS_DELTA=TS_END-TS_START
 
@@ -115,7 +118,7 @@ function SwallowEnd() {
   fi
 
   # On the log files (out, err)
-  MSG='*** ['"$(DateTime)"'] END CWD='"$PWD"' ERR='"$RET"' CMD='"$@"' ***'
+  MSG='*** ['"$(DateTime)"'] END OP='"$OP"' CWD='"$PWD"' ERR='"$RET"' CMD='"$@"' ***'
   echo -e "$MSG" >> "$OUT"
   echo -e "$MSG" >> "$ERR"
 
@@ -145,7 +148,7 @@ function Swallow() {
   RET=$?
 
   TSEND=$(date +%s)
-  SwallowEnd "$OP" $RET $TSSTART $TSEND
+  SwallowEnd "$OP" $RET $TSSTART $TSEND "$@"
 
   if [ $RET != 0 ] && [ $FATAL == 1 ]; then
     LastLogLines -e
@@ -184,6 +187,8 @@ function ModuleRoot() {
   Banner "Compiling ROOT..."
   Swallow -f "Sourcing envvars" source "$ENVSCRIPT" -n
 
+  #Swallow -f "" svn ls https://root.cern.ch/
+
   if [ ! -d "$ROOTSYS" ]; then
     Swallow -f "Creating ROOT directory" mkdir -p "$ROOTSYS"
   fi
@@ -192,8 +197,8 @@ function ModuleRoot() {
 
   if [ ! -e $ROOTSYS/configure ]; then
     [ $ROOT_VER == "trunk" ] && \
-      CMD="svn co $SVNOPT https://root.cern.ch/svn/root/trunk ." || \
-      CMD="svn co $SVNOPT https://root.cern.ch/svn/root/tags/$ROOT_VER ."
+      CMD="svn co https://root.cern.ch/svn/root/trunk ." || \
+      CMD="svn co https://root.cern.ch/svn/root/tags/$ROOT_VER ."
     Swallow -f "Downloading ROOT $ROOT_VER" $CMD
   fi
 
@@ -222,8 +227,8 @@ function ModuleGeant3() {
 
   if [ ! -e make ]; then
     [ $G3_VER == "trunk" ] && \
-      CMD="svn co $SVNOPT https://root.cern.ch/svn/geant3/trunk ." || \
-      CMD="svn co $SVNOPT https://root.cern.ch/svn/geant3/tags/$G3_VER ."
+      CMD="svn co https://root.cern.ch/svn/geant3/trunk ." || \
+      CMD="svn co https://root.cern.ch/svn/geant3/tags/$G3_VER ."
     Swallow -f "Downloading Geant3 $G3_VER" $CMD
   fi
 
@@ -247,8 +252,8 @@ function ModuleAliRoot() {
 
   if [ ! -d "STEER" ]; then
     [ "$ALICE_VER" == "trunk" ] && \
-      CMD="svn co $SVNOPT https://alisoft.cern.ch/AliRoot/trunk ." || \
-      CMD="svn co $SVNOPT https://alisoft.cern.ch/AliRoot/tags/$ALICE_VER ."
+      CMD="svn co https://alisoft.cern.ch/AliRoot/trunk ." || \
+      CMD="svn co https://alisoft.cern.ch/AliRoot/tags/$ALICE_VER ."
     Swallow -f "Downloading AliRoot $ALICE_VER" $CMD
   fi
 
@@ -313,7 +318,7 @@ function SwallowProgress() {
   RET=$?
 
   TSEND=$(date +%s)
-  SwallowEnd "$OP" $RET $TSSTART $TSEND
+  SwallowEnd "$OP" $RET $TSSTART $TSEND "$@"
 
   if [ $RET != 0 ] && [ $FATAL == 1 ]; then
     LastLogLines -e
