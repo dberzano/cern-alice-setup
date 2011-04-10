@@ -85,7 +85,8 @@ function AliMenu() {
   while [ 1 ]; do
     echo ""
     echo -n "Your choice: "
-    read N_TRIAD
+    read -n1 N_TRIAD
+    echo ""
     expr "$N_TRIAD" + 0 > /dev/null 2>&1
     R=$?
     if [ "$N_TRIAD" != "" ]; then

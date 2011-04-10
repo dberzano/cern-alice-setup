@@ -11,7 +11,7 @@
 # Variables
 #
 
-export SWALLOW_LOG="/tmp/$USER-build-alice"
+export SWALLOW_LOG="/tmp/alice-autobuild-$USER"
 export ERR="$SWALLOW_LOG.err"
 export OUT="$SWALLOW_LOG.out"
 export ENVSCRIPT=""
@@ -158,6 +158,12 @@ function Swallow() {
   return $RET
 }
 
+# Permanently (and silently) accepts a SVN certificate
+function AcceptSvn() {
+  yes p | svn info "$1" > /dev/null 2>&1
+  return $?
+} 
+
 # Prints the last lines of both log files
 function LastLogLines() {
   local LASTLINES=20
@@ -184,10 +190,11 @@ function Banner() {
 
 # Module to fetch and compile ROOT
 function ModuleRoot() {
+
+  local SVN_ROOT="https://root.cern.ch/svn/root"
+
   Banner "Compiling ROOT..."
   Swallow -f "Sourcing envvars" source "$ENVSCRIPT" -n
-
-  #Swallow -f "" svn ls https://root.cern.ch/
 
   if [ ! -d "$ROOTSYS" ]; then
     Swallow -f "Creating ROOT directory" mkdir -p "$ROOTSYS"
@@ -196,9 +203,10 @@ function ModuleRoot() {
   Swallow -f "Moving into ROOT directory" cd "$ROOTSYS"
 
   if [ ! -e $ROOTSYS/configure ]; then
+    Swallow -f "Permanently accepting SVN certificate" AcceptSvn $SVN_ROOT
     [ $ROOT_VER == "trunk" ] && \
-      CMD="svn co https://root.cern.ch/svn/root/trunk ." || \
-      CMD="svn co https://root.cern.ch/svn/root/tags/$ROOT_VER ."
+      CMD="svn co $SVN_ROOT/trunk ." || \
+      CMD="svn co $SVN_ROOT/tags/$ROOT_VER ."
     Swallow -f "Downloading ROOT $ROOT_VER" $CMD
   fi
 
@@ -210,12 +218,16 @@ function ModuleRoot() {
     --with-f77=gfortran \
     --enable-minuit2 \
     --enable-roofit \
-    --enable-soversion
+    --enable-soversion \
+    --disable-bonjour
   Swallow -f "Building ROOT" make -j$MJ
 }
 
 # Module to fetch and compile Geant3
 function ModuleGeant3() {
+
+  local SVN_G3="https://root.cern.ch/svn/geant3/"
+
   Banner "Compiling Geant3..."
   Swallow -f "Sourcing envvars" source "$ENVSCRIPT" -n
 
@@ -226,9 +238,10 @@ function ModuleGeant3() {
   Swallow -f "Moving into Geant3 directory" cd "$GEANT3DIR"
 
   if [ ! -e make ]; then
+    Swallow -f "Permanently accepting SVN certificate" AcceptSvn $SVN_G3
     [ $G3_VER == "trunk" ] && \
-      CMD="svn co https://root.cern.ch/svn/geant3/trunk ." || \
-      CMD="svn co https://root.cern.ch/svn/geant3/tags/$G3_VER ."
+      CMD="svn co $SVN_G3/trunk ." || \
+      CMD="svn co $SVN_G3/tags/$G3_VER ."
     Swallow -f "Downloading Geant3 $G3_VER" $CMD
   fi
 
@@ -237,6 +250,9 @@ function ModuleGeant3() {
 
 # Module to fetch, update and compile AliRoot
 function ModuleAliRoot() {
+
+  local SVN_ALIROOT="https://alisoft.cern.ch/AliRoot"
+
   Banner "Compiling AliRoot..."
   Swallow -f "Sourcing envvars" source "$ENVSCRIPT" -n
 
@@ -249,11 +265,12 @@ function ModuleAliRoot() {
   fi
 
   Swallow -f "Moving into AliRoot source directory" cd "$ALICE_ROOT"
+  Swallow -f "Permanently accepting SVN certificate" AcceptSvn $SVN_ALIROOT
 
   if [ ! -d "STEER" ]; then
     [ "$ALICE_VER" == "trunk" ] && \
-      CMD="svn co https://alisoft.cern.ch/AliRoot/trunk ." || \
-      CMD="svn co https://alisoft.cern.ch/AliRoot/tags/$ALICE_VER ."
+      CMD="svn co $SVN_ALIROOT/trunk ." || \
+      CMD="svn co $SVN_ALIROOT/tags/$ALICE_VER ."
     Swallow -f "Downloading AliRoot $ALICE_VER" $CMD
   fi
 
