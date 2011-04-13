@@ -614,13 +614,13 @@ function Main() {
   echo ""
   echo "  stderr: $ERR"
   echo "  stdout: $OUT"
-  echo ""
 
   # Perform required actions
   if [ $DO_PREP == 1 ]; then
     ModulePrepare
   else
     SourceEnvVars > /dev/null 2>&1
+    echo ""
 
     if [ $MJ == 1 ]; then
       echo "Building on single core (no parallel build)"
