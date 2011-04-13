@@ -287,8 +287,12 @@ function ModuleAliRoot() {
     ln -nfs "$ALICE_BUILD"/include "$ALICE_ROOT"/include
 
   Swallow -f "Sourcing envvars" source "$ENVSCRIPT" -n
-  Swallow -f "Testing ROOT with AliRoot libraries" \
-    root -l -q "$ALICE_ROOT"/macros/loadlibs.C
+
+  if [ "$DISPLAY" != "" ]; then
+    # Non-fatal
+    Swallow "Testing ROOT with AliRoot libraries" \
+      root -l -q "$ALICE_ROOT"/macros/loadlibs.C
+  fi
 
 }
 
@@ -382,12 +386,11 @@ function ModulePrepare() {
     Swallow -f "Creating ALICE software directory" [ -d "$ALICE_PREFIX" ]
     Swallow -f "Opening permissions of ALICE directory" \
       chmod 0777 "$ALICE_PREFIX"
-    #Swallow -f ""
   else
     TF="$ALICE_PREFIX/dummy_$RANDOM"
     touch "$TF" 2> /dev/null
     if [ $? != 0 ]; then
-      Fatal "Not enough permissions: please run \"sudo $0 --structure\""
+      Fatal "Not enough permissions: please run \"sudo $0 --prepare\""
     fi
     rm "$TF"
   fi
@@ -405,63 +408,172 @@ function RemoveLogs() {
   rm -f "$SWALLOW_LOG".out "$SWALLOW_LOG".err
 }
 
+# Prints out a nice help
+function Help() {
+  echo ""
+  echo "$(basename $0) -- by Dario Berzano <dario.berzano@cern.ch>"
+  echo ""
+  echo "Tries to performs automatic installation of the ALICE framework."
+  echo "The installation procedure follows exactly the steps described on:"
+  echo ""
+  echo "  http://newton.ph.unito.it/~berzano/w/doku.php?id=alice:compile"
+  echo ""
+  echo "Usage:"
+  echo ""
+
+  echo "  To create dirs (do it only the first time, as root if needed):"
+  echo "    [sudo|su -c] $0 --prepare"
+  echo ""
+
+  echo "  To build/install/update something (multiple choices allowed): "
+  echo "    $0 [--alien] [--root] [--geant3] [--aliroot]"
+  echo ""
+  echo "  Note that build/install/update as root user is disallowed."
+  echo ""
+
+  echo "  To build/install/update everything (do --prepare first): "
+  echo "    $0 --all"
+  echo ""
+
+  source "$ENVSCRIPT" -n > /dev/null 2> /dev/null
+  if [ "$?" != 0 ]; then
+    echo "Please put alice-install.sh and alice-env.sh in the same directory!"
+    echo "Environment script is expected in:"
+    echo ""
+    echo "  $ENVSCRIPT"
+  else
+    echo "ALICE environment is read from:"
+    echo ""
+    echo "  $ENVSCRIPT"
+    echo ""
+    echo "Software will be installed in (make with --prepare at first place):"
+    echo ""
+    echo "  $ALICE_PREFIX"
+    echo ""
+    echo "Versions of software that will be installed:"
+    echo ""
+    echo "  AliEn:   always the latest version"
+    echo "  ROOT:    $ROOT_VER"
+    echo "  Geant3:  $G3_VER"
+    echo "  AliRoot: $ALICE_VER"
+    echo ""
+    echo "Choose them in alice-env.sh script with TRIADS and N_TRIAD vars."
+  fi
+  echo ""
+
+  # Error message, if any
+  if [ "$1" != "" ]; then
+    echo -e '>> \033[1;31m'$1'\033[m'
+    echo ""
+  fi
+
+}
+
 # Main function
 function Main() {
 
-  local DO_ROOT DOALIROOT DO_GEANT3 DO_ALIEN DO_STHG
-  DO_ROOT=0
-  DO_ALIROOT=0
-  DO_GEANT3=0
-  DO_STRUCT=0
-  DO_ALIEN=0
-  DO_STHG=0
+  local DO_PREP=0
+  local DO_ALIEN=0
+  local DO_ROOT=0
+  local DO_G3=0
+  local DO_ALICE=0
 
-  ENVSCRIPT="$PWD/alice-env.sh"
+  local N_INST=0
+  local PARAM
+
+  # Environment script
+  ENVSCRIPT=`dirname "$0"`
+  ENVSCRIPT=`cd "$ENVSCRIPT" ; pwd`
+  ENVSCRIPT="$ENVSCRIPT"/alice-env.sh
+
   if [ ! -r "$ENVSCRIPT" ]; then
-    Fatal "Can't read file alice-env.sh in current directory"
+    Help
+    exit 1
   fi
 
+  # Parse parameters
   while [ $# -gt 0 ]; do
-    case "$1" in
-      --prepare) DO_STRUCT=1 ;;
-      --root) DO_ROOT=1 ;;
-      --geant3) DO_GEANT3=1 ;;
-      --aliroot) DO_ALIROOT=1 ;;
-      --alien) DO_ALIEN=1 ;;
-      --all) DO_ALIEN=1 ; DO_STRUCT=1 ; DO_ROOT=1 ; DO_GEANT3=1 ; DO_ALIROOT=1 ;;
-      *) echo -e "Unknown parameter: \033[1;36m$1\033[m" ; exit 1 ;;
-    esac
+    if [ "${1:0:2}" == "--" ]; then
+      PARAM="${1:2}"
+      case "$PARAM" in
+
+        prepare)
+          DO_PREP=1
+        ;;
+
+        alien)
+          DO_ALIEN=1
+        ;;
+
+        root)
+          DO_ROOT=1
+        ;;
+
+        geant3)
+          DO_G3=1
+        ;;
+
+        aliroot)
+          DO_ALICE=1
+        ;;
+
+        all)
+          DO_ALIEN=1
+          DO_ROOT=1
+          DO_G3=1
+          DO_ALICE=1
+        ;;
+
+        *)
+          Help "Unrecognized parameter: $1"
+          exit 1
+        ;;
+
+      esac
+    else
+      Help "Unrecognized parameter: $1"
+      exit 1
+    fi
     shift
   done
 
-  let "DO_STHG=DO_ALIEN+DO_ROOT+DO_GEANT3+DO_ALIROOT+DO_STRUCT+DO_ALIEN"
+  # How many build actions?
+  let N_INST=DO_ALIEN+DO_ROOT+DO_G3+DO_ALICE
 
-  if [ $DO_STHG == 0 ]; then
-    echo ""
-    echo "Usage:"
-    echo ""
-    echo -e "  To build everything:           \033[1;33m$0 --all\033[m"
-    echo -e "  To create directory structure: \033[1;33m[sudo] $0 --prepare\033[m"
-    echo -e "  To build only something:       \033[1;33m$0 [--root] [--geant3] [--aliroot] [--alien]\033[m"
-    echo ""
+  if [ $DO_PREP == 0 ] && [ $N_INST == 0 ]; then
+    Help "Nothing to do"
+    exit 1
+  elif [ $DO_PREP == 1 ] && [ $N_INST > 0 ]; then
+    Help "Can't prepare and update/build/install something at the same time"
+    exit 1
+  elif [ "$USER" == "root" ] && [ $N_INST > 0 ]; then
+    Help "I'm refusing to continue the installation as root user"
+    exit 1
   fi
 
+  # Remove spurious log files left
   RemoveLogs
 
-  if [ $DO_STRUCT == 1 ]; then
+  # Where are the logfiles?
+  echo ""
+  echo "Installation log files can be consulted on:"
+  echo ""
+  echo "  stderr: $ERR"
+  echo "  stdout: $OUT"
+  echo ""
+
+  # Perform required actions
+  if [ $DO_PREP == 1 ]; then
     ModulePrepare
-    let "DO_STHG--"
+  else
+    [ $DO_ALIEN == 1 ] && ModuleAliEn
+    [ $DO_ROOT  == 1 ] && ModuleRoot
+    [ $DO_G3    == 1 ] && ModuleGeant3
+    [ $DO_ALICE == 1 ] && ModuleAliRoot
   fi
 
-  if [ "$USER" == "root" ] && [ $DO_STHG -gt 0 ]; then
-    Fatal "I'm refusing to continue the installation as root user"
-  fi
-
-  [ $DO_ALIEN == 1 ]   && ModuleAliEn
-  [ $DO_ROOT == 1 ]    && ModuleRoot
-  [ $DO_GEANT3 == 1 ]  && ModuleGeant3
-  [ $DO_ALIROOT == 1 ] && ModuleAliRoot
-
+  # Remove logs: if we are here, everything went right, so no need to see the
+  # logs
   RemoveLogs
 
 }
