@@ -1,10 +1,10 @@
 #!/bin/bash
 
 #
-# alice-install -- by Dario Berzano <dario.berzano@to.infn.it>
+# alice-install -- by Dario Berzano <dario.berzano@cern.ch>
 #
-# Installs all the ALICE software on Ubuntu/Mac hopefully without any human
-# intervention.
+# Installs all the ALICE software on Ubuntu/Mac hopefully without the least
+# possible human intervention.
 #
 
 #
@@ -15,10 +15,20 @@ export SWALLOW_LOG="/tmp/alice-autobuild-$USER"
 export ERR="$SWALLOW_LOG.err"
 export OUT="$SWALLOW_LOG.out"
 export ENVSCRIPT=""
+export NCORES=0
 
 #
 # Functions
 #
+
+# Sources environment variables
+function SourceEnvVars() {
+  local R
+  source "$ENVSCRIPT" -n
+  R=$?
+  [ $NCORES -gt 0 ] && MJ=$NCORES
+  return $R
+}
 
 # Returns date in current timezone in a compact format
 function DateTime() {
@@ -185,6 +195,7 @@ function LastLogLines() {
 
 # Echoes a colored banner
 function Banner() {
+  echo ""
   echo -e '\033[1;33m'"$1"'\033[m'
 }
 
@@ -194,20 +205,30 @@ function ModuleRoot() {
   local SVN_ROOT="https://root.cern.ch/svn/root"
 
   Banner "Compiling ROOT..."
-  Swallow -f "Sourcing envvars" source "$ENVSCRIPT" -n
+  Swallow -f "Sourcing envvars" SourceEnvVars
 
   if [ ! -d "$ROOTSYS" ]; then
     Swallow -f "Creating ROOT directory" mkdir -p "$ROOTSYS"
   fi
 
   Swallow -f "Moving into ROOT directory" cd "$ROOTSYS"
+  Swallow -f "Permanently accepting SVN certificate" AcceptSvn $SVN_ROOT
 
-  if [ ! -e $ROOTSYS/configure ]; then
-    Swallow -f "Permanently accepting SVN certificate" AcceptSvn $SVN_ROOT
-    [ $ROOT_VER == "trunk" ] && \
-      CMD="svn co $SVN_ROOT/trunk ." || \
-      CMD="svn co $SVN_ROOT/tags/$ROOT_VER ."
-    Swallow -f "Downloading ROOT $ROOT_VER" $CMD
+  # Different behaviors if it is trunk or not
+  if [ "$ROOT_VER" == "trunk" ]; then
+    # Trunk: download if needed, update to latest if already present
+    if [ ! -f "configure" ]; then
+      # We have to download it
+      Swallow -f "Downloading ROOT trunk" svn co $SVN_ROOT/trunk .
+    else
+      # We just have to update it
+      Swallow -f "Updating ROOT to latest trunk" svn up --non-interactive
+    fi
+  else
+    # No trunk: just download, never update
+    if [ ! -f "configure" ]; then
+      Swallow -f "Downloading ROOT $ROOT_VER" svn co $SVN_ROOT/tags/$ROOT_VER .
+    fi
   fi
 
   Swallow -f "Configuring ROOT" ./configure \
@@ -229,23 +250,34 @@ function ModuleGeant3() {
   local SVN_G3="https://root.cern.ch/svn/geant3/"
 
   Banner "Compiling Geant3..."
-  Swallow -f "Sourcing envvars" source "$ENVSCRIPT" -n
+  Swallow -f "Sourcing envvars" SourceEnvVars
 
   if [ ! -d "$GEANT3DIR" ]; then
     Swallow -f "Creating Geant3 directory" mkdir -p "$GEANT3DIR"
   fi
 
   Swallow -f "Moving into Geant3 directory" cd "$GEANT3DIR"
+  Swallow -f "Permanently accepting SVN certificate" AcceptSvn $SVN_G3
 
-  if [ ! -e make ]; then
-    Swallow -f "Permanently accepting SVN certificate" AcceptSvn $SVN_G3
-    [ $G3_VER == "trunk" ] && \
-      CMD="svn co $SVN_G3/trunk ." || \
-      CMD="svn co $SVN_G3/tags/$G3_VER ."
-    Swallow -f "Downloading Geant3 $G3_VER" $CMD
+  # Different behaviors if it is trunk or not
+  if [ "$G3_VER" == "trunk" ]; then
+    # Trunk: download if needed, update to latest if already present
+    if [ ! -f "Makefile" ]; then
+      # We have to download it
+      Swallow -f "Downloading Geant3 trunk" svn co $SVN_G3/trunk .
+    else
+      # We just have to update it
+      Swallow -f "Updating Geant3 to latest trunk" svn up --non-interactive
+    fi
+  else
+    # No trunk: just download, never update
+    if [ ! -f "Makefile" ]; then
+      Swallow -f "Downloading Geant3 $G3_VER" svn co $SVN_G3/tags/$G3_VER .
+    fi
   fi
 
   Swallow -f "Building Geant3" make
+
 }
 
 # Module to fetch, update and compile AliRoot
@@ -254,7 +286,7 @@ function ModuleAliRoot() {
   local SVN_ALIROOT="https://alisoft.cern.ch/AliRoot"
 
   Banner "Compiling AliRoot..."
-  Swallow -f "Sourcing envvars" source "$ENVSCRIPT" -n
+  Swallow -f "Sourcing envvars" SourceEnvVars
 
   if [ ! -d "$ALICE_ROOT" ]; then
     Swallow -f "Creating AliRoot source directory" mkdir -p "$ALICE_ROOT"
@@ -267,14 +299,24 @@ function ModuleAliRoot() {
   Swallow -f "Moving into AliRoot source directory" cd "$ALICE_ROOT"
   Swallow -f "Permanently accepting SVN certificate" AcceptSvn $SVN_ALIROOT
 
-  if [ ! -d "STEER" ]; then
-    [ "$ALICE_VER" == "trunk" ] && \
-      CMD="svn co $SVN_ALIROOT/trunk ." || \
-      CMD="svn co $SVN_ALIROOT/tags/$ALICE_VER ."
-    Swallow -f "Downloading AliRoot $ALICE_VER" $CMD
+  # Different behaviors if it is trunk or not
+  if [ "$ALICE_VER" == "trunk" ]; then
+    # Trunk: download if needed, update to latest if already present
+    if [ ! -d "STEER" ]; then
+      # We have to download it
+      Swallow -f "Downloading AliRoot trunk" svn co $SVN_ALIROOT/trunk .
+    else
+      # We just have to update it
+      Swallow -f "Updating AliRoot to latest trunk" svn up --non-interactive
+    fi
+  else
+    # No trunk: just download, never update
+    if [ ! -d "STEER" ]; then
+      Swallow -f "Downloading AliRoot $ALICE_VER" \
+        svn co $SVN_ALIROOT/tags/$ALICE_VER .
+    fi
   fi
 
-  Swallow -f "Updating AliRoot" svn up
   Swallow -f "Moving into AliRoot build directory" cd "$ALICE_BUILD"
 
   if [ ! -e "Makefile" ]; then
@@ -286,7 +328,7 @@ function ModuleAliRoot() {
   Swallow -f "Symlinking AliRoot include directory" \
     ln -nfs "$ALICE_BUILD"/include "$ALICE_ROOT"/include
 
-  Swallow -f "Sourcing envvars" source "$ENVSCRIPT" -n
+  Swallow -f "Sourcing envvars" SourceEnvVars
 
   if [ "$DISPLAY" != "" ]; then
     # Non-fatal
@@ -364,7 +406,7 @@ function Dl() {
 function ModuleAliEn() {
   local ALIEN_INSTALLER="/tmp/alien-installer-$USER"
   Banner "Installing AliEn..."
-  Swallow -f "Sourcing envvars" source "$ENVSCRIPT" -n
+  Swallow -f "Sourcing envvars" SourceEnvVars
   Swallow -f "Downloading AliEn installer" \
     Dl http://alien.cern.ch/alien-installer "$ALIEN_INSTALLER"
   Swallow -f "Making AliEn installer executable" \
@@ -378,7 +420,7 @@ function ModuleAliEn() {
 function ModulePrepare() {
   local TF
   Banner "Creating directory structure..."
-  Swallow -f "Sourcing envvars" source "$ENVSCRIPT" -n
+  Swallow -f "Sourcing envvars" SourceEnvVars
 
   mkdir -p "$ALICE_PREFIX" 2> /dev/null
 
@@ -426,16 +468,18 @@ function Help() {
   echo ""
 
   echo "  To build/install/update something (multiple choices allowed): "
-  echo "    $0 [--alien] [--root] [--geant3] [--aliroot]"
+  echo "    $0 [--alien] [--root] [--geant3] [--aliroot] [--ncores <n>]"
   echo ""
   echo "  Note that build/install/update as root user is disallowed."
+  echo "  With optional --ncores <n> you specify the number of parallel builds."
+  echo "  If nothing is specified, the default value (#cores + 1) is used."
   echo ""
 
   echo "  To build/install/update everything (do --prepare first): "
   echo "    $0 --all"
   echo ""
 
-  source "$ENVSCRIPT" -n > /dev/null 2> /dev/null
+  SourceEnvVars > /dev/null 2> /dev/null
   if [ "$?" != 0 ]; then
     echo "Please put alice-install.sh and alice-env.sh in the same directory!"
     echo "Environment script is expected in:"
@@ -524,6 +568,16 @@ function Main() {
           DO_ALICE=1
         ;;
 
+        ncores)
+          NCORES="$2"
+          expr "$NCORES" + 0 > /dev/null 2> /dev/null
+          if [ $? != 0 ]; then
+            Help "--ncores must be followed by a number greater than zero"
+            exit 1
+          fi
+          shift
+        ;;
+
         *)
           Help "Unrecognized parameter: $1"
           exit 1
@@ -543,10 +597,10 @@ function Main() {
   if [ $DO_PREP == 0 ] && [ $N_INST == 0 ]; then
     Help "Nothing to do"
     exit 1
-  elif [ $DO_PREP == 1 ] && [ $N_INST > 0 ]; then
+  elif [ $DO_PREP == 1 ] && [ $N_INST -gt 0 ]; then
     Help "Can't prepare and update/build/install something at the same time"
     exit 1
-  elif [ "$USER" == "root" ] && [ $N_INST > 0 ]; then
+  elif [ "$USER" == "root" ] && [ $N_INST -gt 0 ]; then
     Help "I'm refusing to continue the installation as root user"
     exit 1
   fi
@@ -566,6 +620,14 @@ function Main() {
   if [ $DO_PREP == 1 ]; then
     ModulePrepare
   else
+    SourceEnvVars > /dev/null 2>&1
+
+    if [ $MJ == 1 ]; then
+      echo "Building on single core (no parallel build)"
+    else
+      echo "Building using $MJ cores"
+    fi
+
     [ $DO_ALIEN == 1 ] && ModuleAliEn
     [ $DO_ROOT  == 1 ] && ModuleRoot
     [ $DO_G3    == 1 ] && ModuleGeant3
@@ -576,6 +638,7 @@ function Main() {
   # logs
   RemoveLogs
 
+  echo ""
 }
 
 Main "$@"

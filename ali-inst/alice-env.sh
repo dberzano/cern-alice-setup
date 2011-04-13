@@ -1,5 +1,5 @@
 #
-# alice-env.sh - by Dario Berzano <dario.berzano@to.infn.it>
+# alice-env.sh - by Dario Berzano <dario.berzano@cern.ch>
 #
 # This script is meant to be sourced in order to prepare the environment to run
 # ALICE Offline Framework applications (AliEn, ROOT, Geant 3 and AliRoot).
