@@ -235,6 +235,8 @@ function ModuleRoot() {
     --with-pythia6-uscore=SINGLE \
     --with-alien-incdir="$GSHELL_ROOT/include" \
     --with-alien-libdir="$GSHELL_ROOT/lib" \
+    --with-monalisa-incdir="$GSHELL_ROOT/include" \
+    --with-monalisa-libdir="$GSHELL_ROOT/lib" \
     --with-xrootd="$GSHELL_ROOT" \
     --with-f77=gfortran \
     --enable-minuit2 \
