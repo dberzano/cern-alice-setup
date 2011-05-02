@@ -161,7 +161,7 @@ function Swallow() {
   SwallowEnd "$OP" $RET $TSSTART $TSEND "$@"
 
   if [ $RET != 0 ] && [ $FATAL == 1 ]; then
-    LastLogLines -e
+    LastLogLines -e "$OP"
     exit 1
   fi
 
@@ -181,7 +181,7 @@ function LastLogLines() {
 
   if [ "$1" == "-e" ]; then
     echo ""
-    echo -e "\033[1;41m\033[1;37m!!! Operation $1 ended with errors !!!\033[m"
+    echo -e "\033[1;41m\033[1;37m!!! Operation $22 ended with errors !!!\033[m"
   fi
 
   echo ""
@@ -386,7 +386,7 @@ function SwallowProgress() {
   SwallowEnd "$OP" $RET $TSSTART $TSEND "$@"
 
   if [ $RET != 0 ] && [ $FATAL == 1 ]; then
-    LastLogLines -e
+    LastLogLines -e "$OP"
     exit 1
   fi
 
