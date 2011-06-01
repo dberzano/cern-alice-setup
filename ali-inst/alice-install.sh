@@ -181,7 +181,7 @@ function LastLogLines() {
 
   if [ "$1" == "-e" ]; then
     echo ""
-    echo -e "\033[1;41m\033[1;37m!!! Operation $22 ended with errors !!!\033[m"
+    echo -e "\033[1;41m\033[1;37m!!! Operation $2 ended with errors !!!\033[m"
   fi
 
   echo ""
