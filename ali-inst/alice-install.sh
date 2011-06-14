@@ -1,10 +1,10 @@
 #!/bin/bash
 
 #
-# alice-install -- by Dario Berzano <dario.berzano@cern.ch>
+# alice-install.sh -- by Dario Berzano <dario.berzano@cern.ch>
 #
-# Installs all the ALICE software on Ubuntu/Mac hopefully without the least
-# possible human intervention.
+# Installs all the ALICE software on Ubuntu/Mac hopefully without as least
+# human intervention as possible.
 #
 
 #
