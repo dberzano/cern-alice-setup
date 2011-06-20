@@ -299,13 +299,13 @@ function AliPrintVars() {
   which openssl > /dev/null 2>&1
   if [ $? == 0 ]; then
     if [ -r "$CERT" ]; then
-      openssl x509 -in "$CERT" -noout -checkend 604800 > /dev/null 2>&1
+      openssl x509 -in "$CERT" -noout -checkend 0 > /dev/null 2>&1
       if [ $? == 1 ]; then
-        MSG="Your certificate is going to expire before one week"
+        MSG="Your certificate is expired"
       else
-        openssl x509 -in "$CERT" -noout -checkend 0 > /dev/null 2>&1
+        openssl x509 -in "$CERT" -noout -checkend 604800 > /dev/null 2>&1
         if [ $? == 1 ]; then
-          MSG="Your certificate is expired"
+          MSG="Your certificate is going to expire before one week"
         fi
       fi
     else
