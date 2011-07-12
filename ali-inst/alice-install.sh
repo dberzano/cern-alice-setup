@@ -392,6 +392,32 @@ function SwallowProgress() {
 
 }
 
+# Clean up ROOT
+function ModuleCleanRoot() {
+  Banner "Cleaning ROOT..."
+  Swallow -f "Sourcing envvars" SourceEnvVars
+  Swallow -f "Checking if ROOT is really installed" [ -f "$ROOTSYS"/Makefile ]
+  Swallow -f "Removing ROOT $ROOT_VER" rm -rf "$ROOTSYS"
+}
+
+# Clean up Geant3
+function ModuleCleanGeant3() {
+  Banner "Cleaning Geant3..."
+  Swallow -f "Sourcing envvars" SourceEnvVars
+  Swallow -f "Checking if Geant3 is really installed" \
+    [ -f "$GEANT3DIR"/Makefile ]
+  Swallow -f "Removing Geant3 $G3_VER" rm -rf "$GEANT3DIR"
+}
+
+# Clean up AliRoot
+function ModuleCleanAliRoot() {
+  Banner "Cleaning AliRoot..."
+  Swallow -f "Sourcing envvars" SourceEnvVars
+  Swallow -f "Checking if AliRoot is really installed" \
+    [ -d "$ALICE_BUILD"/../build ]
+  Swallow -f "Removing AliRoot build directory" rm -rf "$ALICE_BUILD"/../build
+}
+
 # Download URL $1 to file $2 using wget or curl
 function Dl() {
   which curl > /dev/null 2>&1
@@ -469,16 +495,29 @@ function Help() {
   echo "    [sudo|su -c] $0 --prepare"
   echo ""
 
-  echo "  To build/install/update something (multiple choices allowed): "
+  echo "  To build/install/update something (multiple choices allowed):"
   echo "    $0 [--alien] [--root] [--geant3] [--aliroot] [--ncores <n>]"
   echo ""
+
+  echo "  To build/install/update everything (do --prepare first):"
+  echo "    $0 --all"
+  echo ""
+
+  echo "  To cleanup something (multiple choices allowed - data is erased!):"
+  echo "    $0 [--clean-root] [--clean-geant3] [--clean-aliroot]"
+  echo ""
+
+  echo "  To cleanup everything (except AliEn):"
+  echo "    $0 --clean-all"
+  echo ""
+
+  echo "  You can cleanup then install like this:"
+  echo "    $0 --clean-root --root --ncores 2"
+  echo ""
+
   echo "  Note that build/install/update as root user is disallowed."
   echo "  With optional --ncores <n> you specify the number of parallel builds."
   echo "  If nothing is specified, the default value (#cores + 1) is used."
-  echo ""
-
-  echo "  To build/install/update everything (do --prepare first): "
-  echo "    $0 --all"
   echo ""
 
   SourceEnvVars > /dev/null 2> /dev/null
@@ -496,7 +535,7 @@ function Help() {
     echo ""
     echo "  $ALICE_PREFIX"
     echo ""
-    echo "Versions of software that will be installed:"
+    echo "Versions of software that will be installed or cleaned up:"
     echo ""
     echo "  AliEn:   always the latest version"
     echo "  ROOT:    $ROOT_VER"
@@ -523,8 +562,13 @@ function Main() {
   local DO_ROOT=0
   local DO_G3=0
   local DO_ALICE=0
+  local DO_CLEAN_ALICE=0
+  local DO_CLEAN_ROOT=0
+  local DO_CLEAN_G3=0
 
   local N_INST=0
+  local N_CLEAN=0
+  local N_INST_CLEAN=0
   local PARAM
 
   # Environment script
@@ -543,9 +587,9 @@ function Main() {
       PARAM="${1:2}"
       case "$PARAM" in
 
-        prepare)
-          DO_PREP=1
-        ;;
+        #
+        # Install targets
+        #
 
         alien)
           DO_ALIEN=1
@@ -568,6 +612,36 @@ function Main() {
           DO_ROOT=1
           DO_G3=1
           DO_ALICE=1
+        ;;
+
+        #
+        # Cleanup targets (AliEn is not to be cleaned up)
+        #
+
+        clean-root)
+          DO_CLEAN_ROOT=1
+        ;;
+
+        clean-geant3)
+          DO_CLEAN_G3=1
+        ;;
+
+        clean-aliroot)
+          DO_CLEAN_ALICE=1
+        ;;
+
+        clean-all)
+          DO_CLEAN_ROOT=1
+          DO_CLEAN_G3=1
+          DO_CLEAN_ALICE=1
+        ;;
+
+        #
+        # Other targets
+        #
+
+        prepare)
+          DO_PREP=1
         ;;
 
         ncores)
@@ -595,14 +669,16 @@ function Main() {
 
   # How many build actions?
   let N_INST=DO_ALIEN+DO_ROOT+DO_G3+DO_ALICE
+  let N_CLEAN=DO_CLEAN_ROOT+DO_CLEAN_G3+DO_CLEAN_ALICE
+  let N_INST_CLEAN=N_INST+N_CLEAN
 
-  if [ $DO_PREP == 0 ] && [ $N_INST == 0 ]; then
+  if [ $DO_PREP == 0 ] && [ $N_INST_CLEAN == 0 ]; then
     Help "Nothing to do"
     exit 1
-  elif [ $DO_PREP == 1 ] && [ $N_INST -gt 0 ]; then
-    Help "Can't prepare and update/build/install something at the same time"
+  elif [ $DO_PREP == 1 ] && [ $N_INST_CLEAN -gt 0 ]; then
+    Help "Can't prepare and update/build/clean something at the same time"
     exit 1
-  elif [ "$USER" == "root" ] && [ $N_INST -gt 0 ]; then
+  elif [ "$USER" == "root" ] && [ $N_INST_CLEAN -gt 0 ]; then
     Help "I'm refusing to continue the installation as root user"
     exit 1
   fi
@@ -630,10 +706,13 @@ function Main() {
       echo "Building using $MJ cores"
     fi
 
-    [ $DO_ALIEN == 1 ] && ModuleAliEn
-    [ $DO_ROOT  == 1 ] && ModuleRoot
-    [ $DO_G3    == 1 ] && ModuleGeant3
-    [ $DO_ALICE == 1 ] && ModuleAliRoot
+    [ $DO_ALIEN       == 1 ] && ModuleAliEn
+    [ $DO_CLEAN_ROOT  == 1 ] && ModuleCleanRoot
+    [ $DO_ROOT        == 1 ] && ModuleRoot
+    [ $DO_CLEAN_G3    == 1 ] && ModuleCleanGeant3
+    [ $DO_G3          == 1 ] && ModuleGeant3
+    [ $DO_CLEAN_ALICE == 1 ] && ModuleCleanAliRoot
+    [ $DO_ALICE       == 1 ] && ModuleAliRoot
   fi
 
   # Remove logs: if we are here, everything went right, so no need to see the
