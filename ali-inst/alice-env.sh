@@ -78,7 +78,7 @@ function AliMenu() {
 
   echo -e "\n$M\n"
   for ((C=1; $C<=${#TRIAD[@]}; C++)); do
-    echo -e "  \033[1;36m($C)\033[m \033[1;35m${TRIAD[$C]}\033[m"
+    echo -e "  \033[1;36m($C)\033[m \033[1;35m"${TRIAD[$C]}"\033[m"
   done
   echo "";
   echo -e "  \033[1;36m(0)\033[m \033[1;33mClean environment\033[m"
