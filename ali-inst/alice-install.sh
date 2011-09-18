@@ -16,6 +16,7 @@ export ERR="$SWALLOW_LOG.err"
 export OUT="$SWALLOW_LOG.out"
 export ENVSCRIPT=""
 export NCORES=0
+export OSXGCC=0
 
 #
 # Functions
@@ -231,18 +232,36 @@ function ModuleRoot() {
     fi
   fi
 
-  Swallow -f "Configuring ROOT" ./configure \
-    --with-pythia6-uscore=SINGLE \
-    --with-alien-incdir="$GSHELL_ROOT/include" \
-    --with-alien-libdir="$GSHELL_ROOT/lib" \
-    --with-monalisa-incdir="$GSHELL_ROOT/include" \
-    --with-monalisa-libdir="$GSHELL_ROOT/lib" \
-    --with-xrootd="$GSHELL_ROOT" \
-    --with-f77=gfortran \
-    --enable-minuit2 \
-    --enable-roofit \
-    --enable-soversion \
-    --disable-bonjour
+  if [ "$OSXGCC" == 1 ]; then
+    Swallow -f "Configuring ROOT with custom GCC" ./configure \
+      --with-pythia6-uscore=SINGLE \
+      --with-alien-incdir=$GSHELL_ROOT/include \
+      --with-alien-libdir=$GSHELL_ROOT/lib \
+      --with-monalisa-incdir="$GSHELL_ROOT/include" \
+      --with-monalisa-libdir="$GSHELL_ROOT/lib" \
+      --with-xrootd=$GSHELL_ROOT \
+      --with-f77=/opt/gcc/bin/gfortran \
+      --with-cc=/opt/gcc/bin/gcc \
+      --with-cxx=/opt/gcc/bin/g++ \
+      --enable-minuit2 \
+      --enable-roofit \
+      --enable-soversion \
+      --disable-bonjour
+  else
+    Swallow -f "Configuring ROOT" ./configure \
+      --with-pythia6-uscore=SINGLE \
+      --with-alien-incdir="$GSHELL_ROOT/include" \
+      --with-alien-libdir="$GSHELL_ROOT/lib" \
+      --with-monalisa-incdir="$GSHELL_ROOT/include" \
+      --with-monalisa-libdir="$GSHELL_ROOT/lib" \
+      --with-xrootd="$GSHELL_ROOT" \
+      --with-f77=gfortran \
+      --enable-minuit2 \
+      --enable-roofit \
+      --enable-soversion \
+      --disable-bonjour
+  fi
+
   Swallow -f "Building ROOT" make -j$MJ
 }
 
@@ -322,7 +341,11 @@ function ModuleAliRoot() {
   Swallow -f "Moving into AliRoot build directory" cd "$ALICE_BUILD"
 
   if [ ! -e "Makefile" ]; then
-    Swallow -f "Bootstrapping AliRoot build with cmake" cmake "$ALICE_ROOT"
+    Swallow -f "Bootstrapping AliRoot build with cmake" \
+      cmake "$ALICE_ROOT" \
+        -DCMAKE_C_COMPILER=`root-config --cc` \
+        -DCMAKE_CXX_COMPILER=`root-config --cxx` \
+        -DCMAKE_Fortran_COMPILER=`root-config --f77`
   fi
 
   SwallowProgress -f "Building AliRoot" make -j$MJ
@@ -554,6 +577,19 @@ function Help() {
 
 }
 
+# Detects if we are running on a Mac OS X that needs a custom GCC to be present,
+# like Lion. Envvar OSXGCC is set to 1 in that case
+function DetectMacOSX() {
+
+  local KNAME=`uname -s`
+  local KMAJVER=`uname -r | cut -d. -f1`
+
+  if [ "$KNAME" == "Darwin" ] && [ "$KMAJVER" -ge 11 ]; then
+    OSXGCC=1
+  fi
+
+}
+
 # Main function
 function Main() {
 
@@ -570,6 +606,9 @@ function Main() {
   local N_CLEAN=0
   local N_INST_CLEAN=0
   local PARAM
+
+  # Detect if running on OSX Lion
+  DetectMacOSX
 
   # Environment script
   ENVSCRIPT=`dirname "$0"`
