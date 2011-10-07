@@ -78,10 +78,10 @@ function AliMenu() {
 
   echo -e "\n$M\n"
   for ((C=1; $C<=${#TRIAD[@]}; C++)); do
-    echo -e "  \033[1;36m($C)\033[m \033[1;35m"${TRIAD[$C]}"\033[m"
+    echo -e "  \033[1;36m($C)\033[m "$(NiceTriad ${TRIAD[$C]})
   done
   echo "";
-  echo -e "  \033[1;36m(0)\033[m \033[1;33mClean environment\033[m"
+  echo -e "  \033[1;36m(0)\033[m \033[1;33mClear environment\033[m"
   while [ 1 ]; do
     echo ""
     echo -n "Your choice: "
@@ -254,7 +254,7 @@ function AliExportVars() {
   # ROOT
   #
 
-  export ROOTSYS="$ALICE_PREFIX/root/$ROOT_VER"
+  export ROOTSYS="$ALICE_PREFIX/root/$ROOT_SUBDIR"
   export PATH="$ROOTSYS/bin:$PATH"
   export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$ROOTSYS/lib"
 
@@ -265,11 +265,11 @@ function AliExportVars() {
   export ALICE="$ALICE_PREFIX"
 
   # Let's detect AliRoot CMake builds
-  if [ ! -e "$ALICE_PREFIX/aliroot/$ALICE_VER/Makefile" ]; then
-    export ALICE_ROOT="$ALICE_PREFIX/aliroot/$ALICE_VER/src"
-    export ALICE_BUILD="$ALICE_PREFIX/aliroot/$ALICE_VER/build"
+  if [ ! -e "$ALICE_PREFIX/aliroot/$ALICE_SUBDIR/Makefile" ]; then
+    export ALICE_ROOT="$ALICE_PREFIX/aliroot/$ALICE_SUBDIR/src"
+    export ALICE_BUILD="$ALICE_PREFIX/aliroot/$ALICE_SUBDIR/build"
   else
-    export ALICE_ROOT="$ALICE_PREFIX/aliroot/$ALICE_VER"
+    export ALICE_ROOT="$ALICE_PREFIX/aliroot/$ALICE_SUBDIR"
     export ALICE_BUILD="$ALICE_ROOT"
   fi
 
@@ -282,7 +282,7 @@ function AliExportVars() {
   # Geant 3
   #
 
-  export GEANT3DIR="$ALICE_PREFIX/geant3/$G3_VER"
+  export GEANT3DIR="$ALICE_PREFIX/geant3/$G3_SUBDIR"
   export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$GEANT3DIR/lib/tgt_${ALICE_TARGET}"
  
 }
@@ -367,6 +367,46 @@ function AliPrintVars() {
 
 }
 
+# Separates version from directory, if triad is expressed in the form
+# directory(version). If no (version) is expressed, dir is set to version for
+# backwards compatiblity
+function ParseVerDir() {
+
+  local VERDIR="$1"
+  local DIR_VAR="$2"
+  local VER_VAR="$3"
+
+  if [[ "$VERDIR" =~ (.*)\((.*)\) ]]; then
+    eval "$DIR_VAR=${BASH_REMATCH[1]}"
+    eval "$VER_VAR=${BASH_REMATCH[2]}"
+    #for M in ${BASH_REMATCH[@]}; do
+    #  echo $M
+    #done
+  else
+    eval "$DIR_VAR=$VERDIR"
+    eval "$VER_VAR=$VERDIR"
+  fi
+
+}
+
+# Echoes a triad in a proper way, supporting the format directory(version) and
+# also the plain old format where dir==ver for backwards compatiblity
+function NiceTriad() {
+  export D V
+  local C=0
+  for T in $@ ; do
+    ParseVerDir $T D V
+    if [ "$D" != "$V" ]; then
+      echo -n "\033[1;35m$D\033[m ($V)"
+    else
+      echo -n "\033[1;35m$D\033[m"
+    fi
+    [ $C != 2 ] && echo -n ' / '
+    let C++
+  done
+  unset D V
+}
+
 # Main function: takes parameters from the command line
 function AliMain() {
 
@@ -417,6 +457,12 @@ function AliMain() {
       esac
       let C++
     done
+
+    # Separates directory name from version (backwards compatible)
+    ParseVerDir $ROOT_VER  'ROOT_SUBDIR'  'ROOT_VER'
+    ParseVerDir $G3_VER    'G3_SUBDIR'    'G3_VER'
+    ParseVerDir $ALICE_VER 'ALICE_SUBDIR' 'ALICE_VER'
+
   else
     # N_TRIAD=0 means "clean environment"
     OPT_CLEANENV=1
@@ -437,8 +483,11 @@ function AliMain() {
     [ "$OPT_QUIET" != 1 ] && AliPrintVars
 
   else
-    unset ALICE_PREFIX ROOT_VER G3_VER ALICE_VER
-    [ "$OPT_QUIET" != 1 ] && echo -e "\033[1;33mALICE environment variables cleaned\033[m"
+    unset ALICE_PREFIX ROOT_VER G3_VER ALICE_VER ROOT_SUBDIR G3_SUBDIR \
+      ALICE_SUBDIR
+    if [ "$OPT_QUIET" != 1 ]; then
+      echo -e "\033[1;33mALICE environment variables cleared\033[m"
+    fi
   fi
 
   # Cleans up artifacts in paths

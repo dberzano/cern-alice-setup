@@ -243,6 +243,7 @@ function ModuleRoot() {
       --with-f77=/opt/gcc/bin/gfortran \
       --with-cc=/opt/gcc/bin/gcc \
       --with-cxx=/opt/gcc/bin/g++ \
+      --with-ld=/opt/gcc/bin/g++ \
       --enable-minuit2 \
       --enable-roofit \
       --enable-soversion \
@@ -343,9 +344,9 @@ function ModuleAliRoot() {
   if [ ! -e "Makefile" ]; then
     Swallow -f "Bootstrapping AliRoot build with cmake" \
       cmake "$ALICE_ROOT" \
-        -DCMAKE_C_COMPILER=`root-config --cc` \
         -DCMAKE_CXX_COMPILER=`root-config --cxx` \
-        -DCMAKE_Fortran_COMPILER=`root-config --f77`
+        -DCMAKE_Fortran_COMPILER=`root-config --f77` \
+        -DCMAKE_CXX_LINK_EXECUTABLE=`root-config --ld`
   fi
 
   SwallowProgress -f "Building AliRoot" make -j$MJ
@@ -550,6 +551,23 @@ function Help() {
     echo ""
     echo "  $ENVSCRIPT"
   else
+
+    local ROOT_STR="$ROOT_VER"
+    local G3_STR="$G3_VER"
+    local ALICE_STR="$ALICE_VER"
+
+    if [ "$ROOT_VER" != "$ROOT_SUBDIR" ]; then
+      ROOT_STR="$ROOT_VER (subdir: $ROOT_SUBDIR)"
+    fi
+
+    if [ "$G3_VER" != "$G3_SUBDIR" ]; then
+      G3_STR="$G3_VER (subdir: $G3_SUBDIR)"
+    fi
+
+    if [ "$ALICE_VER" != "$ALICE_SUBDIR" ]; then
+      ALICE_STR="$ALICE_VER (subdir: $ALICE_SUBDIR)"
+    fi
+
     echo "ALICE environment is read from:"
     echo ""
     echo "  $ENVSCRIPT"
@@ -561,9 +579,9 @@ function Help() {
     echo "Versions of software that will be installed or cleaned up:"
     echo ""
     echo "  AliEn:   always the latest version"
-    echo "  ROOT:    $ROOT_VER"
-    echo "  Geant3:  $G3_VER"
-    echo "  AliRoot: $ALICE_VER"
+    echo "  ROOT:    $ROOT_STR"
+    echo "  Geant3:  $G3_STR"
+    echo "  AliRoot: $ALICE_STR"
     echo ""
     echo "Choose them in alice-env.sh script with TRIADS and N_TRIAD vars."
   fi
