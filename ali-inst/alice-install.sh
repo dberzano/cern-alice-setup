@@ -345,8 +345,7 @@ function ModuleAliRoot() {
     Swallow -f "Bootstrapping AliRoot build with cmake" \
       cmake "$ALICE_ROOT" \
         -DCMAKE_CXX_COMPILER=`root-config --cxx` \
-        -DCMAKE_Fortran_COMPILER=`root-config --f77` \
-        -DCMAKE_CXX_LINK_EXECUTABLE=`root-config --ld`
+        -DCMAKE_Fortran_COMPILER=`root-config --f77`
   fi
 
   SwallowProgress -f "Building AliRoot" make -j$MJ
