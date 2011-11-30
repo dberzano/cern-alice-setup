@@ -376,16 +376,14 @@ function ParseVerDir() {
   local DIR_VAR="$2"
   local VER_VAR="$3"
 
-  if [[ "$VERDIR" =~ (.*)\((.*)\) ]]; then
-    eval "$DIR_VAR=${BASH_REMATCH[1]}"
-    eval "$VER_VAR=${BASH_REMATCH[2]}"
-    #for M in ${BASH_REMATCH[@]}; do
-    #  echo $M
-    #done
-  else
-    eval "$DIR_VAR=$VERDIR"
-    eval "$VER_VAR=$VERDIR"
-  fi
+  # Perl script to separate dirname/version
+  local PERL='/^([^()]+)\((.+)\)$/ and '
+  PERL="$PERL"' print "'$DIR_VAR'=$1 ; '$VER_VAR'=$2" or '
+  PERL="$PERL"' print "'$DIR_VAR'='$VERDIR' ; '$VER_VAR'='$VERDIR'"'
+
+  # Perl
+  eval "unset $DIR_VAR $VER_VAR"
+  eval `echo "$VERDIR" | perl -ne "$PERL"`
 
 }
 
