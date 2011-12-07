@@ -16,7 +16,10 @@ export ERR="$SWALLOW_LOG.err"
 export OUT="$SWALLOW_LOG.out"
 export ENVSCRIPT=""
 export NCORES=0
-export OSXGCC=0
+export BUILD_MODE='' # clang, gcc, custom-gcc
+export SUPPORTED_BUILD_MODES=''
+export CUSTOM_GCC_PATH='/opt/gcc'
+export BUILDOPT_LDFLAGS=''
 
 #
 # Functions
@@ -232,38 +235,43 @@ function ModuleRoot() {
     fi
   fi
 
-  if [ "$OSXGCC" == 1 ]; then
-    Swallow -f "Configuring ROOT with custom GCC" ./configure \
-      --with-pythia6-uscore=SINGLE \
-      --with-alien-incdir=$GSHELL_ROOT/include \
-      --with-alien-libdir=$GSHELL_ROOT/lib \
-      --with-monalisa-incdir="$GSHELL_ROOT/include" \
-      --with-monalisa-libdir="$GSHELL_ROOT/lib" \
-      --with-xrootd=$GSHELL_ROOT \
-      --with-f77=/opt/gcc/bin/gfortran \
-      --with-cc=/opt/gcc/bin/gcc \
-      --with-cxx=/opt/gcc/bin/g++ \
-      --with-ld=/opt/gcc/bin/g++ \
-      --enable-minuit2 \
-      --enable-roofit \
-      --enable-soversion \
-      --disable-bonjour
-  else
-    Swallow -f "Configuring ROOT" ./configure \
-      --with-pythia6-uscore=SINGLE \
-      --with-alien-incdir="$GSHELL_ROOT/include" \
-      --with-alien-libdir="$GSHELL_ROOT/lib" \
-      --with-monalisa-incdir="$GSHELL_ROOT/include" \
-      --with-monalisa-libdir="$GSHELL_ROOT/lib" \
-      --with-xrootd="$GSHELL_ROOT" \
-      --with-f77=gfortran \
-      --enable-minuit2 \
-      --enable-roofit \
-      --enable-soversion \
-      --disable-bonjour
-  fi
+  # Choose correct configuration
+  local ConfigOpts="--with-pythia6-uscore=SINGLE \
+    --with-alien-incdir=$GSHELL_ROOT/include \
+    --with-alien-libdir=$GSHELL_ROOT/lib \
+    --with-monalisa-incdir="$GSHELL_ROOT/include" \
+    --with-monalisa-libdir="$GSHELL_ROOT/lib" \
+    --with-xrootd=$GSHELL_ROOT \
+    --enable-minuit2 \
+    --enable-roofit \
+    --enable-soversion \
+    --disable-bonjour"
 
-  Swallow -f "Building ROOT" make -j$MJ
+  case "$BUILD_MODE" in
+
+    gcc)
+      ConfigOpts="--with-f77=gfortran $ConfigOpts"
+    ;;
+
+    clang)
+      ConfigOpts="--with-clang --with-f77=gfortran $ConfigOpts"
+    ;;
+
+    custom-gcc)
+      ConfigOpts="--with-f77=$CUSTOM_GCC_PATH/bin/gfortran \
+        --with-cc=$CUSTOM_GCC_PATH/bin/gcc \
+        --with-cxx=$CUSTOM_GCC_PATH/bin/g++ \
+        --with-ld=$CUSTOM_GCC_PATH/bin/g++ $ConfigOpts"
+    ;;
+
+  esac
+
+  Swallow -f "Configuring ROOT" ./configure $ConfigOpts
+
+  local AppendLDFLAGS=''
+  [ "$BUILDOPT_LDFLAGS" != '' ] && AppendLDFLAGS="LDFLAGS=$BUILDOPT_LDFLAGS"
+
+  Swallow -f "Building ROOT" make -j$MJ $AppendLDFLAGS
 }
 
 # Module to fetch and compile Geant3
@@ -344,8 +352,11 @@ function ModuleAliRoot() {
   if [ ! -e "Makefile" ]; then
     Swallow -f "Bootstrapping AliRoot build with cmake" \
       cmake "$ALICE_ROOT" \
+        -DCMAKE_C_COMPILER=`root-config --cc` \
         -DCMAKE_CXX_COMPILER=`root-config --cxx` \
-        -DCMAKE_Fortran_COMPILER=`root-config --f77`
+        -DCMAKE_Fortran_COMPILER=`root-config --f77` \
+        -DCMAKE_C_LINK_EXECUTABLE=`root-config --ld` \
+        -DCMAKE_CXX_LINK_EXECUTABLE=`root-config --ld`
   fi
 
   SwallowProgress -f "Building AliRoot" make -j$MJ
@@ -464,6 +475,9 @@ function ModuleAliEn() {
     chmod +x "$ALIEN_INSTALLER"
   Swallow -f "Installing AliEn" \
     "$ALIEN_INSTALLER" -install-dir "$ALIEN_DIR" -batch -notorrent
+  Swallow -f "Removing conflicting libraries" \
+    rm -f "$ALIEN_DIR"/api/lib/libssl.* "$ALIEN_DIR"/api/lib/libcrypto.* \
+      "$ALIEN_DIR"/api/lib/libz.* "$ALIEN_DIR"/api/lib/libxml.*
   rm -f "$ALIEN_INSTALLER"
 }
 
@@ -519,7 +533,8 @@ function Help() {
   echo ""
 
   echo "  To build/install/update something (multiple choices allowed):"
-  echo "    $0 [--alien] [--root] [--geant3] [--aliroot] [--ncores <n>]"
+  echo "    $0 [--alien] [--root] [--geant3] [--aliroot]"
+  echo "      [--ncores <n>] [--compiler [gcc|clang|/prefix/to/gcc]]"
   echo ""
 
   echo "  To build/install/update everything (do --prepare first):"
@@ -536,6 +551,10 @@ function Help() {
 
   echo "  You can cleanup then install like this:"
   echo "    $0 --clean-root --root --ncores 2"
+  echo ""
+
+  echo "  The --compiler option is not mandatory; you can either specify gcc or"
+  echo "  clang, or the prefix to a custom GCC installation."
   echo ""
 
   echo "  Note that build/install/update as root user is disallowed."
@@ -567,6 +586,11 @@ function Help() {
       ALICE_STR="$ALICE_VER (subdir: $ALICE_SUBDIR)"
     fi
 
+    local BUILD_MODE_STR="$BUILD_MODE"
+    if [ "$BUILD_MODE" == "custom-gcc" ]; then
+      BUILD_MODE_STR="$BUILD_MODE (under $CUSTOM_GCC_PATH)"
+    fi
+
     echo "ALICE environment is read from:"
     echo ""
     echo "  $ENVSCRIPT"
@@ -582,6 +606,8 @@ function Help() {
     echo "  Geant3:  $G3_STR"
     echo "  AliRoot: $ALICE_STR"
     echo ""
+    echo "Compiler that will be used: $BUILD_MODE_STR"
+    echo ""
     echo "Choose them in alice-env.sh script with TRIADS and N_TRIAD vars."
   fi
   echo ""
@@ -594,16 +620,31 @@ function Help() {
 
 }
 
-# Detects if we are running on a Mac OS X that needs a custom GCC to be present,
-# like Lion. Envvar OSXGCC is set to 1 in that case
-function DetectMacOSX() {
+# Detects proper build options based on the current operating system
+function DetectOsBuildOpts() {
 
-  local KNAME=`uname -s`
-  local KMAJVER=`uname -r | cut -d. -f1`
+  local KernelName=`uname -s`
+  local VerFile='/etc/lsb-release'
+  local OsName
+  local OsVer
 
-  if [ "$KNAME" == "Darwin" ] && [ "$KMAJVER" -ge 11 ]; then
-    OSXGCC=1
+  if [ "$KernelName" == 'Darwin' ]; then
+    OsVer=`uname -r | cut -d. -f1`
+    if [ "$OsVer" -ge 11 ]; then
+      SUPPORTED_BUILD_MODES='clang custom-gcc'
+    fi
+  elif [ "$KernelName" == 'Linux' ]; then
+    SUPPORTED_BUILD_MODES='gcc custom-gcc'
+    OsName=`source $VerFile > /dev/null 2>&1 ; echo $DISTRIB_ID`
+    OsVer=`source $VerFile > /dev/null 2>&1 ; echo $DISTRIB_RELEASE | tr -d .`
+    if [ "$OsName" == 'Ubuntu' ] && [ "$OsVer" -ge 1110 ]; then
+      BUILDOPT_LDFLAGS='-Wl,--no-as-needed'
+    elif [ "$OsName" == 'LinuxMint' ] && [ "$OsVer" -ge 12 ]; then
+      BUILDOPT_LDFLAGS='-Wl,--no-as-needed'
+    fi
   fi
+
+  BUILD_MODE=`echo $SUPPORTED_BUILD_MODES | awk '{print $1}'`
 
 }
 
@@ -624,8 +665,8 @@ function Main() {
   local N_INST_CLEAN=0
   local PARAM
 
-  # Detect if running on OSX Lion
-  DetectMacOSX
+  # Detect proper build options
+  DetectOsBuildOpts
 
   # Environment script
   ENVSCRIPT=`dirname "$0"`
@@ -708,6 +749,36 @@ function Main() {
             exit 1
           fi
           shift
+        ;;
+
+        compiler)
+          BUILD_MODE="$2"
+
+          if [ "$BUILD_MODE" == '' ]; then
+            Help "No compiler specified, use one of: $SUPPORTED_BUILD_MODES"
+            exit 1
+          elif [ "${BUILD_MODE:0:1}" == '/' ]; then
+            BUILD_MODE='custom-gcc'
+            CUSTOM_GCC_PATH="$2"
+          fi
+
+          shift
+
+          # Is this build mode supported?
+          local Found=0
+          local B
+          for B in $SUPPORTED_BUILD_MODES ; do
+            if [ "$B" == "$BUILD_MODE" ]; then
+              Found=1
+              break
+            fi
+          done
+          if [ "$Found" != 1 ]; then
+            Help "Unsupported compiler: $BUILD_MODE, use one \
+                 of: $SUPPORTED_BUILD_MODES"
+            exit 1
+          fi
+
         ;;
 
         *)

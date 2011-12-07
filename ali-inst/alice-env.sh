@@ -301,7 +301,7 @@ function AliPrintVars() {
     if [ -r "$CERT" ]; then
       openssl x509 -in "$CERT" -noout -checkend 0 > /dev/null 2>&1
       if [ $? == 1 ]; then
-        MSG="Your certificate is expired"
+        MSG="Your certificate has expired"
       else
         openssl x509 -in "$CERT" -noout -checkend 604800 > /dev/null 2>&1
         if [ $? == 1 ]; then
