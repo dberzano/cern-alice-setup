@@ -477,7 +477,7 @@ function ModuleAliEn() {
     "$ALIEN_INSTALLER" -install-dir "$ALIEN_DIR" -batch -notorrent
   Swallow -f "Removing conflicting libraries" \
     rm -f "$ALIEN_DIR"/api/lib/libssl.* "$ALIEN_DIR"/api/lib/libcrypto.* \
-      "$ALIEN_DIR"/api/lib/libz.* "$ALIEN_DIR"/api/lib/libxml.*
+      "$ALIEN_DIR"/api/lib/libz.* "$ALIEN_DIR"/api/lib/libxml2.*
   rm -f "$ALIEN_INSTALLER"
 }
 
