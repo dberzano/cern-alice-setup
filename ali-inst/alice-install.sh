@@ -349,14 +349,43 @@ function ModuleAliRoot() {
 
   Swallow -f "Moving into AliRoot build directory" cd "$ALICE_BUILD"
 
+  # Assemble cmake command
   if [ ! -e "Makefile" ]; then
-    Swallow -f "Bootstrapping AliRoot build with cmake" \
-      cmake "$ALICE_ROOT" \
-        -DCMAKE_C_COMPILER=`root-config --cc` \
-        -DCMAKE_CXX_COMPILER=`root-config --cxx` \
-        -DCMAKE_Fortran_COMPILER=`root-config --f77` \
-        -DCMAKE_C_LINK_EXECUTABLE=`root-config --ld` \
-        -DCMAKE_CXX_LINK_EXECUTABLE=`root-config --ld`
+
+    if [ "$BUILD_MODE" == 'clang' ]; then
+
+      # Configuration for clang
+      Swallow -f "Bootstrapping AliRoot build with cmake (for Clang)" \
+        cmake "$ALICE_ROOT" \
+          -DCMAKE_C_COMPILER=`root-config --cc` \
+          -DCMAKE_CXX_COMPILER=`root-config --cxx` \
+          -DCMAKE_Fortran_COMPILER=`root-config --f77` \
+          -DCMAKE_C_LINK_EXECUTABLE=`root-config --ld` \
+          -DCMAKE_CXX_LINK_EXECUTABLE=`root-config --ld`
+
+    elif [ "$BUILDOPT_LDFLAGS" != '' ]; then
+
+      # Special configuration for latest Ubuntu/Linux Mint
+      Swallow -f "Bootstrapping AliRoot build with cmake (using LDFLAGS)" \
+        cmake "$ALICE_ROOT" \
+          -DCMAKE_C_COMPILER=`root-config --cc` \
+          -DCMAKE_CXX_COMPILER=`root-config --cxx` \
+          -DCMAKE_Fortran_COMPILER=`root-config --f77` \
+          -DCMAKE_MODULE_LINKER_FLAGS="$BUILDOPT_LDFLAGS" \
+          -DCMAKE_SHARED_LINKER_FLAGS="$BUILDOPT_LDFLAGS" \
+          -DCMAKE_EXE_LINKER_FLAGS="$BUILDOPT_LDFLAGS"
+
+    else
+
+      # Any other configuration (no linker)
+      Swallow -f "Bootstrapping AliRoot build with cmake" \
+        cmake "$ALICE_ROOT" \
+          -DCMAKE_C_COMPILER=`root-config --cc` \
+          -DCMAKE_CXX_COMPILER=`root-config --cxx` \
+          -DCMAKE_Fortran_COMPILER=`root-config --f77`
+
+    fi
+
   fi
 
   SwallowProgress -f "Building AliRoot" make -j$MJ
