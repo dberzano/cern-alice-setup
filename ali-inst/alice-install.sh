@@ -361,8 +361,8 @@ function ModuleAliRoot() {
           -DCMAKE_C_COMPILER=`root-config --cc` \
           -DCMAKE_CXX_COMPILER=`root-config --cxx` \
           -DCMAKE_Fortran_COMPILER=`root-config --f77` \
-          -DCMAKE_C_LINK_EXECUTABLE=ld \
-          -DCMAKE_CXX_LINK_EXECUTABLE=ld
+          -DCMAKE_C_LINK_EXECUTABLE=`root-config --cc` \
+          -DCMAKE_CXX_LINK_EXECUTABLE=`root-config --cxx`
 
     elif [ "$BUILDOPT_LDFLAGS" != '' ]; then
 
