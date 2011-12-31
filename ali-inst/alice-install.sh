@@ -503,9 +503,9 @@ function ModuleAliEn() {
     chmod +x "$ALIEN_INSTALLER"
   Swallow -f "Installing AliEn" \
     "$ALIEN_INSTALLER" -install-dir "$ALIEN_DIR" -batch -notorrent
-  Swallow -f "Removing conflicting libraries" \
-    rm -f "$ALIEN_DIR"/api/lib/libssl.* "$ALIEN_DIR"/api/lib/libcrypto.* \
-      "$ALIEN_DIR"/api/lib/libz.* "$ALIEN_DIR"/api/lib/libxml2.*
+  #Swallow -f "Removing conflicting libraries" \
+  #  rm -f "$ALIEN_DIR"/api/lib/libssl.* "$ALIEN_DIR"/api/lib/libcrypto.* \
+  #    "$ALIEN_DIR"/api/lib/libz.* "$ALIEN_DIR"/api/lib/libxml2.*
   rm -f "$ALIEN_INSTALLER"
 }
 
