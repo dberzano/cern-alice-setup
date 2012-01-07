@@ -172,12 +172,15 @@ function Swallow() {
   return $RET
 }
 
-# Permanently (and silently) accepts a SVN certificate
-function AcceptSvn() {
-  #yes p | svn info "$1" > /dev/null 2>&1
-  #return $?
+# Interactively asks to accept SVN certificates
+function InteractiveAcceptSvn() {
+  local SVN_SERVERS='root.cern.ch alisoft.cern.ch'
+  Banner 'Please accept those SVN certificates permanently if requested'
+  for S in $SVN_SERVERS ; do
+    svn info https://$S  # always returns 1...
+  done
   return 0
-} 
+}
 
 # Prints the last lines of both log files
 function LastLogLines() {
@@ -217,7 +220,6 @@ function ModuleRoot() {
   fi
 
   Swallow -f "Moving into ROOT directory" cd "$ROOTSYS"
-  Swallow -f "Permanently accepting SVN certificate" AcceptSvn $SVN_ROOT
 
   # Different behaviors if it is trunk or not
   if [ "$ROOT_VER" == "trunk" ]; then
@@ -288,7 +290,6 @@ function ModuleGeant3() {
   fi
 
   Swallow -f "Moving into Geant3 directory" cd "$GEANT3DIR"
-  Swallow -f "Permanently accepting SVN certificate" AcceptSvn $SVN_G3
 
   # Different behaviors if it is trunk or not
   if [ "$G3_VER" == "trunk" ]; then
@@ -328,7 +329,6 @@ function ModuleAliRoot() {
   fi
 
   Swallow -f "Moving into AliRoot source directory" cd "$ALICE_ROOT"
-  Swallow -f "Permanently accepting SVN certificate" AcceptSvn $SVN_ALIROOT
 
   # Different behaviors if it is trunk or not
   if [ "$ALICE_VER" == "trunk" ]; then
@@ -503,9 +503,9 @@ function ModuleAliEn() {
     chmod +x "$ALIEN_INSTALLER"
   Swallow -f "Installing AliEn" \
     "$ALIEN_INSTALLER" -install-dir "$ALIEN_DIR" -batch -notorrent
-  #Swallow -f "Removing conflicting libraries" \
-  #  rm -f "$ALIEN_DIR"/api/lib/libssl.* "$ALIEN_DIR"/api/lib/libcrypto.* \
-  #    "$ALIEN_DIR"/api/lib/libz.* "$ALIEN_DIR"/api/lib/libxml2.*
+  Swallow -f "Removing conflicting libraries" \
+    rm -f "$ALIEN_DIR"/api/lib/libssl.* "$ALIEN_DIR"/api/lib/libcrypto.* \
+      "$ALIEN_DIR"/api/lib/libz.* "$ALIEN_DIR"/api/lib/libxml2.*
   rm -f "$ALIEN_INSTALLER"
 }
 
@@ -691,6 +691,7 @@ function Main() {
   local N_INST=0
   local N_CLEAN=0
   local N_INST_CLEAN=0
+  local N_SVN=0
   local PARAM
 
   # Detect proper build options
@@ -823,7 +824,8 @@ function Main() {
   done
 
   # How many build actions?
-  let N_INST=DO_ALIEN+DO_ROOT+DO_G3+DO_ALICE
+  let N_SVN=DO_ROOT+DO_G3+DO_ALICE
+  let N_INST=DO_ALIEN+N_SVN
   let N_CLEAN=DO_CLEAN_ROOT+DO_CLEAN_G3+DO_CLEAN_ALICE
   let N_INST_CLEAN=N_INST+N_CLEAN
 
@@ -861,6 +863,13 @@ function Main() {
       echo "Building using $MJ cores"
     fi
 
+    # Ask to accept all SVN certificates at the beginning
+    if [ $N_SVN -gt 0 ]; then
+      InteractiveAcceptSvn
+      Banner 'Non-interactive installation begins: go get a coffee'
+    fi
+
+    # All modules
     [ $DO_ALIEN       == 1 ] && ModuleAliEn
     [ $DO_CLEAN_ROOT  == 1 ] && ModuleCleanRoot
     [ $DO_ROOT        == 1 ] && ModuleRoot
