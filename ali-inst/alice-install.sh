@@ -277,10 +277,9 @@ function ModuleRoot() {
   Swallow -f "Building ROOT" make -j$MJ $AppendLDFLAGS
 
   # To fix some problems during the creation of PARfiles in AliRoot
-  if [ ! -e "$ROOTSYS/etc/Makefile.arch" ]; then
+  if [ -e "$ROOTSYS/test/Makefile.arch" ]; then
     Swallow -f "Linking Makefile.arch" \
-      ln -nfs "$ROOTSYS/config/Makefile.$(root-config --arch)" \
-      "$ROOTSYS/etc/Makefile.arch"
+      ln -nfs "$ROOTSYS/test/Makefile.arch" "$ROOTSYS/etc/Makefile.arch"
   fi
 
 }
