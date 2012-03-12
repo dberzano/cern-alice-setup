@@ -3,8 +3,8 @@
 #
 # alice-install.sh -- by Dario Berzano <dario.berzano@cern.ch>
 #
-# Installs all the ALICE software on Ubuntu/Mac hopefully without as least
-# human intervention as possible.
+# Installs all the ALICE software on Ubuntu/Mac hopefully without the least
+# possible human intervention.
 #
 
 #
@@ -275,6 +275,14 @@ function ModuleRoot() {
   [ "$BUILDOPT_LDFLAGS" != '' ] && AppendLDFLAGS="LDFLAGS=$BUILDOPT_LDFLAGS"
 
   Swallow -f "Building ROOT" make -j$MJ $AppendLDFLAGS
+
+  # To fix some problems during the creation of PARfiles in AliRoot
+  if [ ! -e "$ROOTSYS/etc/Makefile.arch" ]; then
+    Swallow -f "Linking Makefile.arch" \
+      ln -nfs "$ROOTSYS/config/Makefile.$(root-config --arch)" \
+      "$ROOTSYS/etc/Makefile.arch"
+  fi
+
 }
 
 # Module to fetch and compile Geant3
