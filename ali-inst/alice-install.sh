@@ -250,6 +250,12 @@ function ModuleRoot() {
     --enable-soversion \
     --disable-bonjour"
 
+  # Is --disable-fink available (Mac only)?
+  if [ "`uname`" == 'Darwin' ] && \
+     [ `./configure --help 2>/dev/null|grep -c finkdir` == 1 ]; then
+    ConfigOpts="$ConfigOpts --disable-fink"
+  fi
+
   case "$BUILD_MODE" in
 
     gcc)
