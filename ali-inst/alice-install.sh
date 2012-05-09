@@ -248,7 +248,8 @@ function ModuleRoot() {
     --enable-minuit2 \
     --enable-roofit \
     --enable-soversion \
-    --disable-bonjour"
+    --disable-bonjour \
+    --enable-builtin-freetype"
 
   # Is --disable-fink available (Mac only)?
   if [ "`uname`" == 'Darwin' ] && \
