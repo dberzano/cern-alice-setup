@@ -213,7 +213,7 @@ function AliCleanEnv() {
 
   # Unset other environment variables and aliases
   unset MJ ALIEN_DIR GSHELL_ROOT ROOTSYS ALICE ALICE_ROOT ALICE_BUILD \
-    ALICE_TARGET GEANT3DIR X509_CERT_DIR GSHELL_NO_GCC ALICE
+    ALICE_TARGET GEANT3DIR X509_CERT_DIR ALICE
 }
 
 # Sets the number of parallel workers for make to the number of cores plus one
@@ -238,7 +238,6 @@ function AliExportVars() {
   if [ -e "$ALIEN_DIR/api/bin/aliensh" ]; then
     # Binary distribution installed with alien-installer
     export X509_CERT_DIR="$ALIEN_DIR/globus/share/certificates"
-    export GSHELL_NO_GCC=1
     export GSHELL_ROOT="$ALIEN_DIR/api"
   else
     # Defaults to source distribution installed via xgapi
