@@ -528,7 +528,7 @@ function ModuleAliEn() {
 
   # Interactive recompilation
   Banner 'Testing AliEn: you *must* answer "yes" if asked to recompile!'
-  echo 'Note: it is not important that your token is actually created here.'
+  echo 'Note: it is not important if your token is actually created here.'
   Swallow -f "Resourcing envvars" SourceEnvVars
   alien-token-init
 }
@@ -890,14 +890,15 @@ function Main() {
     # Ask to accept all SVN certificates at the beginning
     if [ $N_SVN -gt 0 ]; then
       InteractiveAcceptSvn
-      #Banner 'Non-interactive installation begins: go get a coffee'
     fi
 
     # AliEn installation may require interaction for recompilation!
     [ $DO_ALIEN == 1 ] && ModuleAliEn
 
     # No interactivity should be required from this point on
-    Banner 'Non-interactive installation begins: go get some tea and scons'
+    let N_INST_CLEAN-=1
+    [ $N_INST_CLEAN -ge 1 ] && \
+      Banner 'Non-interactive installation begins: go get some tea and scons'
 
     # All modules
     [ $DO_CLEAN_ROOT  == 1 ] && ModuleCleanRoot
