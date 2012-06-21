@@ -529,6 +529,7 @@ function ModuleAliEn() {
   # Interactive recompilation
   Banner 'Testing AliEn: you *must* answer "yes" if asked to recompile!'
   echo 'Note: it is not important that your token is actually created here.'
+  Swallow -f "Resourcing envvars" SourceEnvVars
   alien-token-init
 }
 
