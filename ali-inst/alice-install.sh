@@ -518,8 +518,11 @@ function ModuleAliEn() {
   Swallow -f "Installing AliEn" \
     "$ALIEN_INSTALLER" -install-dir "$ALIEN_DIR" -batch -notorrent
   Swallow -f "Removing conflicting libraries" \
-    rm -f "$ALIEN_DIR"/api/lib/libssl.* "$ALIEN_DIR"/api/lib/libcrypto.* \
-      "$ALIEN_DIR"/api/lib/libz.* "$ALIEN_DIR"/api/lib/libxml2.*
+    rm -f \
+      "$ALIEN_DIR"/api/lib/libssl.* "$ALIEN_DIR"/api/lib/libcrypto.* \
+      "$ALIEN_DIR"/api/lib/libz.* "$ALIEN_DIR"/api/lib/libxml2.* \
+      "$ALIEN_DIR"/lib/libssl.* "$ALIEN_DIR"/lib/libcrypto.* \
+      "$ALIEN_DIR"/lib/libz.* "$ALIEN_DIR"/lib/libxml2.*
   rm -f "$ALIEN_INSTALLER"
 }
 
@@ -679,9 +682,9 @@ function DetectOsBuildOpts() {
     SUPPORTED_BUILD_MODES='gcc custom-gcc'
     OsName=`source $VerFile > /dev/null 2>&1 ; echo $DISTRIB_ID`
     OsVer=`source $VerFile > /dev/null 2>&1 ; echo $DISTRIB_RELEASE | tr -d .`
-    if [ "$OsName" == 'Ubuntu' ] && [ "$OsVer" -ge 1110 ]; then
+    if [ "$OsName" == 'Ubuntu' ] && [ "$OsVer" == 1110 ]; then
       BUILDOPT_LDFLAGS='-Wl,--no-as-needed'
-    elif [ "$OsName" == 'LinuxMint' ] && [ "$OsVer" -ge 12 ]; then
+    elif [ "$OsName" == 'LinuxMint' ] && [ "$OsVer" == 12 ]; then
       BUILDOPT_LDFLAGS='-Wl,--no-as-needed'
     fi
   fi
