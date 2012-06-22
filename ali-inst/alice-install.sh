@@ -354,7 +354,7 @@ function ModuleGeant3() {
     # No trunk: just download, never update
     if [ ! -f "Makefile" ]; then
       Swallow -f "Downloading Geant3 $G3_VER" \
-        MultiSvn "$SVN_LIST" co "@SERVER$SVN_G3/tags/$G3_VER" .
+        MultiSvn "$SVN_LIST" co "@SERVER@$SVN_G3/tags/$G3_VER" .
     fi
   fi
 
