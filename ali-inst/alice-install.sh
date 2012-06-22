@@ -725,9 +725,9 @@ function DetectOsBuildOpts() {
     SUPPORTED_BUILD_MODES='gcc custom-gcc'
     OsName=`source $VerFile > /dev/null 2>&1 ; echo $DISTRIB_ID`
     OsVer=`source $VerFile > /dev/null 2>&1 ; echo $DISTRIB_RELEASE | tr -d .`
-    if [ "$OsName" == 'Ubuntu' ] && [ "$OsVer" == 1110 ]; then
+    if [ "$OsName" == 'Ubuntu' ] && [ "$OsVer" -ge 1110 ]; then
       BUILDOPT_LDFLAGS='-Wl,--no-as-needed'
-    elif [ "$OsName" == 'LinuxMint' ] && [ "$OsVer" == 12 ]; then
+    elif [ "$OsName" == 'LinuxMint' ] && [ "$OsVer" -ge 12 ]; then
       BUILDOPT_LDFLAGS='-Wl,--no-as-needed'
     fi
   fi
