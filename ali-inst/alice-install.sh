@@ -261,8 +261,7 @@ function ModuleRoot() {
         MultiSvn "$SVN_LIST" co "@SERVER@$SVN_ROOT/trunk" .
     else
       # We just have to update it
-      Swallow -f "Updating ROOT to latest trunk" \
-        MultiSvn "$SVN_LIST" up --non-interactive
+      Swallow -f "Updating ROOT to latest trunk" svn up --non-interactive
     fi
   else
     # No trunk: just download, never update
@@ -328,7 +327,8 @@ function ModuleRoot() {
 # Module to fetch and compile Geant3
 function ModuleGeant3() {
 
-  local SVN_G3="https://root.cern.ch/svn/geant3/"
+  local SVN_LIST='https://root.cern.ch|http://root.cern.ch'
+  local SVN_G3="/svn/geant3/"
 
   Banner "Compiling Geant3..."
   Swallow -f "Sourcing envvars" SourceEnvVars
@@ -344,7 +344,8 @@ function ModuleGeant3() {
     # Trunk: download if needed, update to latest if already present
     if [ ! -f "Makefile" ]; then
       # We have to download it
-      Swallow -f "Downloading Geant3 trunk" svn co $SVN_G3/trunk .
+      Swallow -f "Downloading Geant3 trunk" \
+        MultiSvn "$SVN_LIST" co "@SERVER@$SVN_G3/trunk" .
     else
       # We just have to update it
       Swallow -f "Updating Geant3 to latest trunk" svn up --non-interactive
@@ -352,7 +353,8 @@ function ModuleGeant3() {
   else
     # No trunk: just download, never update
     if [ ! -f "Makefile" ]; then
-      Swallow -f "Downloading Geant3 $G3_VER" svn co $SVN_G3/tags/$G3_VER .
+      Swallow -f "Downloading Geant3 $G3_VER" \
+        MultiSvn "$SVN_LIST" co "@SERVER$SVN_G3/tags/$G3_VER" .
     fi
   fi
 
