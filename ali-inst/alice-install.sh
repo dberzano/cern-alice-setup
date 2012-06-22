@@ -16,7 +16,7 @@ export ERR="$SWALLOW_LOG.err"
 export OUT="$SWALLOW_LOG.out"
 export ENVSCRIPT=""
 export NCORES=0
-export BUILD_MODE='' # clang, gcc, custom-gcc
+export BUILD_MODE='' # clang, gcc, custom-gcc
 export SUPPORTED_BUILD_MODES=''
 export CUSTOM_GCC_PATH='/opt/gcc'
 export BUILDOPT_LDFLAGS=''
@@ -207,10 +207,41 @@ function Banner() {
   echo -e '\033[1;33m'"$1"'\033[m'
 }
 
+# Tries different SVN servers before giving up on error. Arguments:
+#  - $1: pipe-separated list of servers with protocol, i.e.:
+#        "https://root.cern.ch|http://root.cern.ch|svn://root.cern.ch"
+#  - $@: svn command: @SERVER@ will be substituted with proto://server
+function MultiSvn() {
+  local SvnServers OldIFS Srv Arg NewArg SvnCmd
+  SvnServers="$1"
+  shift
+  OldIFS="$IFS"
+  IFS='|'
+  for Srv in $SvnServers ; do
+    IFS="$OldIFS"
+
+    # Substitute @SERVER@ in command
+    SvnCmd=( svn )
+    for Arg in $@ ; do
+      NewArg=`echo "$Arg" | sed -e "s#@SERVER@#$Srv#g"`
+      SvnCmd[${#SvnCmd[@]}]="$NewArg"
+    done
+
+    echo "--> Trying SVN command: ${SvnCmd[@]}"
+    ${SvnCmd[@]} && return 0  # IFS is the right one
+    echo "--> SVN command failed: ${SvnCmd[@]}"
+
+    IFS='|'
+  done
+  IFS="$OldIFS"
+  return 1
+}
+
 # Module to fetch and compile ROOT
 function ModuleRoot() {
 
-  local SVN_ROOT="https://root.cern.ch/svn/root"
+  local SVN_LIST='https://root.cern.ch|http://root.cern.ch'
+  local SVN_ROOT='/svn/root'
 
   Banner "Compiling ROOT..."
   Swallow -f "Sourcing envvars" SourceEnvVars
@@ -226,15 +257,18 @@ function ModuleRoot() {
     # Trunk: download if needed, update to latest if already present
     if [ ! -f "configure" ]; then
       # We have to download it
-      Swallow -f "Downloading ROOT trunk" svn co $SVN_ROOT/trunk .
+      Swallow -f "Downloading ROOT trunk" \
+        MultiSvn "$SVN_LIST" co "@SERVER@$SVN_ROOT/trunk" .
     else
       # We just have to update it
-      Swallow -f "Updating ROOT to latest trunk" svn up --non-interactive
+      Swallow -f "Updating ROOT to latest trunk" \
+        MultiSvn "$SVN_LIST" up --non-interactive
     fi
   else
     # No trunk: just download, never update
     if [ ! -f "configure" ]; then
-      Swallow -f "Downloading ROOT $ROOT_VER" svn co $SVN_ROOT/tags/$ROOT_VER .
+      Swallow -f "Downloading ROOT $ROOT_VER" \
+        MultiSvn "$SVN_LIST" co "@SERVER@$SVN_ROOT/tags/$ROOT_VER" .
     fi
   fi
 
@@ -817,7 +851,7 @@ function Main() {
 
           shift
 
-          # Is this build mode supported?
+          # Is this build mode supported?
           local Found=0
           local B
           for B in $SUPPORTED_BUILD_MODES ; do
