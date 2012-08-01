@@ -934,7 +934,7 @@ function Main() {
     # No interactivity should be required from this point on
     let N_INST_CLEAN-=1
     [ $N_INST_CLEAN -ge 1 ] && \
-      Banner 'Non-interactive installation begins: go get some tea and scons'
+      Banner 'Non-interactive installation begins: go get some tea and scones'
 
     # All modules
     [ $DO_CLEAN_ROOT  == 1 ] && ModuleCleanRoot
