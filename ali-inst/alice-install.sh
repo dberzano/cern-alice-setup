@@ -475,7 +475,7 @@ function SwallowProgress() {
   "$@" >> "$OUT" 2>> "$ERR" &
   BGPID=$!
 
-  while ps|grep -v grep|grep $BGPID > /dev/null 2>&1
+  while ps 2> /dev/null | grep -v grep | grep $BGPID > /dev/null 2>&1
   do
 
     # Parse current percentage
