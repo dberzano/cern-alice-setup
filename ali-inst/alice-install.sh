@@ -726,7 +726,7 @@ function DetectOsBuildOpts() {
     fi
     if [ "$OsVer" -ge 12 ]; then
       # 12 = Mountain Lion (10.8)
-      BUILDOPT_CPATH='-I/usr/X11/include'  # XQuartz
+      BUILDOPT_CPATH='/usr/X11/include'  # XQuartz
     fi
   elif [ "$KernelName" == 'Linux' ]; then
     SUPPORTED_BUILD_MODES='gcc custom-gcc'
