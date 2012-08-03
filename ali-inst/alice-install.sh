@@ -20,6 +20,7 @@ export BUILD_MODE='' # clang, gcc, custom-gcc
 export SUPPORTED_BUILD_MODES=''
 export CUSTOM_GCC_PATH='/opt/gcc'
 export BUILDOPT_LDFLAGS=''
+export BUILDOPT_CPATH=''
 
 #
 # Functions
@@ -311,10 +312,11 @@ function ModuleRoot() {
 
   Swallow -f "Configuring ROOT" ./configure $ConfigOpts
 
-  local AppendLDFLAGS=''
+  local AppendLDFLAGS AppendCPATH
   [ "$BUILDOPT_LDFLAGS" != '' ] && AppendLDFLAGS="LDFLAGS=$BUILDOPT_LDFLAGS"
+  [ "$BUILDOPT_CPATH" != '' ] && AppendCPATH="CPATH=$BUILDOPT_CPATH"
 
-  Swallow -f "Building ROOT" make -j$MJ $AppendLDFLAGS
+  Swallow -f "Building ROOT" make -j$MJ $AppendLDFLAGS $AppendCPATH
 
   # To fix some problems during the creation of PARfiles in AliRoot
   if [ -e "$ROOTSYS/test/Makefile.arch" ]; then
@@ -719,7 +721,12 @@ function DetectOsBuildOpts() {
   if [ "$KernelName" == 'Darwin' ]; then
     OsVer=`uname -r | cut -d. -f1`
     if [ "$OsVer" -ge 11 ]; then
+      # 11 = Lion (10.7)
       SUPPORTED_BUILD_MODES='clang custom-gcc'
+    fi
+    if [ "$OsVer" -ge 12 ]; then
+      # 12 = Mountain Lion (10.8)
+      BUILDOPT_CPATH='-I/usr/X11/include'  # XQuartz
     fi
   elif [ "$KernelName" == 'Linux' ]; then
     SUPPORTED_BUILD_MODES='gcc custom-gcc'
