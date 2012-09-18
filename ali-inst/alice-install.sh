@@ -93,7 +93,7 @@ function SwallowStep() {
   # Prints progress
   echo -ne '\r                                                  \r'
   PCT_FMT=$( printf "%3d%%" $PCT )
-  echo -ne "[\033[1;34m$PCT_FMT\033[m] $OP \033[1;36m$(NiceTime $TS_DELTA)\033[m"
+  echo -ne "[\033[34m$PCT_FMT\033[m] $OP \033[36m$(NiceTime $TS_DELTA)\033[m"
 
   return $RET
 
@@ -122,12 +122,12 @@ function SwallowEnd() {
   # Prints success (green OK) or fail (red FAIL)
   echo -ne '\r'
   [ $RET == 0 ] && \
-    echo -ne '[ \033[1;32mOK\033[m ]' || echo -ne '[\033[1;31mFAIL\033[m]'
+    echo -ne '[ \033[32mOK\033[m ]' || echo -ne '[\033[31mFAIL\033[m]'
   echo -ne " ${OP}"
 
   # Prints time only if greater than 1 second
   if [ $TS_DELTA -gt 1 ]; then
-    echo -e " \033[1;36m$(NiceTime $TS_DELTA)\033[m"
+    echo -e " \033[36m$(NiceTime $TS_DELTA)\033[m"
   else
     echo "   "
   fi
@@ -190,14 +190,14 @@ function LastLogLines() {
 
   if [ "$1" == "-e" ]; then
     echo ""
-    echo -e "\033[1;41m\033[1;37m!!! Operation $2 ended with errors !!!\033[m"
+    echo -e "\033[41m\033[37m!!! Operation $2 ended with errors !!!\033[m"
   fi
 
   echo ""
-  echo -e "\033[1;33m=== Last $LASTLINES lines of stdout -- $SWALLOW_LOG.out ===\033[m"
+  echo -e "\033[33m=== Last $LASTLINES lines of stdout -- $SWALLOW_LOG.out ===\033[m"
   tail -n$LASTLINES "$SWALLOW_LOG".out
   echo ""
-  echo -e "\033[1;33m=== Last $LASTLINES lines of stderr -- $SWALLOW_LOG.err ===\033[m"
+  echo -e "\033[33m=== Last $LASTLINES lines of stderr -- $SWALLOW_LOG.err ===\033[m"
   tail -n$LASTLINES "$SWALLOW_LOG".err
   echo ""
 }
@@ -205,7 +205,7 @@ function LastLogLines() {
 # Echoes a colored banner
 function Banner() {
   echo ""
-  echo -e '\033[1;33m'"$1"'\033[m'
+  echo -e '\033[33m'"$1"'\033[m'
 }
 
 # Tries different SVN servers before giving up on error. Arguments:
@@ -546,29 +546,26 @@ function Dl() {
 
 # Install AliEn
 function ModuleAliEn() {
-  local ALIEN_INSTALLER="/tmp/alien-installer-$USER"
-  Banner \
-    'Installing AliEn (wait for it to finish before leaving the keyboard)...'
+
+  local ALIEN_TEMP_INST_DIR="/tmp/alien-temp-inst-$USER"
+  local ALIEN_INSTALLER="$ALIEN_TEMP_INST_DIR/alien-installer"
+
+  Banner "Installing AliEn from source..."
+  Swallow -f "Creating temporary build directory" \
+    mkdir -p "$ALIEN_TEMP_INST_DIR"
+  local CURWD=`pwd`
+  cd "$ALIEN_TEMP_INST_DIR"
+
   Swallow -f "Sourcing envvars" SourceEnvVars
   Swallow -f "Downloading AliEn installer" \
     Dl http://alien.cern.ch/alien-installer "$ALIEN_INSTALLER"
   Swallow -f "Making AliEn installer executable" \
     chmod +x "$ALIEN_INSTALLER"
-  Swallow -f "Installing AliEn" \
-    "$ALIEN_INSTALLER" -install-dir "$ALIEN_DIR" -batch -notorrent
-  Swallow -f "Removing conflicting libraries" \
-    rm -f \
-      "$ALIEN_DIR"/api/lib/libssl.* "$ALIEN_DIR"/api/lib/libcrypto.* \
-      "$ALIEN_DIR"/api/lib/libz.* "$ALIEN_DIR"/api/lib/libxml2.* \
-      "$ALIEN_DIR"/lib/libssl.* "$ALIEN_DIR"/lib/libcrypto.* \
-      "$ALIEN_DIR"/lib/libz.* "$ALIEN_DIR"/lib/libxml2.*
-  rm -f "$ALIEN_INSTALLER"
+  Swallow -f "Compiling and installing AliEn" \
+    "$ALIEN_INSTALLER" -install-dir "$ALIEN_DIR" -batch -notorrent -type compile
 
-  # Interactive recompilation
-  Banner 'Testing AliEn: you *must* answer "yes" if asked to recompile!'
-  echo 'Note: it is not important if your token is actually created here.'
-  Swallow -f "Resourcing envvars" SourceEnvVars
-  alien-token-init
+  cd "$CURWD"
+  Swallow -f "Removing temporary build directory" rm -rf "$ALIEN_TEMP_INST_DIR"
 }
 
 # Module to create prefix directory
@@ -596,7 +593,7 @@ function ModulePrepare() {
 
 # Fatal error
 function Fatal() {
-  echo -e "\033[1;31m$1\033[m"
+  echo -e "\033[31m$1\033[m"
   exit 1
 }
 
@@ -685,7 +682,7 @@ function Help() {
     echo ""
     echo "  $ENVSCRIPT"
     echo ""
-    echo "Software will be installed in (make with --prepare at first place):"
+    echo "Software install directory (make with --prepare in the first place):"
     echo ""
     echo "  $ALICE_PREFIX"
     echo ""
@@ -704,7 +701,7 @@ function Help() {
 
   # Error message, if any
   if [ "$1" != "" ]; then
-    echo -e '>> \033[1;31m'$1'\033[m'
+    echo -e '>> \033[31m'$1'\033[m'
     echo ""
   fi
 
@@ -914,8 +911,8 @@ function Main() {
   echo ""
   echo "Installation log files can be consulted on:"
   echo ""
-  echo "  stderr: $ERR"
-  echo "  stdout: $OUT"
+  echo -e "  \033[34mstderr:\033[m $ERR"
+  echo -e "  \033[34mstdout:\033[m $OUT"
 
   # Perform required actions
   if [ $DO_PREP == 1 ]; then
@@ -927,23 +924,17 @@ function Main() {
     if [ $MJ == 1 ]; then
       echo "Building on single core (no parallel build)"
     else
-      echo "Building using $MJ cores"
+      echo "Building using $MJ parallel threads"
     fi
 
     # Ask to accept all SVN certificates at the beginning
     if [ $N_SVN -gt 0 ]; then
       InteractiveAcceptSvn
+      Banner 'Non-interactive installation begins: go get some tea and scones'
     fi
 
-    # AliEn installation may require interaction for recompilation!
-    [ $DO_ALIEN == 1 ] && ModuleAliEn
-
-    # No interactivity should be required from this point on
-    let N_INST_CLEAN-=1
-    [ $N_INST_CLEAN -ge 1 ] && \
-      Banner 'Non-interactive installation begins: go get some tea and scones'
-
     # All modules
+    [ $DO_ALIEN       == 1 ] && ModuleAliEn
     [ $DO_CLEAN_ROOT  == 1 ] && ModuleCleanRoot
     [ $DO_ROOT        == 1 ] && ModuleRoot
     [ $DO_CLEAN_G3    == 1 ] && ModuleCleanGeant3

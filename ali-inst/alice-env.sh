@@ -31,8 +31,8 @@ else
 
   # Triads in the form "root geant3 aliroot". Index starts from 1, not 0.
   # More information: http://aliceinfo.cern.ch/Offline/AliRoot/Releases.html
-  TRIAD[1]="v5-27-06d v1-11 trunk"
-  TRIAD[2]="trunk v1-11 trunk"
+  TRIAD[1]="v5-34-01 v1-14 trunk"
+  TRIAD[2]="trunk trunk trunk"
   # ...add more "triads" here without skipping array indices...
 
   # This is the "triad" that will be selected in non-interactive mode.
@@ -72,16 +72,16 @@ function AliMenu() {
 
   local C R M
 
-  M="Please select an AliRoot triad in the form \033[1;35mROOT Geant3"
-  M="$M AliRoot\033[m (you can also\nsource with \033[1;33m-n\033[m to skip"
-  M="$M this menu, or with \033[1;33m-c\033[m to clean the environment):"
+  M="Please select an AliRoot triad in the form \033[35mROOT Geant3"
+  M="$M AliRoot\033[m (you can also\nsource with \033[33m-n\033[m to skip"
+  M="$M this menu, or with \033[33m-c\033[m to clean the environment):"
 
   echo -e "\n$M\n"
   for ((C=1; $C<=${#TRIAD[@]}; C++)); do
-    echo -e "  \033[1;36m($C)\033[m "$(NiceTriad ${TRIAD[$C]})
+    echo -e "  \033[36m($C)\033[m "$(NiceTriad ${TRIAD[$C]})
   done
   echo "";
-  echo -e "  \033[1;36m(0)\033[m \033[1;33mClear environment\033[m"
+  echo -e "  \033[36m(0)\033[m \033[33mClear environment\033[m"
   while [ 1 ]; do
     echo ""
     echo -n "Your choice: "
@@ -125,7 +125,7 @@ function AliCheckUpdate() {
       # svn info succeeded: compare versions
       if [ $CUR_REV -gt $ALICE_ENV_REV ]; then
         echo ""
-        echo -e "\033[41m\033[1;37m!!! Update of this script is needed !!!\033[m"
+        echo -e "\033[41m\033[37m!!! Update of this script is needed !!!\033[m"
         echo ""
         echo "Do the following:"
         echo ""
@@ -234,17 +234,12 @@ function AliExportVars() {
   #
 
   export ALIEN_DIR="$ALICE_PREFIX/alien"
+  export X509_CERT_DIR="$ALIEN_DIR/globus/share/certificates"
 
-  if [ -e "$ALIEN_DIR/api/bin/aliensh" ]; then
-    # Binary distribution installed with alien-installer
-    export X509_CERT_DIR="$ALIEN_DIR/globus/share/certificates"
-    export GSHELL_ROOT="$ALIEN_DIR/api"
-  else
-    # Defaults to source distribution installed via xgapi
-    export X509_CERT_DIR="$ALIEN_DIR/share/certificates"
-    export GSHELL_ROOT="$ALIEN_DIR"
-  fi
+  # AliEn source installation uses a different destination directory
+  [ -d "$X509_CERT_DIR" ] || X509_CERT_DIR="$ALIEN_DIR/api/share/certificates"
 
+  export GSHELL_ROOT="$ALIEN_DIR/api"
   export PATH="$PATH:$GSHELL_ROOT/bin"
   export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$GSHELL_ROOT/lib"
   export DYLD_LIBRARY_PATH="$DYLD_LIBRARY_PATH:$GSHELL_ROOT/lib"
@@ -291,7 +286,7 @@ function AliPrintVars() {
 
   local WHERE_IS_G3 WHERE_IS_ALIROOT WHERE_IS_ROOT WHERE_IS_ALIEN \
     WHERE_IS_ALISRC WHERE_IS_ALIINST ALIREV MSG LEN I
-  local NOTFOUND='\033[1;31m<not found>\033[m'
+  local NOTFOUND='\033[31m<not found>\033[m'
 
   # Check if Globus certificate is expiring soon
   local CERT="$HOME/.globus/usercert.pem"
@@ -314,7 +309,7 @@ function AliPrintVars() {
 
   # Print a message if an error checking the certificate has occured
   if [ "$MSG" != "" ]; then
-    echo -e "\n\033[41m\033[1;37m!!! ${MSG} !!!\033[m"
+    echo -e "\n\033[41m\033[37m!!! ${MSG} !!!\033[m"
   fi
 
   # Detect Geant3 installation path
@@ -337,7 +332,7 @@ function AliPrintVars() {
     # Try to fetch svn revision number
     ALIREV=$(cat "$ALICE_BUILD/include/ARVersion.h" 2>/dev/null |
       perl -ne 'if (/ALIROOT_SVN_REVISION\s+([0-9]+)/) { print "$1"; }')
-    [ "$ALIREV" != "" ] && WHERE_IS_ALIINST="$WHERE_IS_ALIINST \033[1;33m(rev. $ALIREV)\033[m"
+    [ "$ALIREV" != "" ] && WHERE_IS_ALIINST="$WHERE_IS_ALIINST \033[33m(rev. $ALIREV)\033[m"
   else
     WHERE_IS_ALIINST="$NOTFOUND"
   fi
@@ -357,11 +352,11 @@ function AliPrintVars() {
   fi
 
   echo ""
-  echo -e "  \033[1;36mAliEn\033[m           $WHERE_IS_ALIEN"
-  echo -e "  \033[1;36mROOT\033[m            $WHERE_IS_ROOT"
-  echo -e "  \033[1;36mGeant3\033[m          $WHERE_IS_G3"
-  echo -e "  \033[1;36mAliRoot source\033[m  $WHERE_IS_ALISRC"
-  echo -e "  \033[1;36mAliRoot build\033[m   $WHERE_IS_ALIINST"
+  echo -e "  \033[36mAliEn\033[m           $WHERE_IS_ALIEN"
+  echo -e "  \033[36mROOT\033[m            $WHERE_IS_ROOT"
+  echo -e "  \033[36mGeant3\033[m          $WHERE_IS_G3"
+  echo -e "  \033[36mAliRoot source\033[m  $WHERE_IS_ALISRC"
+  echo -e "  \033[36mAliRoot build\033[m   $WHERE_IS_ALIINST"
   echo ""
 
 }
@@ -394,9 +389,9 @@ function NiceTriad() {
   for T in $@ ; do
     ParseVerDir $T D V
     if [ "$D" != "$V" ]; then
-      echo -n "\033[1;35m$D\033[m ($V)"
+      echo -n "\033[35m$D\033[m ($V)"
     else
-      echo -n "\033[1;35m$D\033[m"
+      echo -n "\033[35m$D\033[m"
     fi
     [ $C != 2 ] && echo -n ' / '
     let C++
@@ -434,8 +429,8 @@ function AliMain() {
   #if [ "$OPT_DONTUPDATE" != 1 ]; then
   #  AliCheckUpdate
   #  if [ $? != 0 ]; then
-  #    MSG="\033[1;35mEnvironment variables not loaded: to avoid checking for"
-  #    MSG="${MSG} updates, source this\nscript with option \033[1;33m-u\033[m\n"
+  #    MSG="\033[35mEnvironment variables not loaded: to avoid checking for"
+  #    MSG="${MSG} updates, source this\nscript with option \033[33m-u\033[m\n"
   #    echo -e "$MSG"
   #    return 0
   #  fi
@@ -483,7 +478,7 @@ function AliMain() {
     unset ALICE_PREFIX ROOT_VER G3_VER ALICE_VER ROOT_SUBDIR G3_SUBDIR \
       ALICE_SUBDIR
     if [ "$OPT_QUIET" != 1 ]; then
-      echo -e "\033[1;33mALICE environment variables cleared\033[m"
+      echo -e "\033[33mALICE environment variables cleared\033[m"
     fi
   fi
 
