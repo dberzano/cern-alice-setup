@@ -562,7 +562,8 @@ function ModuleAliEn() {
   Swallow -f "Making AliEn installer executable" \
     chmod +x "$ALIEN_INSTALLER"
   Swallow -f "Compiling and installing AliEn" \
-    "$ALIEN_INSTALLER" -install-dir "$ALIEN_DIR" -batch -notorrent -type compile
+    "$ALIEN_INSTALLER" -install-dir "$ALIEN_DIR" -batch -notorrent \
+    -no-certificate-check -type compile
 
   cd "$CURWD"
   Swallow -f "Removing temporary build directory" rm -rf "$ALIEN_TEMP_INST_DIR"
