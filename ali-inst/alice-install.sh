@@ -175,7 +175,7 @@ function Swallow() {
 
 # Interactively asks to accept SVN certificates
 function InteractiveAcceptSvn() {
-  local SVN_SERVERS='root.cern.ch alisoft.cern.ch'
+  local SVN_SERVERS='root.cern.ch svn.cern.ch'
   Banner 'Please accept those SVN certificates permanently if requested'
   for S in $SVN_SERVERS ; do
     svn info https://$S  # always returns 1...
@@ -367,7 +367,7 @@ function ModuleGeant3() {
 # Module to fetch, update and compile AliRoot
 function ModuleAliRoot() {
 
-  local SVN_ALIROOT="https://alisoft.cern.ch/AliRoot"
+  local SVN_ALIROOT="https://svn.cern.ch/reps/AliRoot"
 
   Banner "Compiling AliRoot..."
   Swallow -f "Sourcing envvars" SourceEnvVars
