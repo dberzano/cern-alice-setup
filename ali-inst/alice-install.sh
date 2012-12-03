@@ -367,7 +367,8 @@ function ModuleGeant3() {
 # Module to fetch, update and compile AliRoot
 function ModuleAliRoot() {
 
-  local SVN_ALIROOT="https://svn.cern.ch/reps/AliRoot"
+  #local SVN_ALIROOT="https://svn.cern.ch/reps/AliRoot"
+  local SVN_ALIROOT="http://svn.cern.ch/guest/AliRoot"
 
   Banner "Compiling AliRoot..."
   Swallow -f "Sourcing envvars" SourceEnvVars
