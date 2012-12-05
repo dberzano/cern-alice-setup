@@ -205,7 +205,7 @@ function AliCleanPathList() {
 # Cleans up the environment from previously set (DY)LD_LIBRARY_PATH and PATH
 # variables
 function AliCleanEnv() {
-  AliRemovePaths PATH xrdgsiproxy aliroot root
+  AliRemovePaths PATH alien_cp aliroot root
   AliRemovePaths LD_LIBRARY_PATH libCint.so libSTEER.so libXrdSec.so \
     libgeant321.so
   AliRemovePaths DYLD_LIBRARY_PATH libCint.so libSTEER.so libXrdSec.so \

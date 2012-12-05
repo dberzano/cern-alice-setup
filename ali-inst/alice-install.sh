@@ -21,6 +21,7 @@ export SUPPORTED_BUILD_MODES=''
 export CUSTOM_GCC_PATH='/opt/gcc'
 export BUILDOPT_LDFLAGS=''
 export BUILDOPT_CPATH=''
+export DOWNLOAD_MODE=''
 
 #
 # Functions
@@ -253,76 +254,92 @@ function ModuleRoot() {
 
   Swallow -f "Moving into ROOT directory" cd "$ROOTSYS"
 
-  # Different behaviors if it is trunk or not
-  if [ "$ROOT_VER" == "trunk" ]; then
-    # Trunk: download if needed, update to latest if already present
-    if [ ! -f "configure" ]; then
-      # We have to download it
-      Swallow -f "Downloading ROOT trunk" \
-        MultiSvn "$SVN_LIST" co "@SERVER@$SVN_ROOT/trunk" .
+  if [ "$DOWNLOAD_MODE" == '' ] || [ "$DOWNLOAD_MODE" == 'only' ] ; then
+
+    #
+    # Download ROOT
+    #
+
+    # Different behaviors if it is trunk or not
+    if [ "$ROOT_VER" == "trunk" ]; then
+      # Trunk: download if needed, update to latest if already present
+      if [ ! -f "configure" ]; then
+        # We have to download it
+        Swallow -f "Downloading ROOT trunk" \
+          MultiSvn "$SVN_LIST" co "@SERVER@$SVN_ROOT/trunk" .
+      else
+        # We just have to update it
+        Swallow -f "Updating ROOT to latest trunk" svn up --non-interactive
+      fi
     else
-      # We just have to update it
-      Swallow -f "Updating ROOT to latest trunk" svn up --non-interactive
+      # No trunk: just download, never update
+      if [ ! -f "configure" ]; then
+        Swallow -f "Downloading ROOT $ROOT_VER" \
+          MultiSvn "$SVN_LIST" co "@SERVER@$SVN_ROOT/tags/$ROOT_VER" .
+      fi
     fi
-  else
-    # No trunk: just download, never update
-    if [ ! -f "configure" ]; then
-      Swallow -f "Downloading ROOT $ROOT_VER" \
-        MultiSvn "$SVN_LIST" co "@SERVER@$SVN_ROOT/tags/$ROOT_VER" .
+
+  fi # end download
+
+  if [ "$DOWNLOAD_MODE" == '' ] || [ "$DOWNLOAD_MODE" == 'no' ] ; then
+
+    #
+    # Build ROOT
+    #
+
+    # Choose correct configuration
+    local ConfigOpts="--with-pythia6-uscore=SINGLE \
+      --with-alien-incdir=$GSHELL_ROOT/include \
+      --with-alien-libdir=$GSHELL_ROOT/lib \
+      --with-monalisa-incdir="$GSHELL_ROOT/include" \
+      --with-monalisa-libdir="$GSHELL_ROOT/lib" \
+      --with-xrootd=$GSHELL_ROOT \
+      --enable-minuit2 \
+      --enable-roofit \
+      --enable-soversion \
+      --disable-bonjour \
+      --enable-builtin-freetype"
+
+    # Is --disable-fink available (Mac only)?
+    if [ "`uname`" == 'Darwin' ] && \
+       [ `./configure --help 2>/dev/null|grep -c finkdir` == 1 ]; then
+      ConfigOpts="$ConfigOpts --disable-fink"
     fi
-  fi
 
-  # Choose correct configuration
-  local ConfigOpts="--with-pythia6-uscore=SINGLE \
-    --with-alien-incdir=$GSHELL_ROOT/include \
-    --with-alien-libdir=$GSHELL_ROOT/lib \
-    --with-monalisa-incdir="$GSHELL_ROOT/include" \
-    --with-monalisa-libdir="$GSHELL_ROOT/lib" \
-    --with-xrootd=$GSHELL_ROOT \
-    --enable-minuit2 \
-    --enable-roofit \
-    --enable-soversion \
-    --disable-bonjour \
-    --enable-builtin-freetype"
+    case "$BUILD_MODE" in
 
-  # Is --disable-fink available (Mac only)?
-  if [ "`uname`" == 'Darwin' ] && \
-     [ `./configure --help 2>/dev/null|grep -c finkdir` == 1 ]; then
-    ConfigOpts="$ConfigOpts --disable-fink"
-  fi
+      gcc)
+        ConfigOpts="--with-f77=gfortran $ConfigOpts"
+      ;;
 
-  case "$BUILD_MODE" in
+      clang)
+        ConfigOpts="--with-clang --with-f77=gfortran $ConfigOpts"
+      ;;
 
-    gcc)
-      ConfigOpts="--with-f77=gfortran $ConfigOpts"
-    ;;
+      custom-gcc)
+        ConfigOpts="--with-f77=$CUSTOM_GCC_PATH/bin/gfortran \
+          --with-cc=$CUSTOM_GCC_PATH/bin/gcc \
+          --with-cxx=$CUSTOM_GCC_PATH/bin/g++ \
+          --with-ld=$CUSTOM_GCC_PATH/bin/g++ $ConfigOpts"
+      ;;
 
-    clang)
-      ConfigOpts="--with-clang --with-f77=gfortran $ConfigOpts"
-    ;;
+    esac
 
-    custom-gcc)
-      ConfigOpts="--with-f77=$CUSTOM_GCC_PATH/bin/gfortran \
-        --with-cc=$CUSTOM_GCC_PATH/bin/gcc \
-        --with-cxx=$CUSTOM_GCC_PATH/bin/g++ \
-        --with-ld=$CUSTOM_GCC_PATH/bin/g++ $ConfigOpts"
-    ;;
+    Swallow -f "Configuring ROOT" ./configure $ConfigOpts
 
-  esac
+    local AppendLDFLAGS AppendCPATH
+    [ "$BUILDOPT_LDFLAGS" != '' ] && AppendLDFLAGS="LDFLAGS=$BUILDOPT_LDFLAGS"
+    [ "$BUILDOPT_CPATH" != '' ] && AppendCPATH="CPATH=$BUILDOPT_CPATH"
 
-  Swallow -f "Configuring ROOT" ./configure $ConfigOpts
+    Swallow -f "Building ROOT" make -j$MJ $AppendLDFLAGS $AppendCPATH
 
-  local AppendLDFLAGS AppendCPATH
-  [ "$BUILDOPT_LDFLAGS" != '' ] && AppendLDFLAGS="LDFLAGS=$BUILDOPT_LDFLAGS"
-  [ "$BUILDOPT_CPATH" != '' ] && AppendCPATH="CPATH=$BUILDOPT_CPATH"
+    # To fix some problems during the creation of PARfiles in AliRoot
+    if [ -e "$ROOTSYS/test/Makefile.arch" ]; then
+      Swallow -f "Linking Makefile.arch" \
+        ln -nfs "$ROOTSYS/test/Makefile.arch" "$ROOTSYS/etc/Makefile.arch"
+    fi
 
-  Swallow -f "Building ROOT" make -j$MJ $AppendLDFLAGS $AppendCPATH
-
-  # To fix some problems during the creation of PARfiles in AliRoot
-  if [ -e "$ROOTSYS/test/Makefile.arch" ]; then
-    Swallow -f "Linking Makefile.arch" \
-      ln -nfs "$ROOTSYS/test/Makefile.arch" "$ROOTSYS/etc/Makefile.arch"
-  fi
+  fi # end build
 
 }
 
@@ -341,26 +358,42 @@ function ModuleGeant3() {
 
   Swallow -f "Moving into Geant3 directory" cd "$GEANT3DIR"
 
-  # Different behaviors if it is trunk or not
-  if [ "$G3_VER" == "trunk" ]; then
-    # Trunk: download if needed, update to latest if already present
-    if [ ! -f "Makefile" ]; then
-      # We have to download it
-      Swallow -f "Downloading Geant3 trunk" \
-        MultiSvn "$SVN_LIST" co "@SERVER@$SVN_G3/trunk" .
-    else
-      # We just have to update it
-      Swallow -f "Updating Geant3 to latest trunk" svn up --non-interactive
-    fi
-  else
-    # No trunk: just download, never update
-    if [ ! -f "Makefile" ]; then
-      Swallow -f "Downloading Geant3 $G3_VER" \
-        MultiSvn "$SVN_LIST" co "@SERVER@$SVN_G3/tags/$G3_VER" .
-    fi
-  fi
+  if [ "$DOWNLOAD_MODE" == '' ] || [ "$DOWNLOAD_MODE" == 'only' ] ; then
 
-  Swallow -f "Building Geant3" make
+    #
+    # Download Geant3
+    #
+
+    # Different behaviors if it is trunk or not
+    if [ "$G3_VER" == "trunk" ]; then
+      # Trunk: download if needed, update to latest if already present
+      if [ ! -f "Makefile" ]; then
+        # We have to download it
+        Swallow -f "Downloading Geant3 trunk" \
+          MultiSvn "$SVN_LIST" co "@SERVER@$SVN_G3/trunk" .
+      else
+        # We just have to update it
+        Swallow -f "Updating Geant3 to latest trunk" svn up --non-interactive
+      fi
+    else
+      # No trunk: just download, never update
+      if [ ! -f "Makefile" ]; then
+        Swallow -f "Downloading Geant3 $G3_VER" \
+          MultiSvn "$SVN_LIST" co "@SERVER@$SVN_G3/tags/$G3_VER" .
+      fi
+    fi
+
+  fi # end download
+
+  if [ "$DOWNLOAD_MODE" == '' ] || [ "$DOWNLOAD_MODE" == 'no' ] ; then
+
+    #
+    # Build Geant3
+    #
+
+    Swallow -f "Building Geant3" make
+
+  fi
 
 }
 
@@ -381,77 +414,94 @@ function ModuleAliRoot() {
     Swallow -f "Creating AliRoot build directory" mkdir -p "$ALICE_BUILD"
   fi
 
-  Swallow -f "Moving into AliRoot source directory" cd "$ALICE_ROOT"
 
-  # Different behaviors if it is trunk or not
-  if [ "$ALICE_VER" == "trunk" ]; then
-    # Trunk: download if needed, update to latest if already present
-    if [ ! -d "STEER" ]; then
-      # We have to download it
-      Swallow -f "Downloading AliRoot trunk" svn co $SVN_ALIROOT/trunk .
+  if [ "$DOWNLOAD_MODE" == '' ] || [ "$DOWNLOAD_MODE" == 'only' ] ; then
+
+    #
+    # Download AliRoot
+    #
+
+    Swallow -f "Moving into AliRoot source directory" cd "$ALICE_ROOT"
+ 
+    # Different behaviors if it is trunk or not
+    if [ "$ALICE_VER" == "trunk" ]; then
+      # Trunk: download if needed, update to latest if already present
+      if [ ! -d "STEER" ]; then
+        # We have to download it
+        Swallow -f "Downloading AliRoot trunk" svn co $SVN_ALIROOT/trunk .
+      else
+        # We just have to update it
+        Swallow -f "Updating AliRoot to latest trunk" svn up --non-interactive
+      fi
     else
-      # We just have to update it
-      Swallow -f "Updating AliRoot to latest trunk" svn up --non-interactive
-    fi
-  else
-    # No trunk: just download, never update
-    if [ ! -d "STEER" ]; then
-      Swallow -f "Downloading AliRoot $ALICE_VER" \
-        svn co $SVN_ALIROOT/tags/$ALICE_VER .
-    fi
-  fi
-
-  Swallow -f "Moving into AliRoot build directory" cd "$ALICE_BUILD"
-
-  # Assemble cmake command
-  if [ ! -e "Makefile" ]; then
-
-    if [ "$BUILD_MODE" == 'clang' ]; then
-
-      # Configuration for clang -- don't choose linker
-      Swallow -f "Bootstrapping AliRoot build with cmake (for Clang)" \
-        cmake "$ALICE_ROOT" \
-          -DCMAKE_C_COMPILER=`root-config --cc` \
-          -DCMAKE_CXX_COMPILER=`root-config --cxx` \
-          -DCMAKE_Fortran_COMPILER=`root-config --f77`
-
-    elif [ "$BUILDOPT_LDFLAGS" != '' ]; then
-
-      # Special configuration for latest Ubuntu/Linux Mint
-      Swallow -f "Bootstrapping AliRoot build with cmake (using LDFLAGS)" \
-        cmake "$ALICE_ROOT" \
-          -DCMAKE_C_COMPILER=`root-config --cc` \
-          -DCMAKE_CXX_COMPILER=`root-config --cxx` \
-          -DCMAKE_Fortran_COMPILER=`root-config --f77` \
-          -DCMAKE_MODULE_LINKER_FLAGS="$BUILDOPT_LDFLAGS" \
-          -DCMAKE_SHARED_LINKER_FLAGS="$BUILDOPT_LDFLAGS" \
-          -DCMAKE_EXE_LINKER_FLAGS="$BUILDOPT_LDFLAGS"
-
-    else
-
-      # Any other configuration (no linker)
-      Swallow -f "Bootstrapping AliRoot build with cmake" \
-        cmake "$ALICE_ROOT" \
-          -DCMAKE_C_COMPILER=`root-config --cc` \
-          -DCMAKE_CXX_COMPILER=`root-config --cxx` \
-          -DCMAKE_Fortran_COMPILER=`root-config --f77`
-
+      # No trunk: just download, never update
+      if [ ! -d "STEER" ]; then
+        Swallow -f "Downloading AliRoot $ALICE_VER" \
+          svn co $SVN_ALIROOT/tags/$ALICE_VER .
+      fi
     fi
 
-  fi
+  fi # end download
 
-  SwallowProgress -f "Building AliRoot" make -j$MJ
+  if [ "$DOWNLOAD_MODE" == '' ] || [ "$DOWNLOAD_MODE" == 'no' ] ; then
 
-  Swallow -f "Symlinking AliRoot include directory" \
-    ln -nfs "$ALICE_BUILD"/include "$ALICE_ROOT"/include
+    #
+    # Build AliRoot
+    #
 
-  Swallow -f "Sourcing envvars" SourceEnvVars
+    Swallow -f "Moving into AliRoot build directory" cd "$ALICE_BUILD"
 
-  if [ "$DISPLAY" != "" ]; then
-    # Non-fatal
-    Swallow "Testing ROOT with AliRoot libraries" \
-      root -l -q "$ALICE_ROOT"/macros/loadlibs.C
-  fi
+    # Assemble cmake command
+    if [ ! -e "Makefile" ]; then
+
+      if [ "$BUILD_MODE" == 'clang' ]; then
+
+        # Configuration for clang -- don't choose linker
+        Swallow -f "Bootstrapping AliRoot build with cmake (for Clang)" \
+          cmake "$ALICE_ROOT" \
+            -DCMAKE_C_COMPILER=`root-config --cc` \
+            -DCMAKE_CXX_COMPILER=`root-config --cxx` \
+            -DCMAKE_Fortran_COMPILER=`root-config --f77`
+
+      elif [ "$BUILDOPT_LDFLAGS" != '' ]; then
+
+        # Special configuration for latest Ubuntu/Linux Mint
+        Swallow -f "Bootstrapping AliRoot build with cmake (using LDFLAGS)" \
+          cmake "$ALICE_ROOT" \
+            -DCMAKE_C_COMPILER=`root-config --cc` \
+            -DCMAKE_CXX_COMPILER=`root-config --cxx` \
+            -DCMAKE_Fortran_COMPILER=`root-config --f77` \
+            -DCMAKE_MODULE_LINKER_FLAGS="$BUILDOPT_LDFLAGS" \
+            -DCMAKE_SHARED_LINKER_FLAGS="$BUILDOPT_LDFLAGS" \
+            -DCMAKE_EXE_LINKER_FLAGS="$BUILDOPT_LDFLAGS"
+
+      else
+
+        # Any other configuration (no linker)
+        Swallow -f "Bootstrapping AliRoot build with cmake" \
+          cmake "$ALICE_ROOT" \
+            -DCMAKE_C_COMPILER=`root-config --cc` \
+            -DCMAKE_CXX_COMPILER=`root-config --cxx` \
+            -DCMAKE_Fortran_COMPILER=`root-config --f77`
+
+      fi
+
+    fi
+
+    SwallowProgress -f "Building AliRoot" make -j$MJ
+
+    Swallow -f "Symlinking AliRoot include directory" \
+      ln -nfs "$ALICE_BUILD"/include "$ALICE_ROOT"/include
+
+    Swallow -f "Sourcing envvars" SourceEnvVars
+
+    if [ "$DISPLAY" != "" ]; then
+      # Non-fatal
+      Swallow "Testing ROOT with AliRoot libraries" \
+        root -l -q "$ALICE_ROOT"/macros/loadlibs.C
+    fi
+
+  fi # end build
 
 }
 
@@ -649,6 +699,10 @@ function Help() {
   echo "  Note that build/install/update as root user is disallowed."
   echo "  With optional --ncores <n> you specify the number of parallel builds."
   echo "  If nothing is specified, the default value (#cores + 1) is used."
+  echo ""
+
+  echo "  You can also decide to download only, or build only (not for AliEn):"
+  echo "    $0 [--all|...] [--no-download|--download-only]"
   echo ""
 
   SourceEnvVars > /dev/null 2> /dev/null
@@ -874,6 +928,14 @@ function Main() {
             exit 1
           fi
 
+        ;;
+
+        download-only)
+          DOWNLOAD_MODE='only'
+        ;;
+
+        no-download)
+          DOWNLOAD_MODE='no'
         ;;
 
         *)
