@@ -31,7 +31,7 @@ else
 
   # Triads in the form "root geant3 aliroot". Index starts from 1, not 0.
   # More information: http://aliceinfo.cern.ch/Offline/AliRoot/Releases.html
-  TRIAD[1]="v5-34-01 v1-14 trunk"
+  TRIAD[1]="v5-34-05 v1-14 trunk"
   TRIAD[2]="trunk trunk trunk"
   # ...add more "triads" here without skipping array indices...
 
@@ -210,6 +210,7 @@ function AliCleanEnv() {
     libgeant321.so
   AliRemovePaths DYLD_LIBRARY_PATH libCint.so libSTEER.so libXrdSec.so \
     libgeant321.so
+  AliRemovePaths PYTHONPATH ROOT.py
 
   # Unset other environment variables and aliases
   unset MJ ALIEN_DIR GSHELL_ROOT ROOTSYS ALICE ALICE_ROOT ALICE_BUILD \
@@ -251,6 +252,10 @@ function AliExportVars() {
   export ROOTSYS="$ALICE_PREFIX/root/$ROOT_SUBDIR"
   export PATH="$ROOTSYS/bin:$PATH"
   export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$ROOTSYS/lib"
+  if [ -e "$ROOTSYS/lib/ROOT.py" ]; then
+    # PyROOT support
+    export PYTHONPATH="$ROOTSYS/lib:$PYTHONPATH"
+  fi
 
   #
   # AliRoot
@@ -299,7 +304,7 @@ function AliPrintVars() {
       else
         openssl x509 -in "$CERT" -noout -checkend 604800 > /dev/null 2>&1
         if [ $? == 1 ]; then
-          MSG="Your certificate is going to expire before one week"
+          MSG="Your certificate is going to expire in less than one week"
         fi
       fi
     else
@@ -332,7 +337,8 @@ function AliPrintVars() {
     # Try to fetch svn revision number
     ALIREV=$(cat "$ALICE_BUILD/include/ARVersion.h" 2>/dev/null |
       perl -ne 'if (/ALIROOT_SVN_REVISION\s+([0-9]+)/) { print "$1"; }')
-    [ "$ALIREV" != "" ] && WHERE_IS_ALIINST="$WHERE_IS_ALIINST \033[33m(rev. $ALIREV)\033[m"
+    [ "$ALIREV" != "" ] && \
+      WHERE_IS_ALIINST="$WHERE_IS_ALIINST \033[33m(rev. $ALIREV)\033[m"
   else
     WHERE_IS_ALIINST="$NOTFOUND"
   fi
