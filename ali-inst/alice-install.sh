@@ -21,6 +21,7 @@ export SUPPORTED_BUILD_MODES=''
 export CUSTOM_GCC_PATH='/opt/gcc'
 export BUILDOPT_LDFLAGS=''
 export BUILDOPT_CPATH=''
+export ALIEN_INSTALL_TYPE=''
 export DOWNLOAD_MODE=''
 
 #
@@ -245,7 +246,7 @@ function ModuleRoot() {
   local SVN_LIST='https://root.cern.ch|http://root.cern.ch'
   local SVN_ROOT='/svn/root'
 
-  Banner "Compiling ROOT..."
+  Banner "Installing ROOT..."
   Swallow -f "Sourcing envvars" SourceEnvVars
 
   if [ ! -d "$ROOTSYS" ]; then
@@ -349,7 +350,7 @@ function ModuleGeant3() {
   local SVN_LIST='https://root.cern.ch|http://root.cern.ch'
   local SVN_G3="/svn/geant3/"
 
-  Banner "Compiling Geant3..."
+  Banner "Installing Geant3..."
   Swallow -f "Sourcing envvars" SourceEnvVars
 
   if [ ! -d "$GEANT3DIR" ]; then
@@ -403,7 +404,7 @@ function ModuleAliRoot() {
   #local SVN_ALIROOT="https://svn.cern.ch/reps/AliRoot"
   local SVN_ALIROOT="http://svn.cern.ch/guest/AliRoot"
 
-  Banner "Compiling AliRoot..."
+  Banner "Installing AliRoot..."
   Swallow -f "Sourcing envvars" SourceEnvVars
 
   if [ ! -d "$ALICE_ROOT" ]; then
@@ -557,6 +558,20 @@ function SwallowProgress() {
 
 }
 
+# Clean up AliEn
+function ModuleCleanAliEn() {
+  local AliEnDir
+  Banner "Cleaning AliEn..."
+  Swallow -f "Sourcing envvars" SourceEnvVars
+  find "$ALICE_PREFIX" -name 'alien.v*' -and -type d -maxdepth 1 | \
+  while read AliEnDir ; do
+    AliEnVer=`basename "$AliEnDir"`
+    AliEnVer=${AliEnVer:6}
+    Swallow -f "Removing AliEn $AliEnVer" rm -rf "$AliEnDir"
+  done
+  Swallow -f "Removing symlink to latest AliEn $ALIEN_DIR" rm -f "$ALIEN_DIR"
+}
+
 # Clean up ROOT
 function ModuleCleanRoot() {
   Banner "Cleaning ROOT..."
@@ -601,8 +616,8 @@ function ModuleAliEn() {
   local ALIEN_TEMP_INST_DIR="/tmp/alien-temp-inst-$USER"
   local ALIEN_INSTALLER="$ALIEN_TEMP_INST_DIR/alien-installer"
 
-  Banner "Installing AliEn from source..."
-  Swallow -f "Creating temporary build directory" \
+  Banner "Installing AliEn..."
+  Swallow -f "Creating temporary working directory" \
     mkdir -p "$ALIEN_TEMP_INST_DIR"
   local CURWD=`pwd`
   cd "$ALIEN_TEMP_INST_DIR"
@@ -612,12 +627,20 @@ function ModuleAliEn() {
     Dl http://alien.cern.ch/alien-installer "$ALIEN_INSTALLER"
   Swallow -f "Making AliEn installer executable" \
     chmod +x "$ALIEN_INSTALLER"
-  Swallow -f "Compiling and installing AliEn" \
+
+  local InstallMsg=''
+  if [ "$ALIEN_INSTALL_TYPE" == 'compile' ] ; then
+    InstallMsg='Compiling AliEn from sources'
+  else
+    InstallMsg='Installing AliEn binaries'
+  fi
+
+  Swallow -f "$InstallMsg" \
     "$ALIEN_INSTALLER" -install-dir "$ALIEN_DIR" -batch -notorrent \
-    -no-certificate-check -type compile
+    -no-certificate-check -type "$ALIEN_INSTALL_TYPE"
 
   cd "$CURWD"
-  Swallow -f "Removing temporary build directory" rm -rf "$ALIEN_TEMP_INST_DIR"
+  Swallow -f "Removing temporary working directory" rm -rf "$ALIEN_TEMP_INST_DIR"
 }
 
 # Module to create prefix directory
@@ -772,6 +795,7 @@ function DetectOsBuildOpts() {
   local OsVer
 
   if [ "$KernelName" == 'Darwin' ]; then
+    ALIEN_INSTALL_TYPE='user'
     OsVer=`uname -r | cut -d. -f1`
     if [ "$OsVer" -ge 11 ]; then
       # 11 = Lion (10.7)
@@ -782,6 +806,7 @@ function DetectOsBuildOpts() {
       BUILDOPT_CPATH='/usr/X11/include'  # XQuartz
     fi
   elif [ "$KernelName" == 'Linux' ]; then
+    ALIEN_INSTALL_TYPE='compile'
     SUPPORTED_BUILD_MODES='gcc custom-gcc'
     OsName=`source $VerFile > /dev/null 2>&1 ; echo $DISTRIB_ID`
     OsVer=`source $VerFile > /dev/null 2>&1 ; echo $DISTRIB_RELEASE | tr -d .`
@@ -804,6 +829,7 @@ function Main() {
   local DO_ROOT=0
   local DO_G3=0
   local DO_ALICE=0
+  local DO_CLEAN_ALIEN=0
   local DO_CLEAN_ALICE=0
   local DO_CLEAN_ROOT=0
   local DO_CLEAN_G3=0
@@ -876,7 +902,12 @@ function Main() {
           DO_CLEAN_ALICE=1
         ;;
 
+        clean-alien)
+          DO_CLEAN_ALIEN=1
+        ;;
+
         clean-all)
+          DO_CLEAN_ALIEN=1
           DO_CLEAN_ROOT=1
           DO_CLEAN_G3=1
           DO_CLEAN_ALICE=1
@@ -954,7 +985,7 @@ function Main() {
   # How many build actions?
   let N_SVN=DO_ROOT+DO_G3+DO_ALICE
   let N_INST=DO_ALIEN+N_SVN
-  let N_CLEAN=DO_CLEAN_ROOT+DO_CLEAN_G3+DO_CLEAN_ALICE
+  let N_CLEAN=DO_CLEAN_ALIEN+DO_CLEAN_ROOT+DO_CLEAN_G3+DO_CLEAN_ALICE
   let N_INST_CLEAN=N_INST+N_CLEAN
 
   if [ $DO_PREP == 0 ] && [ $N_INST_CLEAN == 0 ]; then
@@ -998,6 +1029,7 @@ function Main() {
     fi
 
     # All modules
+    [ $DO_CLEAN_ALIEN == 1 ] && ModuleCleanAliEn
     [ $DO_ALIEN       == 1 ] && ModuleAliEn
     [ $DO_CLEAN_ROOT  == 1 ] && ModuleCleanRoot
     [ $DO_ROOT        == 1 ] && ModuleRoot
