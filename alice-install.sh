@@ -659,7 +659,7 @@ function ModulePrepare() {
     TF="$ALICE_PREFIX/dummy_$RANDOM"
     touch "$TF" 2> /dev/null
     if [ $? != 0 ]; then
-      Fatal "Not enough permissions: please run \"sudo $0 --prepare\""
+      Fatal "Not enough permissions: please run \"sudo $Cmd --prepare\""
     fi
     rm "$TF"
   fi
@@ -679,40 +679,42 @@ function RemoveLogs() {
 
 # Prints out a nice help
 function Help() {
+  local Cmd='bash <(curl -fsSL https://raw.github.com/dberzano/cern-alice-setup/master/alice-install.sh)'
+  local C="\033[1m"
+  local Z="\033[m"
   echo ""
-  echo "$(basename $0) -- by Dario Berzano <dario.berzano@cern.ch>"
+  echo "alice-install.sh -- by Dario Berzano <dario.berzano@cern.ch>"
   echo ""
   echo "Tries to performs automatic installation of the ALICE framework."
   echo "The installation procedure follows exactly the steps described on:"
   echo ""
-  echo "  http://newton.ph.unito.it/~berzano/w/doku.php?id=alice:compile"
+  echo -e "  ${C}http://newton.ph.unito.it/~berzano/w/doku.php?id=alice:compile${Z}"
   echo ""
   echo "Usage:"
   echo ""
 
   echo "  To create dirs (do it only the first time, as root if needed):"
-  echo "    [sudo|su -c] $0 --prepare"
+  echo -e "    ${C}[sudo|su -c] $Cmd --prepare${Z}"
   echo ""
 
   echo "  To build/install/update something (multiple choices allowed):"
-  echo "    $0 [--alien] [--root] [--geant3] [--aliroot]"
-  echo "      [--ncores <n>] [--compiler [gcc|clang|/prefix/to/gcc]]"
+  echo -e "    ${C}$Cmd [--alien] [--root] [--geant3] [--aliroot] [--ncores <n>] [--compiler [gcc|clang|/prefix/to/gcc]]${Z}"
   echo ""
 
   echo "  To build/install/update everything (do --prepare first):"
-  echo "    $0 --all"
+  echo -e "    ${C}$Cmd --all${Z}"
   echo ""
 
   echo "  To cleanup something (multiple choices allowed - data is erased!):"
-  echo "    $0 [--clean-root] [--clean-geant3] [--clean-aliroot]"
+  echo -e "    ${C}$Cmd [--clean-root] [--clean-geant3] [--clean-aliroot]${Z}"
   echo ""
 
   echo "  To cleanup everything (except AliEn):"
-  echo "    $0 --clean-all"
+  echo -e "    ${C}$Cmd --clean-all${Z}"
   echo ""
 
   echo "  You can cleanup then install like this:"
-  echo "    $0 --clean-root --root --ncores 2"
+  echo -e "    ${C}$Cmd --clean-root --root --ncores 2${Z}"
   echo ""
 
   echo "  The --compiler option is not mandatory; you can either specify gcc or"
@@ -725,7 +727,7 @@ function Help() {
   echo ""
 
   echo "  You can also decide to download only, or build only (not for AliEn):"
-  echo "    $0 [--all|...] [--no-download|--download-only]"
+  echo -e "    ${C}$Cmd [--all|...] [--no-download|--download-only]${Z}"
   echo ""
 
   SourceEnvVars > /dev/null 2> /dev/null
@@ -759,11 +761,11 @@ function Help() {
 
     echo "ALICE environment is read from:"
     echo ""
-    echo "  $ENVSCRIPT"
+    echo -e "  ${C}$ENVSCRIPT${Z}"
     echo ""
     echo "Software install directory (make with --prepare in the first place):"
     echo ""
-    echo "  $ALICE_PREFIX"
+    echo -e "  ${C}$ALICE_PREFIX${Z}"
     echo ""
     echo "Versions of software that will be installed or cleaned up:"
     echo ""
@@ -772,7 +774,7 @@ function Help() {
     echo "  Geant3:  $G3_STR"
     echo "  AliRoot: $ALICE_STR"
     echo ""
-    echo "Compiler that will be used: $BUILD_MODE_STR"
+    echo -e "Selected compiler: ${C}$BUILD_MODE_STR${Z}"
     echo ""
     echo "Choose them in alice-env.sh script with TRIADS and N_TRIAD vars."
   fi
