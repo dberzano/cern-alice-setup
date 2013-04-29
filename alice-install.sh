@@ -730,8 +730,8 @@ function Help() {
 
   SourceEnvVars > /dev/null 2> /dev/null
   if [ "$?" != 0 ]; then
-    echo "Please put alice-install.sh and alice-env.sh in the same directory!"
-    echo "Environment script is expected in:"
+    echo "Must be run from a directory containing alice-env.sh!"
+    echo "Environment script was expected in:"
     echo ""
     echo "  $ENVSCRIPT"
   else
@@ -843,10 +843,8 @@ function Main() {
   # Detect proper build options
   DetectOsBuildOpts
 
-  # Environment script
-  ENVSCRIPT=`dirname "$0"`
-  ENVSCRIPT=`cd "$ENVSCRIPT" ; pwd`
-  ENVSCRIPT="$ENVSCRIPT"/alice-env.sh
+  # Environment script: look for it in current dir
+  ENVSCRIPT="$PWD/alice-env.sh"
 
   if [ ! -r "$ENVSCRIPT" ]; then
     Help
