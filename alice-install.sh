@@ -679,7 +679,7 @@ function RemoveLogs() {
 
 # Prints out a nice help
 function Help() {
-  local Cmd='bash <(curl -fsSL https://raw.github.com/dberzano/cern-alice-setup/master/alice-install.sh)'
+  local Cmd='bash <(curl -fsSL http://cern.ch/go/NcS7)'
   local C="\033[1m"
   local Z="\033[m"
   echo ""
