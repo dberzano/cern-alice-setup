@@ -112,19 +112,26 @@ function SwallowEnd() {
   local TS_END TS_START OP MSG RET
 
   OP="$1"
-  RET=$2
-  TS_START=${3-0}  # defaults to 0
-  TS_END=${4-0}
+  FATAL=$2
+  RET=$3
+  TS_START=${4-0}  # defaults to 0
+  TS_END=${5-0}
 
   # After this line, $@ will contain the command
   shift 4
 
   let TS_DELTA=TS_END-TS_START
 
-  # Prints success (green OK) or fail (red FAIL)
+  # Prints success (green OK) or fail (red FAIL). In case FATAL=0
+  # prints a warning (yellow SKIP) instead of an error
   echo -ne '\r'
-  [ $RET == 0 ] && \
-    echo -ne '[ \033[32mOK\033[m ]' || echo -ne '[\033[31mFAIL\033[m]'
+  if [ $RET == 0 ]; then
+    echo -ne '[ \033[32mOK\033[m ]'
+  elif [ $FATAL == 0 ]; then
+    echo -ne '[\033[33mSKIP\033[m]'
+  else
+    echo -ne '[\033[31mFAIL\033[m]'
+  fi
   echo -ne " ${OP}"
 
   # Prints time only if greater than 1 second
@@ -165,7 +172,7 @@ function Swallow() {
   RET=$?
 
   TSEND=$(date +%s)
-  SwallowEnd "$OP" $RET $TSSTART $TSEND "$@"
+  SwallowEnd "$OP" $FATAL $RET $TSSTART $TSEND "$@"
 
   if [ $RET != 0 ] && [ $FATAL == 1 ]; then
     LastLogLines -e "$OP"
@@ -258,27 +265,27 @@ function ModuleRoot() {
   if [ "$DOWNLOAD_MODE" == '' ] || [ "$DOWNLOAD_MODE" == 'only' ] ; then
 
     #
-    # Download ROOT
+    # Downloading ROOT from Git
     #
 
-    # Different behaviors if it is trunk or not
-    if [ "$ROOT_VER" == "trunk" ]; then
-      # Trunk: download if needed, update to latest if already present
-      if [ ! -f "configure" ]; then
-        # We have to download it
-        Swallow -f "Downloading ROOT trunk" \
-          MultiSvn "$SVN_LIST" co "@SERVER@$SVN_ROOT/trunk" .
-      else
-        # We just have to update it
-        Swallow -f "Updating ROOT to latest trunk" svn up --non-interactive
-      fi
-    else
-      # No trunk: just download, never update
-      if [ ! -f "configure" ]; then
-        Swallow -f "Downloading ROOT $ROOT_VER" \
-          MultiSvn "$SVN_LIST" co "@SERVER@$SVN_ROOT/tags/$ROOT_VER" .
-      fi
+    local ROOTGit="${ROOTSYS}/../git"
+
+    Swallow -f 'Creating ROOT Git local directory' mkdir -p "$ROOTGit"
+    Swallow -f 'Moving into ROOT Git local directory' cd "$ROOTGit"
+    [ ! -e "$ROOTGit/.git" ] && \
+      Swallow -f 'Cloning ROOT Git repository (might take some time)' \
+        git clone http://root.cern.ch/git/root.git .
+
+    Swallow -f 'Updating list of remote ROOT Git branches' \
+      git remote prune origin
+
+    if [ "$ROOT_VER" == 'trunk' ] ; then
+      ROOT_VER='master'
     fi
+    Swallow -f "Checking out ROOT $ROOT_VER" git checkout "$ROOT_VER"
+    Swallow "Updating ROOT $ROOT_VER from Git" git pull  # non-fatal
+    Swallow -f 'Staging ROOT source in build directory' \
+      rsync -avc --exclude '**/.git' "$ROOTGit"/ "$ROOTSYS"
 
   fi # end download
 
@@ -287,6 +294,8 @@ function ModuleRoot() {
     #
     # Build ROOT
     #
+
+    Swallow -f 'Moving into ROOT build directory' cd "$ROOTSYS"
 
     # Choose correct configuration
     local ConfigOpts="--with-pythia6-uscore=SINGLE \
@@ -549,7 +558,7 @@ function SwallowProgress() {
   RET=$?
 
   TSEND=$(date +%s)
-  SwallowEnd "$OP" $RET $TSSTART $TSEND "$@"
+  SwallowEnd "$OP" $FATAL $RET $TSSTART $TSEND "$@"
 
   if [ $RET != 0 ] && [ $FATAL == 1 ]; then
     LastLogLines -e "$OP"
