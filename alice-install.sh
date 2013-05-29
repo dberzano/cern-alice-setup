@@ -199,7 +199,7 @@ function LastLogLines() {
 
   if [ "$1" == "-e" ]; then
     echo ""
-    echo -e "\033[41m\033[37m!!! Operation $2 ended with errors !!!\033[m"
+    echo -e "\033[41m\033[1;37mOperation \"$2\" ended with errors\033[m"
   fi
 
   echo ""
@@ -209,6 +209,8 @@ function LastLogLines() {
   echo -e "\033[33m=== Last $LASTLINES lines of stderr -- $SWALLOW_LOG.err ===\033[m"
   tail -n$LASTLINES "$SWALLOW_LOG".err
   echo ""
+
+  [ "$1" == "-e" ] && ShowBugReportInfo
 }
 
 # Echoes a colored banner
@@ -245,6 +247,49 @@ function MultiSvn() {
   done
   IFS="$OldIFS"
   return 1
+}
+
+# Prepares information for bug report
+function PrepareBugReport() {
+
+  # Source environment variables (non-fatal)
+  SourceEnvVars >> $OUT 2>&1
+
+  # Some environment variables
+  (
+    echo "PATH=$PATH"
+    echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH"
+    echo "DYLD_LIBRARY_PATH=$DYLD_LIBRARY_PATH"
+    echo "uname -a: `uname -a`"
+    echo "which gcc: `which gcc 2>/dev/null`"
+    echo "which g++: `which gcc 2>/dev/null`"
+    echo "which clang: `which clang 2>/dev/null`"
+    echo "which clang++: `which clang++ 2>/dev/null`"
+    echo "which gfortran: `which gfortran 2>/dev/null`"
+    echo "root-config --f77 --cc --cxx: `root-config --f77 --cc --cxx 2>/dev/null`"
+    echo "root-config --features: `root-config --features 2>/dev/null`"
+    echo "=== DISK SPACE ==="
+    df
+    echo "=== END DISK SPACE ==="
+    echo "=== MOUNTED VOLUMES ==="
+    mount
+    echo "=== END MOUNTED VOLUMES ==="
+  ) >> $OUT 2>&1
+
+}
+
+# Shows a message reminding user to send the log files when asking for support
+function ShowBugReportInfo() {
+  echo ""
+  echo -e "\033[41m\033[1;37mPlease attach both of the following files if asking for support:\033[m"
+  echo ""
+  echo "  $ERR"
+  echo "  $OUT"
+  echo ""
+  echo -e "\033[41m\033[1;37mNote:\033[m if you are concerned about private information being saved in"
+  echo '      logfiles, look at them and strip it off using a text editor'
+  echo '      before sending them.'
+  echo ""
 }
 
 # Module to fetch and compile ROOT
@@ -726,6 +771,9 @@ function Help() {
   echo -e "    ${C}$Cmd --clean-root --root --ncores 2${Z}"
   echo ""
 
+  echo "  To prepare some debug information for your system:"
+  echo -e "    ${C}$Cmd --bugreport${Z}"
+
   echo "  The --compiler option is not mandatory; you can either specify gcc or"
   echo "  clang, or the prefix to a custom GCC installation."
   echo ""
@@ -844,6 +892,7 @@ function Main() {
   local DO_CLEAN_ALICE=0
   local DO_CLEAN_ROOT=0
   local DO_CLEAN_G3=0
+  local DO_BUGREPORT=0
 
   local N_INST=0
   local N_CLEAN=0
@@ -926,6 +975,10 @@ function Main() {
         # Other targets
         #
 
+        bugreport)
+          DO_BUGREPORT=1
+        ;;
+
         prepare)
           DO_PREP=1
         ;;
@@ -997,7 +1050,8 @@ function Main() {
   let N_CLEAN=DO_CLEAN_ALIEN+DO_CLEAN_ROOT+DO_CLEAN_G3+DO_CLEAN_ALICE
   let N_INST_CLEAN=N_INST+N_CLEAN
 
-  if [ $DO_PREP == 0 ] && [ $N_INST_CLEAN == 0 ]; then
+  if [ $DO_PREP == 0 ] && [ $DO_BUGREPORT == 0 ] && \
+     [ $N_INST_CLEAN == 0 ]; then
     Help "Nothing to do"
     exit 1
   elif [ $DO_PREP == 1 ] && [ $N_INST_CLEAN -gt 0 ]; then
@@ -1010,6 +1064,16 @@ function Main() {
 
   # Remove spurious log files left
   RemoveLogs
+
+  # Prepare bugreport. This is always done. If --bugreport requested, quit
+  # after preparing it, without deleting logfiles
+  PrepareBugReport
+  if [ $DO_BUGREPORT == 1 ]; then
+    echo ""
+    echo "Bug report information collected."
+    ShowBugReportInfo
+    return 0
+  fi
 
   # Where are the logfiles?
   echo ""
