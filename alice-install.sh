@@ -266,8 +266,23 @@ function PrepareBugReport() {
     echo "which clang: `which clang 2>/dev/null`"
     echo "which clang++: `which clang++ 2>/dev/null`"
     echo "which gfortran: `which gfortran 2>/dev/null`"
-    echo "root-config --f77 --cc --cxx: `root-config --f77 --cc --cxx 2>/dev/null`"
+    echo "which ld: `which ld 2>/dev/null`"
+    echo "root-config --f77 --cc --cxx --ld: `root-config --f77 --cc --cxx --ld 2>/dev/null`"
     echo "root-config --features: `root-config --features 2>/dev/null`"
+    echo "=== COMPILER VERSIONS ==="
+    echo "*** gcc ***"
+    gcc -v 2>&1
+    echo "*** gcc ***"
+    gcc -v 2>&1
+    echo "*** gfortran ***"
+    gfortran -v 2>&1
+    echo "*** clang ***"
+    clang -v 2>&1
+    echo "*** clang++ ***"
+    clang++ -v 2>&1
+    echo "*** ld ***"
+    ld -v 2>&1
+    echo "=== END COMPILER VERSIONS ==="
     echo "=== DISK SPACE ==="
     df
     echo "=== END DISK SPACE ==="
