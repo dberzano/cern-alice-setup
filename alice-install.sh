@@ -118,7 +118,7 @@ function SwallowEnd() {
   TS_END=${5-0}
 
   # After this line, $@ will contain the command
-  shift 4
+  shift 5
 
   let TS_DELTA=TS_END-TS_START
 
