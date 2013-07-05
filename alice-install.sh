@@ -286,6 +286,8 @@ function PrepareBugReport() {
     clang++ -v 2>&1
     echo "*** ld ***"
     ld -v 2>&1
+    echo "*** cmake ***"
+    cmake --version 2>&1
     if [ -r /etc/lsb-release ] ; then
       echo "*** /etc/lsb-release ***"
       cat /etc/lsb-release
