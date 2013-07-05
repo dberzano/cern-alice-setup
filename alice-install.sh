@@ -267,6 +267,7 @@ function PrepareBugReport() {
     echo "which clang++: `which clang++ 2>/dev/null`"
     echo "which gfortran: `which gfortran 2>/dev/null`"
     echo "which ld: `which ld 2>/dev/null`"
+    echo "which cmake: `which cmake 2>/dev/null`"
     echo "root-config --f77: `root-config --f77 2>/dev/null`"
     echo "root-config --cc: `root-config --cc 2>/dev/null`"
     echo "root-config --cxx: `root-config --cxx 2>/dev/null`"
@@ -285,6 +286,10 @@ function PrepareBugReport() {
     clang++ -v 2>&1
     echo "*** ld ***"
     ld -v 2>&1
+    if [ -r /etc/lsb-release ] ; then
+      echo "*** /etc/lsb-release ***"
+      cat /etc/lsb-release
+    fi
     echo "=== END COMPILER VERSIONS ==="
     echo "=== DISK SPACE ==="
     df
