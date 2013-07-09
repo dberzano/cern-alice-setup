@@ -276,8 +276,8 @@ function PrepareBugReport() {
     echo "=== COMPILER VERSIONS ==="
     echo "*** gcc ***"
     gcc -v 2>&1
-    echo "*** gcc ***"
-    gcc -v 2>&1
+    echo "*** g++ ***"
+    g++ -v 2>&1
     echo "*** gfortran ***"
     gfortran -v 2>&1
     echo "*** clang ***"
