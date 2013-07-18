@@ -214,7 +214,7 @@ function AliCleanEnv() {
 
   # Unset other environment variables and aliases
   unset MJ ALIEN_DIR GSHELL_ROOT ROOTSYS ALICE ALICE_ROOT ALICE_BUILD \
-    ALICE_TARGET GEANT3DIR X509_CERT_DIR ALICE
+    ALICE_TARGET GEANT3DIR X509_CERT_DIR ALICE ALI_POD_PREFIX
 }
 
 # Sets the number of parallel workers for make to the number of cores plus one
@@ -229,6 +229,13 @@ function AliSetParallelMake() {
 
 # Exports variables needed to run AliRoot, based on the selected triad
 function AliExportVars() {
+
+  #
+  # PROOF on Demand
+  #
+
+  export ALI_POD_PREFIX="$ALICE_PREFIX/pod"
+  export PATH="$ALI_POD_PREFIX/bin:$PATH"
 
   #
   # AliEn
@@ -357,12 +364,20 @@ function AliPrintVars() {
     WHERE_IS_ALIEN="$NOTFOUND"
   fi
 
+  # Detect PoD location
+  if [ -e "$ALI_POD_PREFIX/PoD_env.sh" ]; then
+    WHERE_IS_POD="$ALI_POD_PREFIX"
+  else
+    WHERE_IS_POD="$NOTFOUND"
+  fi
+
   echo ""
-  echo -e "  \033[36mAliEn\033[m           $WHERE_IS_ALIEN"
-  echo -e "  \033[36mROOT\033[m            $WHERE_IS_ROOT"
-  echo -e "  \033[36mGeant3\033[m          $WHERE_IS_G3"
-  echo -e "  \033[36mAliRoot source\033[m  $WHERE_IS_ALISRC"
-  echo -e "  \033[36mAliRoot build\033[m   $WHERE_IS_ALIINST"
+  echo -e "  \033[36mPROOF on Demand\033[m  $WHERE_IS_POD"
+  echo -e "  \033[36mAliEn\033[m            $WHERE_IS_ALIEN"
+  echo -e "  \033[36mROOT\033[m             $WHERE_IS_ROOT"
+  echo -e "  \033[36mGeant3\033[m           $WHERE_IS_G3"
+  echo -e "  \033[36mAliRoot source\033[m   $WHERE_IS_ALISRC"
+  echo -e "  \033[36mAliRoot build\033[m    $WHERE_IS_ALIINST"
   echo ""
 
 }
