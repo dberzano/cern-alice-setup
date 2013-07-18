@@ -828,7 +828,7 @@ export VafAliRootVersion='v5-04-81-AN'
 _EoF_
   Swallow -f 'Creating VAF user configuration file' [ $? == 0 ]
 
-#  Swallow 'Cleaning temporary files' rm -rf "/tmp/alice-pod-inst-"*
+  Swallow 'Cleaning temporary files' rm -rf "/tmp/alice-pod-inst-"*
 
 }
 
