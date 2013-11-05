@@ -259,6 +259,7 @@ function AliExportVars() {
   export ROOTSYS="$ALICE_PREFIX/root/$ROOT_SUBDIR"
   export PATH="$ROOTSYS/bin:$PATH"
   export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$ROOTSYS/lib"
+  export ROOT_VER
   if [ -e "$ROOTSYS/lib/ROOT.py" ]; then
     # PyROOT support
     export PYTHONPATH="$ROOTSYS/lib:$PYTHONPATH"
@@ -269,6 +270,7 @@ function AliExportVars() {
   #
 
   export ALICE="$ALICE_PREFIX"
+  export ALICE_VER
 
   # Let's detect AliRoot CMake builds
   if [ ! -e "$ALICE_PREFIX/aliroot/$ALICE_SUBDIR/Makefile" ]; then
@@ -290,6 +292,7 @@ function AliExportVars() {
 
   export GEANT3DIR="$ALICE_PREFIX/geant3/$G3_SUBDIR"
   export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$GEANT3DIR/lib/tgt_${ALICE_TARGET}"
+  export G3_VER
  
 }
 
