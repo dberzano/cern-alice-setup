@@ -453,7 +453,8 @@ function ModuleGeant3() {
         Swallow -f "Downloading Geant3 trunk" \
           MultiSvn "$SVN_LIST" co "@SERVER@$SVN_G3/trunk" .
       else
-        # We just have to update it
+        # We just have to update it; run "upgrade" first just in case
+        Swallow "Upgrading to latest SVN version" svn upgrade --non-interactive
         Swallow -f "Updating Geant3 to latest trunk" svn up --non-interactive
       fi
     else
@@ -511,8 +512,9 @@ function ModuleAliRoot() {
         # We have to download it
         Swallow -f "Downloading AliRoot trunk" svn co $SVN_ALIROOT/trunk .
       else
-        # We just have to update it
-        Swallow -f "Updating AliRoot to latest trunk" svn up --non-interactive
+        # We just have to update it; run "upgrade" first just in case
+        Swallow "Upgrading to latest SVN version" svn upgrade --non-interactive
+        Swallow -f "Updating AliRoot to latest trunk" svn update --non-interactive
       fi
     else
       # No trunk: just download, never update
