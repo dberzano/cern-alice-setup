@@ -1,4 +1,4 @@
-  #!/bin/bash
+#!/bin/bash
 
 #
 # alice-install.sh -- by Dario Berzano <dario.berzano@cern.ch>
