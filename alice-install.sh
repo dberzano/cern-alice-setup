@@ -1,4 +1,4 @@
-#!/bin/bash
+  #!/bin/bash
 
 #
 # alice-install.sh -- by Dario Berzano <dario.berzano@cern.ch>
@@ -348,7 +348,7 @@ function ModuleRoot() {
         git clone http://root.cern.ch/git/root.git .
 
     Swallow -f 'Updating list of remote ROOT Git branches' \
-      git remote prune origin
+      git remote update origin
 
     if [ "$ROOT_VER" == 'trunk' ] ; then
       ROOT_VER='master'
