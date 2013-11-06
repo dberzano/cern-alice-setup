@@ -381,10 +381,14 @@ function ModuleRoot() {
       --disable-bonjour \
       --enable-builtin-freetype"
 
-    # Is --disable-fink available (Mac only)?
-    if [ "`uname`" == 'Darwin' ] && \
-       [ `./configure --help 2>/dev/null|grep -c finkdir` == 1 ]; then
-      ConfigOpts="$ConfigOpts --disable-fink"
+    # Are --disable-fink and --enable-cocoa available (OS X only)?
+    if [ "`uname`" == 'Darwin' ] ; then
+      if [ `./configure --help 2>/dev/null|grep -c finkdir` == 1 ]; then
+        ConfigOpts="$ConfigOpts --disable-fink"
+      fi
+      if [ `./configure --help 2>/dev/null|grep -c cocoa` == 1 ]; then
+        ConfigOpts="$ConfigOpts --enable-cocoa"
+      fi
     fi
 
     case "$BUILD_MODE" in
