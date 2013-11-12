@@ -1005,6 +1005,13 @@ function DetectOsBuildOpts() {
       # 12 = Mountain Lion (10.8)
       BUILDOPT_CPATH='/usr/X11/include'  # XQuartz
     fi
+    if [ "$OsVer" -ge 13 ]; then
+      # 13 = Mavericks (10.9)
+      # To link libc++ instead of libstdc++ (might be temporary). Note: the
+      # online guide suggests to use -type compile *always* and not only on
+      # Mavericks (TODO)
+      ALIEN_INSTALL_TYPE='compile'
+    fi
   elif [ "$KernelName" == 'Linux' ]; then
     ALIEN_INSTALL_TYPE='compile'
     SUPPORTED_BUILD_MODES='gcc custom-gcc'
