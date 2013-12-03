@@ -504,29 +504,27 @@ function ModuleAliRoot() {
   if [ "$DOWNLOAD_MODE" == '' ] || [ "$DOWNLOAD_MODE" == 'only' ] ; then
 
     #
-    # Download AliRoot
+    # Download AliRoot from Git
     #
 
-    Swallow -f "Moving into AliRoot source directory" cd "$ALICE_ROOT"
- 
-    # Different behaviors if it is trunk or not
-    if [ "$ALICE_VER" == "trunk" ]; then
-      # Trunk: download if needed, update to latest if already present
-      if [ ! -d "STEER" ]; then
-        # We have to download it
-        Swallow -f "Downloading AliRoot trunk" svn co $SVN_ALIROOT/trunk .
-      else
-        # We just have to update it; run "upgrade" first just in case
-        Swallow "Upgrading to latest SVN version" svn upgrade --non-interactive
-        Swallow -f "Updating AliRoot to latest trunk" svn update --non-interactive
-      fi
-    else
-      # No trunk: just download, never update
-      if [ ! -d "STEER" ]; then
-        Swallow -f "Downloading AliRoot $ALICE_VER" \
-          svn co $SVN_ALIROOT/tags/$ALICE_VER .
-      fi
+    local AliRootGit="${ALICE_ROOT}/../../git"
+
+    Swallow -f 'Creating AliRoot Git local directory' mkdir -p "$AliRootGit"
+    Swallow -f 'Moving into AliRoot Git local directory' cd "$AliRootGit"
+    [ ! -e "$AliRootGit/.git" ] && \
+      Swallow -f 'Cloning AliRoot Git repository (might take some time)' \
+        git clone http://git.cern.ch/pub/AliRoot .
+
+    Swallow -f 'Updating list of remote AliRoot Git branches' \
+      git remote update origin
+
+    if [ "$ALICE_VER" == 'trunk' ] ; then
+      ALICE_VER='master'
     fi
+    Swallow -f "Checking out AliRoot $ALICE_VER" git checkout "$ALICE_VER"
+    Swallow "Updating AliRoot $ALICE_VER from Git" git pull  # non-fatal
+    Swallow -f 'Staging AliRoot source in build directory' \
+      rsync -avc --exclude '**/.git' "$AliRootGit"/ "$ALICE_ROOT"
 
   fi # end download
 
