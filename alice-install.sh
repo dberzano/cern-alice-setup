@@ -344,7 +344,7 @@ function ModuleRoot() {
       ROOT_VER='master'
     fi
     Swallow -f "Checking out ROOT $ROOT_VER" git checkout "$ROOT_VER"
-    Swallow "Updating ROOT $ROOT_VER from Git" git pull  # non-fatal
+    Swallow "Updating ROOT $ROOT_VER from Git" git pull --rebase  # non-fatal
     Swallow -f 'Staging ROOT source in build directory' \
       rsync -avc --exclude '**/.git' "$ROOTGit"/ "$ROOTSYS"
 
@@ -512,7 +512,7 @@ function ModuleAliRoot() {
       ALICE_VER='master'
     fi
     Swallow -f "Checking out AliRoot $ALICE_VER" git checkout "$ALICE_VER"
-    Swallow "Updating AliRoot $ALICE_VER from Git" git pull  # non-fatal
+    Swallow "Updating AliRoot $ALICE_VER from Git" git pull --rebase  # non-fatal
     Swallow -f 'Staging AliRoot source in build directory' \
       rsync -avc --exclude '**/.git' "$AliRootGit"/ "$ALICE_ROOT"
 
