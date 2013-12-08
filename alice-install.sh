@@ -182,16 +182,6 @@ function Swallow() {
   return $RET
 }
 
-# Interactively asks to accept SVN certificates
-function InteractiveAcceptSvn() {
-  local SVN_SERVERS='root.cern.ch svn.cern.ch'
-  Banner 'Please accept those SVN certificates permanently if requested'
-  for S in $SVN_SERVERS ; do
-    svn info https://$S  # always returns 1...
-  done
-  return 0
-}
-
 # Prints the last lines of both log files
 function LastLogLines() {
   local LASTLINES=20
@@ -1045,7 +1035,6 @@ function Main() {
   local N_INST=0
   local N_CLEAN=0
   local N_INST_CLEAN=0
-  local N_SVN=0
   local PARAM
 
   # Detect proper build options
@@ -1203,8 +1192,7 @@ function Main() {
   done
 
   # How many build actions?
-  let N_SVN=DO_ROOT+DO_G3+DO_ALICE
-  let N_INST=DO_POD+DO_ALIEN+N_SVN
+  let N_INST=DO_POD+DO_ALIEN
   let N_CLEAN=DO_CLEAN_POD+DO_CLEAN_ALIEN+DO_CLEAN_ROOT+DO_CLEAN_G3+DO_CLEAN_ALICE
   let N_INST_CLEAN=N_INST+N_CLEAN
 
@@ -1253,11 +1241,7 @@ function Main() {
       echo "Building using $MJ parallel threads"
     fi
 
-    # Ask to accept all SVN certificates at the beginning
-    if [ $N_SVN -gt 0 ]; then
-      InteractiveAcceptSvn
-      Banner 'Non-interactive installation begins: go get some tea and scones'
-    fi
+    Banner 'Non-interactive installation begins: go get some tea and scones'
 
     # All modules
     [ $DO_CLEAN_POD   == 1 ] && ModuleCleanPoD
