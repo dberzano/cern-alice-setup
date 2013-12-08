@@ -482,10 +482,6 @@ function ModuleAliRoot() {
   Banner "Installing AliRoot..."
   Swallow -f "Sourcing envvars" SourceEnvVars
 
-  if [ ! -d "$ALICE_ROOT" ]; then
-    Swallow -f "Creating AliRoot source directory" mkdir -p "$ALICE_ROOT"
-  fi
-
   if [ ! -d "$ALICE_BUILD" ]; then
     Swallow -f "Creating AliRoot build directory" mkdir -p "$ALICE_BUILD"
   fi
@@ -497,24 +493,53 @@ function ModuleAliRoot() {
     # Download AliRoot from Git
     #
 
-    local AliRootGit="${ALICE_ROOT}/../../git"
+    # The directory AliRootGit contains the only Git clone pointing by default
+    # to the remote Git reposiory of ALICE. All other Git clones point to this
+    # directory instead
+    local AliRootGit="${ALICE_BUILD}/../../git"
 
     Swallow -f 'Creating AliRoot Git local directory' mkdir -p "$AliRootGit"
     Swallow -f 'Moving into AliRoot Git local directory' cd "$AliRootGit"
-    [ ! -e "$AliRootGit/.git" ] && \
+    if [ ! -e "$AliRootGit/.git" ] ; then
       Swallow -f 'Cloning AliRoot Git repository (might take some time)' \
         git clone http://git.cern.ch/pub/AliRoot .
+    fi
+    AliRootGit=$(cd "$AliRootGit";pwd)
 
     Swallow -f 'Updating list of remote AliRoot Git branches' \
       git remote update origin
 
-    if [ "$ALICE_VER" == 'trunk' ] ; then
-      ALICE_VER='master'
+    # Semantical fix: many people will still call it 'trunk'...
+    [ "$ALICE_VER" == 'trunk' ] && ALICE_VER='master'
+
+    # Source is ALICE_ROOT: this will be a Git directory on its own that shares
+    # the object database, but with its own index. This is possible through the
+    # script git-new-workdir[1]
+    # [1] http://nuclearsquid.com/writings/git-new-workdir/
+
+    # Check if git-new-workdir is there
+    local GitNewWd='/usr/share/doc/git/contrib/workdir/git-new-workdir'
+    which git-new-workdir > /dev/null 2>&1
+    [ $? == 0 ] && GitNewWd=$(which git-new-workdir)  # we have it in $PATH
+    Swallow -f "Checking for git-new-workdir script" [ -e "$GitNewWd" ]
+
+    # Shallow copy with git-new-workdir
+    if [ ! -d "$ALICE_ROOT/.git" ] ; then
+      rmdir "$ALICE_ROOT" > /dev/null 2>&1  # works if dir is empty
+      Swallow -f "Creating a local clone for version $ALICE_VER" \
+        bash "$GitNewWd" "$AliRootGit" "$ALICE_ROOT" "$ALICE_VER"
     fi
-    Swallow -f "Checking out AliRoot $ALICE_VER" git checkout "$ALICE_VER"
-    Swallow "Updating AliRoot $ALICE_VER from Git" git pull --rebase  # non-fatal
-    Swallow -f 'Staging AliRoot source in build directory' \
-      rsync -avc --exclude '**/.git' "$AliRootGit"/ "$ALICE_ROOT"
+
+    Swallow -f "Moving to local clone" cd "$ALICE_ROOT"
+    Swallow -f "Checking out AliRoot version $ALICE_VER"
+
+    # Note: if we are working on a clone made with git-new-workdir, changes
+    # here will be propagated to all directories cloned with the same tool
+    Swallow "Updating AliRoot $ALICE_VER" git pull --rebase  # non-fatal
+
+    # In the end we still have:
+    #  - source in $ALICE_ROOT
+    #  - build in $ALICE_BUILD
 
   fi # end download
 
