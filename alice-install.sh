@@ -554,16 +554,7 @@ function ModuleAliRoot() {
     # Assemble cmake command
     if [ ! -e "Makefile" ]; then
 
-      if [ "$BUILD_MODE" == 'clang' ]; then
-
-        # Configuration for clang -- don't choose linker
-        Swallow -f "Bootstrapping AliRoot build with cmake (for Clang)" \
-          cmake "$ALICE_ROOT" \
-            -DCMAKE_C_COMPILER=`root-config --cc` \
-            -DCMAKE_CXX_COMPILER=`root-config --cxx` \
-            -DCMAKE_Fortran_COMPILER=`root-config --f77`
-
-      elif [ "$BUILDOPT_LDFLAGS" != '' ]; then
+      if [ "$BUILDOPT_LDFLAGS" != '' ]; then
 
         # Special configuration for latest Ubuntu/Linux Mint
         Swallow -f "Bootstrapping AliRoot build with cmake (using LDFLAGS)" \
