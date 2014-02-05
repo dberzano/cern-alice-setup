@@ -32,8 +32,8 @@ else
   # Triads in the form "ROOT Geant3 AliRoot [FastJet]". Indices starts from 1,
   # not 0. The FastJet entry is optional.
   # More information: http://aliceinfo.cern.ch/Offline/AliRoot/Releases.html
-  TRIAD[1]="v5-34-05 v1-14 trunk"
-  TRIAD[2]="trunk trunk trunk"
+  TRIAD[1]="v5-34-11 v1-15a master 2.4.5"
+  TRIAD[2]="v5-34-00-patches trunk master"
   # ...add more "triads" here without skipping array indices...
 
   # This is the "triad" that will be selected in non-interactive mode.
@@ -320,9 +320,9 @@ function AliPrintVars() {
   echo -e "  \033[36mAliEn\033[m            $WHERE_IS_ALIEN"
   echo -e "  \033[36mROOT\033[m             $WHERE_IS_ROOT"
   echo -e "  \033[36mGeant3\033[m           $WHERE_IS_G3"
+  echo -e "  \033[36mFastJet\033[m          $WHERE_IS_FASTJET"
   echo -e "  \033[36mAliRoot source\033[m   $WHERE_IS_ALISRC"
   echo -e "  \033[36mAliRoot build\033[m    $WHERE_IS_ALIINST"
-  echo -e "  \033[36mFastJet\033[m          $WHERE_IS_FASTJET"
   echo ""
 
 }
