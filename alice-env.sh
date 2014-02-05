@@ -309,7 +309,6 @@ function AliPrintVars() {
   fi
 
   # Detect FastJet location
-  echo -- $FASTJET --
   if [ -e "$FASTJET/lib/libfastjet.so" ] || \
     [ -e "$FASTJET/lib/libfastjet.dylib" ]; then
     WHERE_IS_FASTJET="$FASTJET"
@@ -394,11 +393,11 @@ function AliMain() {
 
   [ "$OPT_NONINTERACTIVE" != 1 ] && AliMenu
 
+  unset ROOT_VER G3_VER ALICE_VER FASTJET_VER
   if [ $N_TRIAD -gt 0 ]; then
     C=0
     for T in ${TRIAD[$N_TRIAD]}
     do
-      unset ROOT_VER G3_VER ALICE_VER FASTJET_VER
       case $C in
         0) ROOT_VER=$T ;;
         1) G3_VER=$T ;;
