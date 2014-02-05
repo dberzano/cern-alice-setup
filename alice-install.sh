@@ -648,13 +648,6 @@ function SwallowProgress() {
 
 }
 
-# Clean up PROOF on Demand
-function ModuleCleanPoD() {
-  Banner 'Cleaning PROOF on Demand and VAF...'
-  Swallow -f 'Sourcing environment variables' SourceEnvVars
-  Swallow -f 'Removing PoD and VAF directory' rm -rf "$ALI_POD_PREFIX"
-}
-
 # Clean up AliEn
 function ModuleCleanAliEn() {
   local AliEnDir
@@ -738,108 +731,6 @@ function ModuleAliEn() {
 
   cd "$CURWD"
   Swallow -f "Removing temporary working directory" rm -rf "$ALIEN_TEMP_INST_DIR"
-}
-
-# Install PROOF on Demand (always latest version)
-function ModulePoD() {
-
-  local PodSrc='http://pod.gsi.de/releases/pod/3.12/PoD-3.12-Source.tar.gz'
-  local VafSrc='https://github.com/dberzano/virtual-analysis-facility/archive/master.zip'
-  local Dst=`mktemp -d /tmp/alice-pod-inst-XXXXX 2> /dev/null`
-  local PodSrcDir
-  local VafSrcDir
-  local LastCfVer
-  local Your_alien_API_USER='REPLACE_IT_WITH_YOUR_ALIEN_USER_NAME'
-
-  Banner 'Installing PROOF on Demand...'
-
-  if [ ! -d "$Dst" ] ; then
-    Swallow -f 'Asserting temporary working directory' false  # exits
-  fi
-
-  Swallow -f 'Downloading PROOF on Demand' Dl "$PodSrc" "${Dst}/podsrc.tar.gz"
-  Swallow -f 'Unpacking PoD source' tar xzf "${Dst}/podsrc.tar.gz" -C "$Dst"
-
-  # PoD Source directory discovery
-  PodSrcDir=`ls -1d "${Dst}"/*/ 2> /dev/null`
-  Swallow -f 'Moving into PoD source directory' cd "$PodSrcDir"
-
-  # ALICE environment variables are needed from now on
-  Swallow -f 'Sourcing environment variables' SourceEnvVars
-
-  # Check for PoD prefix set
-  if [ "$ALI_POD_PREFIX" == '' ] ; then
-    Swallow -f 'Checking for PoD prefix in environment vars' false  # exits
-  fi
-
-  Swallow -f 'Creating PoD build directory' mkdir build
-  Swallow -f 'Moving into PoD build directory' cd build
-  Swallow -f 'Bootstrapping PoD installation' \
-    cmake .. -DCMAKE_INSTALL_PREFIX="$ALI_POD_PREFIX"
-  Swallow -f 'Compiling PoD' make -j$MJ
-  Swallow -f 'Cleaning up previous PoD installation' rm -rf "$ALI_POD_PREFIX"
-  Swallow -f 'Installing PoD' make install
-
-  #
-  # VAF part
-  #
-
-  Banner 'Installing VAF client...'
-
-  # Download the VAF client and unpack
-  Swallow -f 'Downloading VAF client' Dl "$VafSrc" "${Dst}/vaf.zip"
-  Swallow -f 'Unpacking VAF client' unzip "${Dst}/vaf.zip" -d "$Dst"
-
-  # VAF Source directory discovery
-  VafSrcDir=`ls -1d "${Dst}"/virtual-analysis-facility*/ 2> /dev/null`
-  Swallow -f 'Moving into VAF source directory' cd "$VafSrcDir"
-  Swallow -f 'Installing VAF client' rsync -a client/bin "$ALI_POD_PREFIX"
-  Swallow -f 'Installing VAF configuration for ALICE' \
-    rsync -a client/config-samples/alice/ "$ALI_POD_PREFIX"/etc
-
-  # Create global configuration matching current environment
-  cat > "$ALI_POD_PREFIX/etc/local.before" 2> /dev/null <<_EoF_
-# Automatically generated: you should not touch this file!
-export UseCvmfsLocally=0
-export AliceEnv="$ENVSCRIPT"
-export VafConf_LocalPodLocation="$ALI_POD_PREFIX"
-_EoF_
-  Swallow -f 'Generating global VAF configuration' [ $? == 0 ]
-
-  # Backup previous user's configuration if exists
-  if [ -e "$HOME/.vaf/common.before" ] ; then
-    LastCfVer=`ls -1 common.before.* 2> /dev/null | \
-      grep '^common.before\.[0-9]\+' | grep -o '[0-9]\+' | sort -n | tail -n1`
-    if [ "$LastCfVer" == '' ] ; then
-      LastCfVer='0'
-    else
-      let LastCfVer++
-    fi
-    Swallow -f 'Making a backup of current user VAF config file' \
-      mv "$HOME/.vaf/common.before" "$HOME/.vaf/common.before.$LastCfVer"
-  else
-    Swallow -f 'Creating VAF configuration directory' mkdir -p "$HOME"/.vaf
-  fi
-
-  Swallow -f 'Checking if VAF config directory is OK' [ -d "$HOME"/.vaf ]
-
-  # AliEn Username
-  [ "$alien_API_USER" != '' ] && Your_alien_API_USER="$alien_API_USER"
-
-  # Create sample configuration file
-  cat > "$HOME/.vaf/common.before" 2> /dev/null <<_EoF_
-# Your AliEn username
-export alien_API_USER='$Your_alien_API_USER'
-
-# The desired AliRoot version (all dependencies are automatically set).
-# Use the same name you find on http://alimonitor.cern.ch/packages, just
-# without the initial "VO_ALICE@AliRoot::"
-export VafAliRootVersion='v5-04-81-AN'
-_EoF_
-  Swallow -f 'Creating VAF user configuration file' [ $? == 0 ]
-
-  Swallow 'Cleaning temporary files' rm -rf "/tmp/alice-pod-inst-"*
-
 }
 
 # Module to create prefix directory
@@ -1036,12 +927,10 @@ function DetectOsBuildOpts() {
 function Main() {
 
   local DO_PREP=0
-  local DO_POD=0
   local DO_ALIEN=0
   local DO_ROOT=0
   local DO_G3=0
   local DO_ALICE=0
-  local DO_CLEAN_POD=0
   local DO_CLEAN_ALIEN=0
   local DO_CLEAN_ALICE=0
   local DO_CLEAN_ROOT=0
@@ -1074,10 +963,6 @@ function Main() {
         # Install targets
         #
 
-        pod)
-          DO_POD=1
-        ;;
-
         alien)
           DO_ALIEN=1
         ;;
@@ -1095,7 +980,6 @@ function Main() {
         ;;
 
         all)
-          # No PoD by default (for now)
           DO_ALIEN=1
           DO_ROOT=1
           DO_G3=1
@@ -1105,10 +989,6 @@ function Main() {
         #
         # Cleanup targets (AliEn is not to be cleaned up)
         #
-
-        clean-pod)
-          DO_CLEAN_POD=1
-        ;;
 
         clean-alien)
           DO_CLEAN_ALIEN=1
@@ -1127,7 +1007,6 @@ function Main() {
         ;;
 
         clean-all)
-          # Don't clean PoD by default (for now)
           DO_CLEAN_ALIEN=1
           DO_CLEAN_ROOT=1
           DO_CLEAN_G3=1
@@ -1208,8 +1087,8 @@ function Main() {
   done
 
   # How many build actions?
-  let N_INST=DO_POD+DO_ALIEN+DO_ROOT+DO_G3+DO_ALICE
-  let N_CLEAN=DO_CLEAN_POD+DO_CLEAN_ALIEN+DO_CLEAN_ROOT+DO_CLEAN_G3+DO_CLEAN_ALICE
+  let N_INST=DO_ALIEN+DO_ROOT+DO_G3+DO_ALICE
+  let N_CLEAN=DO_CLEAN_ALIEN+DO_CLEAN_ROOT+DO_CLEAN_G3+DO_CLEAN_ALICE
   let N_INST_CLEAN=N_INST+N_CLEAN
 
   if [ $DO_PREP == 0 ] && [ $DO_BUGREPORT == 0 ] && \
@@ -1260,8 +1139,6 @@ function Main() {
     Banner 'Non-interactive installation begins: go get some tea and scones'
 
     # All modules
-    [ $DO_CLEAN_POD   == 1 ] && ModuleCleanPoD
-    [ $DO_POD         == 1 ] && ModulePoD
     [ $DO_CLEAN_ALIEN == 1 ] && ModuleCleanAliEn
     [ $DO_ALIEN       == 1 ] && ModuleAliEn
     [ $DO_CLEAN_ROOT  == 1 ] && ModuleCleanRoot
