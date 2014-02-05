@@ -22,6 +22,7 @@ export CUSTOM_GCC_PATH='/opt/gcc'
 export BUILDOPT_LDFLAGS=''
 export BUILDOPT_CPATH=''
 export ALIEN_INSTALL_TYPE=''
+export FASTJET_PATCH_HEADERS=0
 export DOWNLOAD_MODE=''
 
 #
@@ -473,6 +474,77 @@ function ModuleGeant3() {
 
 }
 
+# Module to fetch and compile FastJet
+function ModuleFastJet() {
+
+  # FastJet versions will be downloaded from tarballs on the official website
+  local FASTJET_URL_PATTERN='http://fastjet.fr/repo/fastjet-%s.tar.gz'
+  local FASTJET_TARBALL='source.tar.gz'
+
+  Banner "Installing FastJet..."
+  Swallow -f "Sourcing envvars" SourceEnvVars
+
+  Swallow "Checking if FastJet support has been requested" [ "$FASTJET_VER" != '' ] || return
+
+  Swallow -f "Creating FastJet directory" mkdir -p "$FASTJET/src"
+  Swallow -f "Moving into FastJet directory" cd "$FASTJET/src"
+
+  if [ "$DOWNLOAD_MODE" == '' ] || [ "$DOWNLOAD_MODE" == 'only' ]; then
+
+    #
+    # Download, unpack and patch FastJet tarball
+    #
+
+    if [ ! -e $FASTJET_TARBALL ]; then
+      Swallow -f "Downloading FastJet v$FASTJET_VER" \
+        Dl $( printf "$FASTJET_URL_PATTERN" "$FASTJET_VER" ) $FASTJET_TARBALL
+    fi
+
+    if [ ! -d fastjet-"$FASTJET_VER" ]; then
+      Swallow -f "Unpacking FastJet tarball" \
+        tar xzvvf $FASTJET_TARBALL
+    fi
+
+    if [ "$FASTJET_PATCH_HEADERS" == 1 ]; then
+
+      # Patching FastJet headers: libc++ fixup
+
+      function FastJetPatch() {
+        find . -name '*.h' -or -name '*.hh' | \
+          while read F; do
+            echo '#include <cstdlib>' > "$F.0" && \
+              cat "$F" | grep -v '#include <cstdlib>' >> "$F.0" && \
+              mv "$F.0" "$F" || return 1
+          done
+      }
+
+      Swallow -f "Patching FastJet headers (libc++ workaround)" FastJetPatch
+      unset FastJetPatch
+
+    fi
+
+  fi
+
+  if [ "$DOWNLOAD_MODE" == '' ] || [ "$DOWNLOAD_MODE" == 'no' ] ; then
+
+    #
+    # Build FastJet
+    #
+
+    Swallow -f "Moving into build directory" \
+      cd "$FASTJET/src/fastjet-$FASTJET_VER"
+
+    export CXXFLAGS="$BUILDOPT_LDFLAGS -lgmp"
+    Swallow -f "Configuring FastJet" \
+      ./configure --enable-cgal --prefix=$FASTJET
+    unset CXXFLAGS
+
+    Swallow -f "Building FastJet" make -j$MJ install
+
+  fi
+
+}
+
 # Module to fetch, update and compile AliRoot
 function ModuleAliRoot() {
 
@@ -648,13 +720,6 @@ function SwallowProgress() {
 
 }
 
-# Clean up PROOF on Demand
-function ModuleCleanPoD() {
-  Banner 'Cleaning PROOF on Demand and VAF...'
-  Swallow -f 'Sourcing environment variables' SourceEnvVars
-  Swallow -f 'Removing PoD and VAF directory' rm -rf "$ALI_POD_PREFIX"
-}
-
 # Clean up AliEn
 function ModuleCleanAliEn() {
   local AliEnDir
@@ -684,6 +749,15 @@ function ModuleCleanGeant3() {
   Swallow -f "Checking if Geant3 is really installed" \
     [ -f "$GEANT3DIR"/Makefile ]
   Swallow -f "Removing Geant3 $G3_VER" rm -rf "$GEANT3DIR"
+}
+
+# Clean up Fastjet
+function ModuleCleanFastJet() {
+  Banner "Cleaning FastJet..."
+  Swallow -f "Sourcing envvars" SourceEnvVars
+  Swallow -f "Checking if FastJet is really installed" \
+    [ -f "$FASTJET/src/fastjet-$FASTJET_VER/configure" ]
+  Swallow -f "Removing FastJet $FASTJET_VER" rm -rf "$FASTJET"
 }
 
 # Clean up AliRoot
@@ -738,108 +812,6 @@ function ModuleAliEn() {
 
   cd "$CURWD"
   Swallow -f "Removing temporary working directory" rm -rf "$ALIEN_TEMP_INST_DIR"
-}
-
-# Install PROOF on Demand (always latest version)
-function ModulePoD() {
-
-  local PodSrc='http://pod.gsi.de/releases/pod/3.12/PoD-3.12-Source.tar.gz'
-  local VafSrc='https://github.com/dberzano/virtual-analysis-facility/archive/master.zip'
-  local Dst=`mktemp -d /tmp/alice-pod-inst-XXXXX 2> /dev/null`
-  local PodSrcDir
-  local VafSrcDir
-  local LastCfVer
-  local Your_alien_API_USER='REPLACE_IT_WITH_YOUR_ALIEN_USER_NAME'
-
-  Banner 'Installing PROOF on Demand...'
-
-  if [ ! -d "$Dst" ] ; then
-    Swallow -f 'Asserting temporary working directory' false  # exits
-  fi
-
-  Swallow -f 'Downloading PROOF on Demand' Dl "$PodSrc" "${Dst}/podsrc.tar.gz"
-  Swallow -f 'Unpacking PoD source' tar xzf "${Dst}/podsrc.tar.gz" -C "$Dst"
-
-  # PoD Source directory discovery
-  PodSrcDir=`ls -1d "${Dst}"/*/ 2> /dev/null`
-  Swallow -f 'Moving into PoD source directory' cd "$PodSrcDir"
-
-  # ALICE environment variables are needed from now on
-  Swallow -f 'Sourcing environment variables' SourceEnvVars
-
-  # Check for PoD prefix set
-  if [ "$ALI_POD_PREFIX" == '' ] ; then
-    Swallow -f 'Checking for PoD prefix in environment vars' false  # exits
-  fi
-
-  Swallow -f 'Creating PoD build directory' mkdir build
-  Swallow -f 'Moving into PoD build directory' cd build
-  Swallow -f 'Bootstrapping PoD installation' \
-    cmake .. -DCMAKE_INSTALL_PREFIX="$ALI_POD_PREFIX"
-  Swallow -f 'Compiling PoD' make -j$MJ
-  Swallow -f 'Cleaning up previous PoD installation' rm -rf "$ALI_POD_PREFIX"
-  Swallow -f 'Installing PoD' make install
-
-  #
-  # VAF part
-  #
-
-  Banner 'Installing VAF client...'
-
-  # Download the VAF client and unpack
-  Swallow -f 'Downloading VAF client' Dl "$VafSrc" "${Dst}/vaf.zip"
-  Swallow -f 'Unpacking VAF client' unzip "${Dst}/vaf.zip" -d "$Dst"
-
-  # VAF Source directory discovery
-  VafSrcDir=`ls -1d "${Dst}"/virtual-analysis-facility*/ 2> /dev/null`
-  Swallow -f 'Moving into VAF source directory' cd "$VafSrcDir"
-  Swallow -f 'Installing VAF client' rsync -a client/bin "$ALI_POD_PREFIX"
-  Swallow -f 'Installing VAF configuration for ALICE' \
-    rsync -a client/config-samples/alice/ "$ALI_POD_PREFIX"/etc
-
-  # Create global configuration matching current environment
-  cat > "$ALI_POD_PREFIX/etc/local.before" 2> /dev/null <<_EoF_
-# Automatically generated: you should not touch this file!
-export UseCvmfsLocally=0
-export AliceEnv="$ENVSCRIPT"
-export VafConf_LocalPodLocation="$ALI_POD_PREFIX"
-_EoF_
-  Swallow -f 'Generating global VAF configuration' [ $? == 0 ]
-
-  # Backup previous user's configuration if exists
-  if [ -e "$HOME/.vaf/common.before" ] ; then
-    LastCfVer=`ls -1 common.before.* 2> /dev/null | \
-      grep '^common.before\.[0-9]\+' | grep -o '[0-9]\+' | sort -n | tail -n1`
-    if [ "$LastCfVer" == '' ] ; then
-      LastCfVer='0'
-    else
-      let LastCfVer++
-    fi
-    Swallow -f 'Making a backup of current user VAF config file' \
-      mv "$HOME/.vaf/common.before" "$HOME/.vaf/common.before.$LastCfVer"
-  else
-    Swallow -f 'Creating VAF configuration directory' mkdir -p "$HOME"/.vaf
-  fi
-
-  Swallow -f 'Checking if VAF config directory is OK' [ -d "$HOME"/.vaf ]
-
-  # AliEn Username
-  [ "$alien_API_USER" != '' ] && Your_alien_API_USER="$alien_API_USER"
-
-  # Create sample configuration file
-  cat > "$HOME/.vaf/common.before" 2> /dev/null <<_EoF_
-# Your AliEn username
-export alien_API_USER='$Your_alien_API_USER'
-
-# The desired AliRoot version (all dependencies are automatically set).
-# Use the same name you find on http://alimonitor.cern.ch/packages, just
-# without the initial "VO_ALICE@AliRoot::"
-export VafAliRootVersion='v5-04-81-AN'
-_EoF_
-  Swallow -f 'Creating VAF user configuration file' [ $? == 0 ]
-
-  Swallow 'Cleaning temporary files' rm -rf "/tmp/alice-pod-inst-"*
-
 }
 
 # Module to create prefix directory
@@ -897,7 +869,7 @@ function Help() {
   echo ""
 
   echo "  To build/install/update something (multiple choices allowed):"
-  echo -e "    ${C}$Cmd [--alien] [--root] [--geant3] [--aliroot] [--ncores <n>] [--compiler [gcc|clang|/prefix/to/gcc]]${Z}"
+  echo -e "    ${C}$Cmd [--alien] [--root] [--geant3] [--fastjet] [--aliroot] [--ncores <n>] [--compiler [gcc|clang|/prefix/to/gcc]]${Z}"
   echo ""
 
   echo "  To build/install/update everything (do --prepare first):"
@@ -905,7 +877,7 @@ function Help() {
   echo ""
 
   echo "  To cleanup something (multiple choices allowed - data is erased!):"
-  echo -e "    ${C}$Cmd [--clean-root] [--clean-geant3] [--clean-aliroot]${Z}"
+  echo -e "    ${C}$Cmd [--clean-root] [--clean-geant3] [--clean-fastjet] [--clean-aliroot]${Z}"
   echo ""
 
   echo "  To cleanup everything (except AliEn):"
@@ -943,6 +915,7 @@ function Help() {
     local ROOT_STR="$ROOT_VER"
     local G3_STR="$G3_VER"
     local ALICE_STR="$ALICE_VER"
+    local FASTJET_STR="$FASTJET_VER"
 
     if [ "$ROOT_VER" != "$ROOT_SUBDIR" ]; then
       ROOT_STR="$ROOT_VER (subdir: $ROOT_SUBDIR)"
@@ -950,6 +923,12 @@ function Help() {
 
     if [ "$G3_VER" != "$G3_SUBDIR" ]; then
       G3_STR="$G3_VER (subdir: $G3_SUBDIR)"
+    fi
+
+    if [ "$FASTJET_VER" == '' ]; then
+      FASTJET_STR="won't be installed"
+    elif [ "$FASTJET_VER" != "$FASTJET_SUBDIR" ]; then
+      FASTJET_STR="$FASTJET_VER (subdir: $FASTJET_SUBDIR)"
     fi
 
     if [ "$ALICE_VER" != "$ALICE_SUBDIR" ]; then
@@ -974,6 +953,7 @@ function Help() {
     echo "  AliEn:   always the latest version"
     echo "  ROOT:    $ROOT_STR"
     echo "  Geant3:  $G3_STR"
+    echo "  FastJet: $FASTJET_STR"
     echo "  AliRoot: $ALICE_STR"
     echo ""
     echo -e "Selected compiler: ${C}$BUILD_MODE_STR${Z}"
@@ -1000,6 +980,10 @@ function DetectOsBuildOpts() {
 
   if [ "$KernelName" == 'Darwin' ]; then
     ALIEN_INSTALL_TYPE='user'
+
+    # Needed for including <cstdlib>: fixes fabs errors with libc++
+    FASTJET_PATCH_HEADERS=1
+
     OsVer=`uname -r | cut -d. -f1`
     if [ "$OsVer" -ge 11 ]; then
       # 11 = Lion (10.7)
@@ -1036,16 +1020,16 @@ function DetectOsBuildOpts() {
 function Main() {
 
   local DO_PREP=0
-  local DO_POD=0
   local DO_ALIEN=0
   local DO_ROOT=0
   local DO_G3=0
+  local DO_FASTJET=0
   local DO_ALICE=0
-  local DO_CLEAN_POD=0
   local DO_CLEAN_ALIEN=0
   local DO_CLEAN_ALICE=0
   local DO_CLEAN_ROOT=0
   local DO_CLEAN_G3=0
+  local DO_CLEAN_FASTJET=0
   local DO_BUGREPORT=0
 
   local N_INST=0
@@ -1074,10 +1058,6 @@ function Main() {
         # Install targets
         #
 
-        pod)
-          DO_POD=1
-        ;;
-
         alien)
           DO_ALIEN=1
         ;;
@@ -1090,25 +1070,25 @@ function Main() {
           DO_G3=1
         ;;
 
+        fastjet)
+          DO_FASTJET=1
+        ;;
+
         aliroot)
           DO_ALICE=1
         ;;
 
         all)
-          # No PoD by default (for now)
           DO_ALIEN=1
           DO_ROOT=1
           DO_G3=1
+          DO_FASTJET=1
           DO_ALICE=1
         ;;
 
         #
         # Cleanup targets (AliEn is not to be cleaned up)
         #
-
-        clean-pod)
-          DO_CLEAN_POD=1
-        ;;
 
         clean-alien)
           DO_CLEAN_ALIEN=1
@@ -1122,15 +1102,19 @@ function Main() {
           DO_CLEAN_G3=1
         ;;
 
+        clean-fastjet)
+          DO_CLEAN_FASTJET=1
+        ;;
+
         clean-aliroot)
           DO_CLEAN_ALICE=1
         ;;
 
         clean-all)
-          # Don't clean PoD by default (for now)
           DO_CLEAN_ALIEN=1
           DO_CLEAN_ROOT=1
           DO_CLEAN_G3=1
+          DO_CLEAN_FASTJET=1
           DO_CLEAN_ALICE=1
         ;;
 
@@ -1208,8 +1192,8 @@ function Main() {
   done
 
   # How many build actions?
-  let N_INST=DO_POD+DO_ALIEN+DO_ROOT+DO_G3+DO_ALICE
-  let N_CLEAN=DO_CLEAN_POD+DO_CLEAN_ALIEN+DO_CLEAN_ROOT+DO_CLEAN_G3+DO_CLEAN_ALICE
+  let N_INST=DO_ALIEN+DO_ROOT+DO_G3+DO_FASTJET+DO_ALICE
+  let N_CLEAN=DO_CLEAN_ALIEN+DO_CLEAN_ROOT+DO_CLEAN_G3+DO_CLEAN_FASTJET+DO_CLEAN_ALICE
   let N_INST_CLEAN=N_INST+N_CLEAN
 
   if [ $DO_PREP == 0 ] && [ $DO_BUGREPORT == 0 ] && \
@@ -1260,16 +1244,16 @@ function Main() {
     Banner 'Non-interactive installation begins: go get some tea and scones'
 
     # All modules
-    [ $DO_CLEAN_POD   == 1 ] && ModuleCleanPoD
-    [ $DO_POD         == 1 ] && ModulePoD
-    [ $DO_CLEAN_ALIEN == 1 ] && ModuleCleanAliEn
-    [ $DO_ALIEN       == 1 ] && ModuleAliEn
-    [ $DO_CLEAN_ROOT  == 1 ] && ModuleCleanRoot
-    [ $DO_ROOT        == 1 ] && ModuleRoot
-    [ $DO_CLEAN_G3    == 1 ] && ModuleCleanGeant3
-    [ $DO_G3          == 1 ] && ModuleGeant3
-    [ $DO_CLEAN_ALICE == 1 ] && ModuleCleanAliRoot
-    [ $DO_ALICE       == 1 ] && ModuleAliRoot
+    [ $DO_CLEAN_ALIEN   == 1 ] && ModuleCleanAliEn
+    [ $DO_ALIEN         == 1 ] && ModuleAliEn
+    [ $DO_CLEAN_ROOT    == 1 ] && ModuleCleanRoot
+    [ $DO_ROOT          == 1 ] && ModuleRoot
+    [ $DO_CLEAN_G3      == 1 ] && ModuleCleanGeant3
+    [ $DO_G3            == 1 ] && ModuleGeant3
+    [ $DO_CLEAN_FASTJET == 1 ] && ModuleCleanFastJet
+    [ $DO_FASTJET       == 1 ] && ModuleFastJet
+    [ $DO_CLEAN_ALICE   == 1 ] && ModuleCleanAliRoot
+    [ $DO_ALICE         == 1 ] && ModuleAliRoot
   fi
 
   # Remove logs: if we are here, everything went right, so no need to see the
