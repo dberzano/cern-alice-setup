@@ -29,7 +29,8 @@ else
   # the command
   #export alien_API_USER="myalienusername"
 
-  # Triads in the form "root geant3 aliroot". Index starts from 1, not 0.
+  # Triads in the form "ROOT Geant3 AliRoot [FastJet]". Indices starts from 1,
+  # not 0. The FastJet entry is optional.
   # More information: http://aliceinfo.cern.ch/Offline/AliRoot/Releases.html
   TRIAD[1]="v5-34-05 v1-14 trunk"
   TRIAD[2]="trunk trunk trunk"
@@ -58,9 +59,10 @@ function AliMenu() {
 
   local C R M
 
-  M="Please select an AliRoot triad in the form \033[35mROOT Geant3"
-  M="$M AliRoot\033[m (you can also\nsource with \033[33m-n\033[m to skip"
-  M="$M this menu, or with \033[33m-c\033[m to clean the environment):"
+  M="Please select an AliRoot triad in the form \033[35mROOT / Geant3 /"
+  M="$M AliRoot [/ FastJet]\033[m.\n"
+  M="${M}You can also source with \033[33m-n\033[m"
+  M="$M to skip this menu, or with \033[33m-c\033[m to clean the environment):"
 
   echo -e "\n$M\n"
   for ((C=1; $C<=${#TRIAD[@]}; C++)); do
@@ -145,14 +147,14 @@ function AliCleanPathList() {
 function AliCleanEnv() {
   AliRemovePaths PATH alien_cp aliroot root
   AliRemovePaths LD_LIBRARY_PATH libCint.so libSTEER.so libXrdSec.so \
-    libgeant321.so
+    libgeant321.so libgapiUI.so libfastjet.so libfastjet.dylib
   AliRemovePaths DYLD_LIBRARY_PATH libCint.so libSTEER.so libXrdSec.so \
-    libgeant321.so
-  AliRemovePaths PYTHONPATH ROOT.py
+    libgeant321.so libgapiUI.so libfastjet.so libfastjet.dylib
+  AliRemovePaths PYTHONPATH ROOT.py 
 
   # Unset other environment variables and aliases
   unset MJ ALIEN_DIR GSHELL_ROOT ROOTSYS ALICE ALICE_ROOT ALICE_BUILD \
-    ALICE_TARGET GEANT3DIR X509_CERT_DIR ALICE ALI_POD_PREFIX
+    ALICE_TARGET GEANT3DIR X509_CERT_DIR ALICE FASTJET alien_API_USER
 }
 
 # Sets the number of parallel workers for make to the number of cores plus one
@@ -167,13 +169,6 @@ function AliSetParallelMake() {
 
 # Exports variables needed to run AliRoot, based on the selected triad
 function AliExportVars() {
-
-  #
-  # PROOF on Demand
-  #
-
-  export ALI_POD_PREFIX="$ALICE_PREFIX/pod"
-  export PATH="$ALI_POD_PREFIX/bin:$PATH"
 
   #
   # AliEn
@@ -231,14 +226,22 @@ function AliExportVars() {
   export GEANT3DIR="$ALICE_PREFIX/geant3/$G3_SUBDIR"
   export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$GEANT3DIR/lib/tgt_${ALICE_TARGET}"
   export G3_VER
- 
+
+  #
+  # FastJet
+  #
+
+  export FASTJET="$ALICE_PREFIX/fastjet/$FASTJET_SUBDIR"
+  export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$FASTJET/lib"
+  export FASTJET_VER
+
 }
 
 # Prints out the ALICE paths. In AliRoot, the SVN revision number is also echoed
 function AliPrintVars() {
 
   local WHERE_IS_G3 WHERE_IS_ALIROOT WHERE_IS_ROOT WHERE_IS_ALIEN \
-    WHERE_IS_ALISRC WHERE_IS_ALIINST ALIREV MSG LEN I
+    WHERE_IS_ALISRC WHERE_IS_ALIINST WHERE_IS_FASTJET ALIREV MSG LEN I
   local NOTFOUND='\033[31m<not found>\033[m'
 
   # Check if Globus certificate is expiring soon
@@ -305,20 +308,22 @@ function AliPrintVars() {
     WHERE_IS_ALIEN="$NOTFOUND"
   fi
 
-  # Detect PoD location
-  if [ -e "$ALI_POD_PREFIX/PoD_env.sh" ]; then
-    WHERE_IS_POD="$ALI_POD_PREFIX"
+  # Detect FastJet location
+  echo -- $FASTJET --
+  if [ -e "$FASTJET/lib/libfastjet.so" ] || \
+    [ -e "$FASTJET/lib/libfastjet.dylib" ]; then
+    WHERE_IS_FASTJET="$FASTJET"
   else
-    WHERE_IS_POD="$NOTFOUND"
+    WHERE_IS_FASTJET="$NOTFOUND"
   fi
 
   echo ""
-  echo -e "  \033[36mPROOF on Demand\033[m  $WHERE_IS_POD"
   echo -e "  \033[36mAliEn\033[m            $WHERE_IS_ALIEN"
   echo -e "  \033[36mROOT\033[m             $WHERE_IS_ROOT"
   echo -e "  \033[36mGeant3\033[m           $WHERE_IS_G3"
   echo -e "  \033[36mAliRoot source\033[m   $WHERE_IS_ALISRC"
   echo -e "  \033[36mAliRoot build\033[m    $WHERE_IS_ALIINST"
+  echo -e "  \033[36mFastJet\033[m          $WHERE_IS_FASTJET"
   echo ""
 
 }
@@ -355,8 +360,8 @@ function NiceTriad() {
     else
       echo -n "\033[35m$D\033[m"
     fi
-    [ $C != 2 ] && echo -n ' / '
     let C++
+    [ $C != $# ] && echo -n ' / '
   done
   unset D V
 }
@@ -393,18 +398,22 @@ function AliMain() {
     C=0
     for T in ${TRIAD[$N_TRIAD]}
     do
+      unset ROOT_VER G3_VER ALICE_VER FASTJET_VER
       case $C in
         0) ROOT_VER=$T ;;
         1) G3_VER=$T ;;
         2) ALICE_VER=$T ;;
+        3) FASTJET_VER=$T ;;
       esac
       let C++
     done
 
     # Separates directory name from version (backwards compatible)
-    ParseVerDir $ROOT_VER  'ROOT_SUBDIR'  'ROOT_VER'
-    ParseVerDir $G3_VER    'G3_SUBDIR'    'G3_VER'
-    ParseVerDir $ALICE_VER 'ALICE_SUBDIR' 'ALICE_VER'
+
+    ParseVerDir "$ROOT_VER"    'ROOT_SUBDIR'    'ROOT_VER'
+    ParseVerDir "$G3_VER"      'G3_SUBDIR'      'G3_VER'
+    ParseVerDir "$ALICE_VER"   'ALICE_SUBDIR'   'ALICE_VER'
+    ParseVerDir "$FASTJET_VER" 'FASTJET_SUBDIR' 'FASTJET_VER'
 
   else
     # N_TRIAD=0 means "clean environment"
@@ -426,8 +435,12 @@ function AliMain() {
     [ "$OPT_QUIET" != 1 ] && AliPrintVars
 
   else
-    unset ALICE_PREFIX ROOT_VER G3_VER ALICE_VER ROOT_SUBDIR G3_SUBDIR \
-      ALICE_SUBDIR
+    # Those variables are not cleaned by AliCleanEnv
+    unset ALICE_PREFIX \
+      ROOT_VER ROOT_SUBDIR \
+      G3_VER G3_SUBDIR \
+      ALICE_VER ALICE_SUBDIR \
+      FASTJET_VER FASTJET_SUBDIR
     if [ "$OPT_QUIET" != 1 ]; then
       echo -e "\033[33mALICE environment variables cleared\033[m"
     fi
