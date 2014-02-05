@@ -22,6 +22,7 @@ export CUSTOM_GCC_PATH='/opt/gcc'
 export BUILDOPT_LDFLAGS=''
 export BUILDOPT_CPATH=''
 export ALIEN_INSTALL_TYPE=''
+export FASTJET_PATCH_HEADERS=0
 export DOWNLOAD_MODE=''
 
 #
@@ -473,6 +474,77 @@ function ModuleGeant3() {
 
 }
 
+# Module to fetch and compile FastJet
+function ModuleFastJet() {
+
+  # FastJet versions will be downloaded from tarballs on the official website
+  local FASTJET_URL_PATTERN='http://fastjet.fr/repo/fastjet-%s.tar.gz'
+  local FASTJET_TARBALL='source.tar.gz'
+
+  Banner "Installing FastJet..."
+  Swallow -f "Sourcing envvars" SourceEnvVars
+
+  Swallow "Checking if FastJet support has been requested" [ "$FASTJET_VER" != '' ] || return
+
+  Swallow -f "Creating FastJet directory" mkdir -p "$FASTJET/src"
+  Swallow -f "Moving into FastJet directory" cd "$FASTJET/src"
+
+  if [ "$DOWNLOAD_MODE" == '' ] || [ "$DOWNLOAD_MODE" == 'only' ]; then
+
+    #
+    # Download, unpack and patch FastJet tarball
+    #
+
+    if [ ! -e $FASTJET_TARBALL ]; then
+      Swallow -f "Downloading FastJet v$FASTJET_VER" \
+        Dl $( printf "$FASTJET_URL_PATTERN" "$FASTJET_VER" ) $FASTJET_TARBALL
+    fi
+
+    if [ ! -d fastjet-"$FASTJET_VER" ]; then
+      Swallow -f "Unpacking FastJet tarball" \
+        tar xzvvf $FASTJET_TARBALL
+    fi
+
+    if [ "$FASTJET_PATCH_HEADERS" == 1 ]; then
+
+      # Patching FastJet headers: libc++ fixup
+
+      function FastJetPatch() {
+        find . -name '*.h' -or -name '*.hh' | \
+          while read F; do
+            echo '#include <cstdlib>' > "$F.0" && \
+              cat "$F" | grep -v '#include <cstdlib>' >> "$F.0" && \
+              mv "$F.0" "$F" || return 1
+          done
+      }
+
+      Swallow -f "Patching FastJet headers (libc++ workaround)" FastJetPatch
+      unset FastJetPatch
+
+    fi
+
+  fi
+
+  if [ "$DOWNLOAD_MODE" == '' ] || [ "$DOWNLOAD_MODE" == 'no' ] ; then
+
+    #
+    # Build FastJet
+    #
+
+    Swallow -f "Moving into build directory" \
+      cd "$FASTJET/src/fastjet-$FASTJET_VER"
+
+    export CXXFLAGS="$BUILDOPT_LDFLAGS -lgmp"
+    Swallow -f "Configuring FastJet" \
+      ./configure --enable-cgal --prefix=$FASTJET
+    unset CXXFLAGS
+
+    Swallow -f "Building FastJet" make -j$MJ install
+
+  fi
+
+}
+
 # Module to fetch, update and compile AliRoot
 function ModuleAliRoot() {
 
@@ -679,6 +751,15 @@ function ModuleCleanGeant3() {
   Swallow -f "Removing Geant3 $G3_VER" rm -rf "$GEANT3DIR"
 }
 
+# Clean up Fastjet
+function ModuleCleanFastJet() {
+  Banner "Cleaning FastJet..."
+  Swallow -f "Sourcing envvars" SourceEnvVars
+  Swallow -f "Checking if FastJet is really installed" \
+    [ -f "$FASTJET/src/fastjet-$FASTJET_VER/configure" ]
+  Swallow -f "Removing FastJet $FASTJET_VER" rm -rf "$FASTJET"
+}
+
 # Clean up AliRoot
 function ModuleCleanAliRoot() {
   Banner "Cleaning AliRoot..."
@@ -788,7 +869,7 @@ function Help() {
   echo ""
 
   echo "  To build/install/update something (multiple choices allowed):"
-  echo -e "    ${C}$Cmd [--alien] [--root] [--geant3] [--aliroot] [--ncores <n>] [--compiler [gcc|clang|/prefix/to/gcc]]${Z}"
+  echo -e "    ${C}$Cmd [--alien] [--root] [--geant3] [--fastjet] [--aliroot] [--ncores <n>] [--compiler [gcc|clang|/prefix/to/gcc]]${Z}"
   echo ""
 
   echo "  To build/install/update everything (do --prepare first):"
@@ -796,7 +877,7 @@ function Help() {
   echo ""
 
   echo "  To cleanup something (multiple choices allowed - data is erased!):"
-  echo -e "    ${C}$Cmd [--clean-root] [--clean-geant3] [--clean-aliroot]${Z}"
+  echo -e "    ${C}$Cmd [--clean-root] [--clean-geant3] [--clean-fastjet] [--clean-aliroot]${Z}"
   echo ""
 
   echo "  To cleanup everything (except AliEn):"
@@ -834,6 +915,7 @@ function Help() {
     local ROOT_STR="$ROOT_VER"
     local G3_STR="$G3_VER"
     local ALICE_STR="$ALICE_VER"
+    local FASTJET_STR="$FASTJET_VER"
 
     if [ "$ROOT_VER" != "$ROOT_SUBDIR" ]; then
       ROOT_STR="$ROOT_VER (subdir: $ROOT_SUBDIR)"
@@ -841,6 +923,12 @@ function Help() {
 
     if [ "$G3_VER" != "$G3_SUBDIR" ]; then
       G3_STR="$G3_VER (subdir: $G3_SUBDIR)"
+    fi
+
+    if [ "$FASTJET_VER" == '' ]; then
+      FASTJET_STR="won't be installed"
+    elif [ "$FASTJET_VER" != "$FASTJET_SUBDIR" ]; then
+      FASTJET_STR="$FASTJET_VER (subdir: $FASTJET_SUBDIR)"
     fi
 
     if [ "$ALICE_VER" != "$ALICE_SUBDIR" ]; then
@@ -865,6 +953,7 @@ function Help() {
     echo "  AliEn:   always the latest version"
     echo "  ROOT:    $ROOT_STR"
     echo "  Geant3:  $G3_STR"
+    echo "  FastJet: $FASTJET_STR"
     echo "  AliRoot: $ALICE_STR"
     echo ""
     echo -e "Selected compiler: ${C}$BUILD_MODE_STR${Z}"
@@ -891,6 +980,10 @@ function DetectOsBuildOpts() {
 
   if [ "$KernelName" == 'Darwin' ]; then
     ALIEN_INSTALL_TYPE='user'
+
+    # Needed for including <cstdlib>: fixes fabs errors with libc++
+    FASTJET_PATCH_HEADERS=1
+
     OsVer=`uname -r | cut -d. -f1`
     if [ "$OsVer" -ge 11 ]; then
       # 11 = Lion (10.7)
@@ -930,11 +1023,13 @@ function Main() {
   local DO_ALIEN=0
   local DO_ROOT=0
   local DO_G3=0
+  local DO_FASTJET=0
   local DO_ALICE=0
   local DO_CLEAN_ALIEN=0
   local DO_CLEAN_ALICE=0
   local DO_CLEAN_ROOT=0
   local DO_CLEAN_G3=0
+  local DO_CLEAN_FASTJET=0
   local DO_BUGREPORT=0
 
   local N_INST=0
@@ -975,6 +1070,10 @@ function Main() {
           DO_G3=1
         ;;
 
+        fastjet)
+          DO_FASTJET=1
+        ;;
+
         aliroot)
           DO_ALICE=1
         ;;
@@ -983,6 +1082,7 @@ function Main() {
           DO_ALIEN=1
           DO_ROOT=1
           DO_G3=1
+          DO_FASTJET=1
           DO_ALICE=1
         ;;
 
@@ -1002,6 +1102,10 @@ function Main() {
           DO_CLEAN_G3=1
         ;;
 
+        clean-fastjet)
+          DO_CLEAN_FASTJET=1
+        ;;
+
         clean-aliroot)
           DO_CLEAN_ALICE=1
         ;;
@@ -1010,6 +1114,7 @@ function Main() {
           DO_CLEAN_ALIEN=1
           DO_CLEAN_ROOT=1
           DO_CLEAN_G3=1
+          DO_CLEAN_FASTJET=1
           DO_CLEAN_ALICE=1
         ;;
 
@@ -1087,8 +1192,8 @@ function Main() {
   done
 
   # How many build actions?
-  let N_INST=DO_ALIEN+DO_ROOT+DO_G3+DO_ALICE
-  let N_CLEAN=DO_CLEAN_ALIEN+DO_CLEAN_ROOT+DO_CLEAN_G3+DO_CLEAN_ALICE
+  let N_INST=DO_ALIEN+DO_ROOT+DO_G3+DO_FASTJET+DO_ALICE
+  let N_CLEAN=DO_CLEAN_ALIEN+DO_CLEAN_ROOT+DO_CLEAN_G3+DO_CLEAN_FASTJET+DO_CLEAN_ALICE
   let N_INST_CLEAN=N_INST+N_CLEAN
 
   if [ $DO_PREP == 0 ] && [ $DO_BUGREPORT == 0 ] && \
@@ -1139,14 +1244,16 @@ function Main() {
     Banner 'Non-interactive installation begins: go get some tea and scones'
 
     # All modules
-    [ $DO_CLEAN_ALIEN == 1 ] && ModuleCleanAliEn
-    [ $DO_ALIEN       == 1 ] && ModuleAliEn
-    [ $DO_CLEAN_ROOT  == 1 ] && ModuleCleanRoot
-    [ $DO_ROOT        == 1 ] && ModuleRoot
-    [ $DO_CLEAN_G3    == 1 ] && ModuleCleanGeant3
-    [ $DO_G3          == 1 ] && ModuleGeant3
-    [ $DO_CLEAN_ALICE == 1 ] && ModuleCleanAliRoot
-    [ $DO_ALICE       == 1 ] && ModuleAliRoot
+    [ $DO_CLEAN_ALIEN   == 1 ] && ModuleCleanAliEn
+    [ $DO_ALIEN         == 1 ] && ModuleAliEn
+    [ $DO_CLEAN_ROOT    == 1 ] && ModuleCleanRoot
+    [ $DO_ROOT          == 1 ] && ModuleRoot
+    [ $DO_CLEAN_G3      == 1 ] && ModuleCleanGeant3
+    [ $DO_G3            == 1 ] && ModuleGeant3
+    [ $DO_CLEAN_FASTJET == 1 ] && ModuleCleanFastJet
+    [ $DO_FASTJET       == 1 ] && ModuleFastJet
+    [ $DO_CLEAN_ALICE   == 1 ] && ModuleCleanAliRoot
+    [ $DO_ALICE         == 1 ] && ModuleAliRoot
   fi
 
   # Remove logs: if we are here, everything went right, so no need to see the
