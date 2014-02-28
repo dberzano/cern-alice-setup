@@ -154,7 +154,7 @@ function AliCleanEnv() {
 
   # Unset other environment variables and aliases
   unset MJ ALIEN_DIR GSHELL_ROOT ROOTSYS ALICE ALICE_ROOT ALICE_BUILD \
-    ALICE_TARGET GEANT3DIR X509_CERT_DIR ALICE FASTJET alien_API_USER
+    ALICE_TARGET GEANT3DIR X509_CERT_DIR ALICE FASTJET
 }
 
 # Sets the number of parallel workers for make to the number of cores plus one
@@ -439,7 +439,8 @@ function AliMain() {
       ROOT_VER ROOT_SUBDIR \
       G3_VER G3_SUBDIR \
       ALICE_VER ALICE_SUBDIR \
-      FASTJET_VER FASTJET_SUBDIR
+      FASTJET_VER FASTJET_SUBDIR \
+      alien_API_USER
     if [ "$OPT_QUIET" != 1 ]; then
       echo -e "\033[33mALICE environment variables cleared\033[m"
     fi
