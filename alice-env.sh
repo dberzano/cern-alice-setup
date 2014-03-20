@@ -232,8 +232,12 @@ function AliExportVars() {
   #
 
   export FASTJET="$ALICE_PREFIX/fastjet/$FASTJET_SUBDIR"
-  export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$FASTJET/lib"
-  export FASTJET_VER
+  if [ -d "$FASTJET/bin" ] && [ -d "$FASTJET/lib" ] ; then
+    export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$FASTJET/lib"
+    export FASTJET_VER
+  else
+    unset FASTJET FASTJET_VER FASTJET_SUBDIR
+  fi
 
 }
 
