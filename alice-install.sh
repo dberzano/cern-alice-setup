@@ -548,9 +548,6 @@ function ModuleFastJet() {
 # Module to fetch, update and compile AliRoot
 function ModuleAliRoot() {
 
-  #local SVN_ALIROOT="https://svn.cern.ch/reps/AliRoot"
-  local SVN_ALIROOT="http://svn.cern.ch/guest/AliRoot"
-
   Banner "Installing AliRoot..."
   Swallow -f "Sourcing envvars" SourceEnvVars
 
