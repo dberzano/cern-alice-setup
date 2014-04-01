@@ -1,4 +1,4 @@
-cern-alice-setup
-================
+CERN ALICE Software Installation and Setup
+==========================================
 
-Setup and installation scripts for the ALICE experiment @ CERN
+Please find the full guide [here](http://newton.ph.unito.it/~berzano/w/doku.php?id=alice:compile-any).
