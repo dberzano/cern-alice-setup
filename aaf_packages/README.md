@@ -38,8 +38,10 @@ packages for new AliRoot versions are generated.
 The destination directory is assumed to be exported via CernVM-FS.
 
 
-AAF admins: PROOF setup
------------------------
+AAF admins
+----------
+
+### PROOF setup for all nodes
 
 The local list of AliRoot versions will be automatically updated, as
 it will be available from CernVM-FS.
@@ -55,5 +57,20 @@ use for determining the AliRoot path:
 
     xpd.putenv AF_ALIROOT_DIR_TEMPLATE=/cvmfs/alice.cern.ch/x86_64-2.6-gnu-4.1.2/Packages/AliRoot/<VERSION>
 
-Leave the `<VERSION>` **as-is**: it will be substituted with the
+**Leave the** `<VERSION>` **as-is**: it will be substituted with the
 AliRoot version once you load the package.
+
+
+AAF users
+---------
+
+### Listing the available versions
+
+    gProof->ShowPackages();
+
+
+### Enabling a certain AliRoot version
+
+    gProof->EnablePackage( "VO_ALICE@AliRoot::vAN-20140331" );
+
+**Note:** don't forget the `VO_ALICE@AliRoot::` prefix.
