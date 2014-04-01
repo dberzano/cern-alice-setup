@@ -5,11 +5,17 @@ Generating AAF PARfiles for CernVM-FS
 Analysis Facilities and export them on CernVM-FS, so that they are
 automatically available everywhere.
 
+There are separate instructions for
+
+* [ALICE CernVM-FS administrators](#alice-cernvm-fs-admins)
+* [AAF admins](#aaf-admins)
+* [AAF users](#aaf-users)
+
 
 ALICE CernVM-FS admins
 ----------------------
 
-#### Once-for-all: setup the CernVM-FS server
+#### Once for all: setup the CernVM-FS server
 
 Git clone the repository:
 
@@ -41,7 +47,7 @@ The destination directory is assumed to be exported via CernVM-FS.
 AAF admins
 ----------
 
-### PROOF setup for all nodes
+### Once for all: PROOF setup for all nodes
 
 The local list of AliRoot versions will be automatically updated, as
 it will be available from CernVM-FS.
