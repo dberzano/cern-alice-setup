@@ -15,7 +15,7 @@ There are separate instructions for
 ALICE CernVM-FS admins
 ----------------------
 
-#### Once for all: setup the CernVM-FS server
+### Once for all: setup the CernVM-FS server
 
 Git clone the repository:
 
