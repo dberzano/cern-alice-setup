@@ -6,8 +6,10 @@ Analysis Facilities and export them on CernVM-FS, so that they are
 automatically available everywhere.
 
 
-Once-for-all: setup the CernVM-FS server
-----------------------------------------
+ALICE CernVM-FS admins
+----------------------
+
+#### Once-for-all: setup the CernVM-FS server
 
 Git clone the repository:
 
@@ -23,8 +25,7 @@ We will assume that the global AAF packages directory will be:
     /cvmfs/alice.cern.ch/etc/aaf_packages
 
 
-CernVM-FS admins: update the list of packages
----------------------------------------------
+### At each AliRoot release: update the list of packages
 
 When a new AliRoot version has been released:
 
