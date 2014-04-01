@@ -44,6 +44,8 @@ packages for new AliRoot versions are generated.
 
 The destination directory is assumed to be exported via CernVM-FS.
 
+**Note:** this procedure can be done automatically.
+
 
 AAF admins
 ----------
