@@ -63,16 +63,6 @@ xpd.putrc Proof.GlobalPackageDirs /cvmfs/alice.cern.ch/etc/aaf_packages
 xpd.exportpath /cvmfs/alice.cern.ch/etc/aaf_packages
 ```
 
-In the very same file, you have to set a variable that packages will
-use for determining the AliRoot path:
-
-```
-xpd.putenv AF_ALIROOT_DIR_TEMPLATE=/cvmfs/alice.cern.ch/x86_64-2.6-gnu-4.1.2/Packages/AliRoot/<VERSION>
-```
-
-**Leave the** `<VERSION>` **as-is**: it will be substituted with the
-AliRoot version once you load the package.
-
 
 AAF users
 ---------

@@ -153,16 +153,6 @@ Int_t SETUP(TList *inputList = NULL) {
 
     gMessTag = gSystem->HostName();
 
-    // Template for AliRoot versions. The string <VERSION> will be substituted
-    // with the selected AliRoot version
-    aliRootDir = gSystem->Getenv("AF_ALIROOT_DIR_TEMPLATE");
-
-    if (aliRootDir.IsNull()) {
-      ::Error(gMessTag.Data(), "Variable AF_ALIROOT_DIR_TEMPLATE "
-        "must be in each worker's environment!");
-      return -1;
-    }
-
     // Extract AliRoot version from this package's name
     TString aliRootVer = gSystem->BaseName(gSystem->pwd());
     TPMERegexp re("^VO_ALICE@AliRoot::(.*)$");
@@ -176,8 +166,12 @@ Int_t SETUP(TList *inputList = NULL) {
     aliRootVer = re[1].Data();
     ::Info(gMessTag.Data(), "Enabling AliRoot %s...", aliRootVer.Data());
 
+    // Get ALICE_ROOT from Modules
+    TString buf;
+    buf.Form( ". /cvmfs/alice.cern.ch/etc/login.sh && eval `alienv printenv VO_ALICE@AliRoot::%s` && echo \"$ALICE_ROOT\"", aliRootVer.Data() );
+    aliRootDir = gSystem->GetFromPipe( buf.Data() );
+
     // Set environment for AliRoot
-    aliRootDir.ReplaceAll("<VERSION>", aliRootVer);
     gSystem->Setenv("ALICE_ROOT", aliRootDir.Data());
 
     // LD_LIBRARY_PATH: current working directory always has precedence
