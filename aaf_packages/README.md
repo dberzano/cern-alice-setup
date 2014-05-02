@@ -59,8 +59,8 @@ You still need to do some modification in your PROOF configuration,
 *i.e.* the `prf-main.cf` file, notably:
 
 ```
-xpd.putrc Proof.GlobalPackageDirs /cvmfs/alice.cern.ch/etc/aaf_packages
-xpd.exportpath /cvmfs/alice.cern.ch/etc/aaf_packages
+xpd.putrc Proof.GlobalPackageDirs /cvmfs/alice.cern.ch/x86_64-2.6-gnu-4.1.2/Packages/AAF/PAR
+xpd.exportpath /cvmfs/alice.cern.ch/x86_64-2.6-gnu-4.1.2/Packages/AAF/PAR
 ```
 
 
