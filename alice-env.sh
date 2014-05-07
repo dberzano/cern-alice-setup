@@ -231,10 +231,15 @@ function AliExportVars() {
   # FastJet
   #
 
-  export FASTJET="$ALICE_PREFIX/fastjet/$FASTJET_SUBDIR"
-  export FASTJET_VER
-  if [ -d "$FASTJET/bin" ] && [ -d "$FASTJET/lib" ] ; then
-    export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$FASTJET/lib"
+  if [ "$FASTJET_VER" != '' ] ; then
+    # Export FastJet variables only if we mean to have FastJet
+    export FASTJET="$ALICE_PREFIX/fastjet/$FASTJET_SUBDIR"
+    export FASTJET_VER
+    if [ -d "$FASTJET/bin" ] && [ -d "$FASTJET/lib" ] ; then
+      export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$FASTJET/lib"
+    fi
+  else
+    unset FASTJET_VER FASTJET_SUBDIR
   fi
 
 }
@@ -322,7 +327,9 @@ function AliPrintVars() {
   echo -e "  \033[36mAliEn\033[m            $WHERE_IS_ALIEN"
   echo -e "  \033[36mROOT\033[m             $WHERE_IS_ROOT"
   echo -e "  \033[36mGeant3\033[m           $WHERE_IS_G3"
-  echo -e "  \033[36mFastJet\033[m          $WHERE_IS_FASTJET"
+  if [ "$FASTJET" != '' ] ; then
+    echo -e "  \033[36mFastJet\033[m          $WHERE_IS_FASTJET"
+  fi
   echo -e "  \033[36mAliRoot source\033[m   $WHERE_IS_ALISRC"
   echo -e "  \033[36mAliRoot build\033[m    $WHERE_IS_ALIINST"
   echo ""
