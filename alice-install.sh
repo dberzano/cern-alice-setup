@@ -300,14 +300,13 @@ function PrepareBugReport() {
 # Shows a message reminding user to send the log files when asking for support
 function ShowBugReportInfo() {
   echo ""
-  echo -e "\033[41m\033[1;37mPlease attach both of the following files if asking for support:\033[m"
+  echo -e "\033[41m\033[1;37mWhen asking for support, please send an email attaching the following file(s):\033[m"
   echo ""
-  echo "  $ERR"
-  echo "  $OUT"
+  [ -s "$ERR" ] && echo "  $ERR"
+  [ -s "$OUT" ] && echo "  $OUT"
   echo ""
-  echo -e "\033[41m\033[1;37mNote:\033[m if you are concerned about private information being saved in"
-  echo '      logfiles, look at them and strip it off using a text editor'
-  echo '      before sending them.'
+  echo -e "\033[41m\033[1;37mNote:\033[m should you be concerned about the logs containing private information,"
+  echo "      you can edit them before sending."
   echo ""
 }
 
