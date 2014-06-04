@@ -579,7 +579,7 @@ function ModuleAliRoot() {
     Swallow -f 'Updating list of remote AliRoot Git branches' \
       git remote update origin
 
-    # Semantical fix: many people will still call it 'trunk'...
+    # Semantic fix: many people will still call it 'trunk'...
     [ "$ALICE_VER" == 'trunk' ] && ALICE_VER='master'
 
     # Source is ALICE_ROOT: this will be a Git directory on its own that shares
@@ -587,11 +587,7 @@ function ModuleAliRoot() {
     # script git-new-workdir[1]
     # [1] http://nuclearsquid.com/writings/git-new-workdir/
 
-    # Check if git-new-workdir is there
-    local GitNewWd='/usr/share/doc/git/contrib/workdir/git-new-workdir'
-    which git-new-workdir > /dev/null 2>&1
-    [ $? == 0 ] && GitNewWd=$(which git-new-workdir)  # we have it in $PATH
-    Swallow -f "Checking for git-new-workdir script" [ -e "$GitNewWd" ]
+    Swallow -f "Checking for git-new-workdir script in \$PATH" which git-new-workdir
 
     # Shallow copy with git-new-workdir
     if [ ! -d "$ALICE_ROOT/.git" ] ; then
