@@ -616,6 +616,7 @@ function ModuleAliRoot() {
     #
 
     Swallow -f "Moving into AliRoot build directory" cd "$ALICE_BUILD"
+    Swallow -f "Checking if ROOT has OpenGL enabled" RootHasOpenGl
 
     # Assemble cmake command
     if [ ! -e "Makefile" ]; then
@@ -962,6 +963,11 @@ function Help() {
     echo ""
   fi
 
+}
+
+# Check if ROOT has OpenGL
+function RootHasOpenGl() {
+  root-config --features | grep -q opengl
 }
 
 # Detects proper build options based on the current operating system
