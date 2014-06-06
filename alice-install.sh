@@ -353,7 +353,7 @@ function ModuleRoot() {
     Swallow -f 'Creating ROOT Git local directory' mkdir -p "$ROOTGit"
     Swallow -f 'Moving into ROOT Git local directory' cd "$ROOTGit"
     [ ! -e "$ROOTGit/.git" ] && \
-      Swallow -f 'Cloning ROOT Git repository (might take some time)' \
+      SwallowProgress -f --pattern 'Cloning ROOT Git repository (might take some time)' \
         git clone http://root.cern.ch/git/root.git .
 
     Swallow -f 'Updating list of remote ROOT Git branches' \
@@ -363,8 +363,8 @@ function ModuleRoot() {
       ROOT_VER='master'
     fi
     Swallow -f "Checking out ROOT $ROOT_VER" git checkout "$ROOT_VER"
-    Swallow "Updating ROOT $ROOT_VER from Git" git pull --rebase  # non-fatal
-    Swallow -f 'Staging ROOT source in build directory' \
+    SwallowProgress --pattern "Updating ROOT $ROOT_VER from Git" git pull --rebase  # non-fatal
+    SwallowProgress -f --pattern 'Staging ROOT source in build directory' \
       rsync -avc --exclude '**/.git' "$ROOTGit"/ "$ROOTSYS"
 
   fi # end download
@@ -419,13 +419,13 @@ function ModuleRoot() {
 
     esac
 
-    Swallow -f "Configuring ROOT" ./configure $ConfigOpts
+    SwallowProgress -f --pattern "Configuring ROOT" ./configure $ConfigOpts
 
     local AppendLDFLAGS AppendCPATH
     [ "$BUILDOPT_LDFLAGS" != '' ] && AppendLDFLAGS="LDFLAGS=$BUILDOPT_LDFLAGS"
     [ "$BUILDOPT_CPATH" != '' ] && AppendCPATH="CPATH=$BUILDOPT_CPATH"
 
-    Swallow -f "Building ROOT" make -j$MJ $AppendLDFLAGS $AppendCPATH
+    SwallowProgress -f --pattern "Building ROOT" make -j$MJ $AppendLDFLAGS $AppendCPATH
 
     # To fix some problems during the creation of PARfiles in AliRoot
     if [ -e "$ROOTSYS/test/Makefile.arch" ]; then
