@@ -506,11 +506,25 @@ function ModuleFastJet() {
         tar xzvvf $FASTJET_TARBALL
     fi
 
+    # Patch FastJet to make namespaces seen by CINT
+    function FastJetPatchCINTNamespace() {
+      find include/fastjet -name '*.h' -or -name '*.hh' -maxdepth 2 | \
+        while read F; do
+          sed -e 's|^FASTJET_BEGIN_NAMESPACE.*|namespace fastjet {|' \
+              -e 's|^FASTJET_END_NAMESPACE.*|} // end "fastjet" namespace|' \
+              -e 's|^#define FASTJET_BEGIN_NAMESPACE.*||' \
+              -e 's|^#define FASTJET_END_NAMESPACE.*||' \
+              "$F" > "$F.0" && mv "$F.0" "$F"
+        done
+    }
+    Swallow -f "Patching FastJet headers: CINT namespace" FastJetPatchCINTNamespace
+    unset FastJetPatchCINTNamespace
+
     if [ "$FASTJET_PATCH_HEADERS" == 1 ]; then
 
       # Patching FastJet headers: libc++ fixup
 
-      function FastJetPatch() {
+      function FastJetPatchLibcpp() {
         find . -name '*.h' -or -name '*.hh' | \
           while read F; do
             echo '#include <cstdlib>' > "$F.0" && \
@@ -519,8 +533,8 @@ function ModuleFastJet() {
           done
       }
 
-      Swallow -f "Patching FastJet headers (libc++ workaround)" FastJetPatch
-      unset FastJetPatch
+      Swallow -f "Patching FastJet headers: libc++ workaround" FastJetPatchLibcpp
+      unset FastJetPatchLibcpp
 
     fi
 
