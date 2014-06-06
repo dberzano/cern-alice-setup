@@ -675,7 +675,7 @@ function ModuleAliRoot() {
 
 }
 
-# Cmake progress
+# Progress with percentage (parsed from the last line)
 function SwallowProgress() {
 
   local BGPID PCT PCT_FMT OP FATAL
@@ -702,8 +702,7 @@ function SwallowProgress() {
   do
 
     # Parse current percentage
-    PCT=$( grep --text '%]' "$OUT" | \
-      perl -ne '/\[\s*([0-9]{1,3})%\]/; print "$1\n"' | tail -n1 )
+    PCT=$( grep -Eo '[0-9]{1,3}%' "$OUT" | tail -n1 | tr -d '%' )
 
     # Show progress
     SwallowStep "$OP" "$PCT" $TSSTART
