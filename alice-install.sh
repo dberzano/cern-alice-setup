@@ -698,8 +698,7 @@ function SwallowProgress() {
   "$@" >> "$OUT" 2>> "$ERR" &
   BGPID=$!
 
-  while ps 2> /dev/null | grep -v grep | grep $BGPID > /dev/null 2>&1
-  do
+  while kill -0 $BGPID > /dev/null 2>&1 ; do
 
     # Parse current percentage
     PCT=$( grep -Eo '[0-9]{1,3}%' "$OUT" | tail -n1 | tr -d '%' )
