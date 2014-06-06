@@ -85,7 +85,12 @@ function SwallowStart() {
 #  - $2: current percentage
 #  - $3: start timestamp (seconds)
 function SwallowStep() {
-  local TS_START OP MSG PCT PCT_FMT
+  local TS_START OP MSG PCT PCT_FMT MODE
+
+  if [ "$1" == '--pattern' ] || [ "$1" == '--percentage' ] ; then
+    MODE="$1"
+    shift
+  fi
 
   OP="$1"
   PCT=$2
@@ -95,10 +100,22 @@ function SwallowStep() {
 
   # Prints progress
   echo -ne '\r                                                  \r'
-  PCT_FMT=$( printf "%3d%%" $PCT )
-  echo -ne "[\033[34m$PCT_FMT\033[m] $OP \033[36m$(NiceTime $TS_DELTA)\033[m"
-
-  return $RET
+  if [ "$MODE" == '--pattern' ] ; then
+    #local PROG_PATTERN=( '.   ' '..  ' '... ' '....' ' ...' '  ..' '   .' '    ' )
+    local PROG_PATTERN=(   \
+      'o...' 'O...' 'o...' \
+      '.o..' '.O..' '.o..' \
+      '..o.' '..O.' '..o.' \
+      '...o' '...O' '...o' \
+      '..o.' '..O.' '..o.' \
+      '.o..' '.O..' '.o..' \
+    )
+    local PROG_IDX=$(( $PCT % ${#PROG_PATTERN[@]} ))
+    echo -ne "[\033[34m${PROG_PATTERN[$PROG_IDX]}\033[m] $OP \033[36m$(NiceTime $TS_DELTA)\033[m"
+  else
+    PCT_FMT=$( printf "%3d%%" $PCT )
+    echo -ne "[\033[34m$PCT_FMT\033[m] $OP \033[36m$(NiceTime $TS_DELTA)\033[m"
+  fi
 
 }
 
@@ -446,16 +463,16 @@ function ModuleGeant3() {
       # Trunk: download if needed, update to latest if already present
       if [ ! -f "Makefile" ]; then
         # We have to download it
-        Swallow -f "Downloading Geant3 trunk" svn co http://root.cern.ch$SVN_G3/trunk .
+        SwallowProgress -f --pattern "Downloading Geant3 trunk" svn co http://root.cern.ch$SVN_G3/trunk .
       else
         # We just have to update it; run "upgrade" first just in case
-        Swallow "Upgrading to latest SVN version" svn upgrade --non-interactive
-        Swallow -f "Updating Geant3 to latest trunk" svn up --non-interactive
+        SwallowProgress --pattern "Upgrading to latest SVN version" svn upgrade --non-interactive
+        SwallowProgress -f --pattern "Updating Geant3 to latest trunk" svn up --non-interactive
       fi
     else
       # No trunk: just download, never update
       if [ ! -f "Makefile" ]; then
-        Swallow -f "Downloading Geant3 $G3_VER" svn co http://root.cern.ch$SVN_G3/tags/$G3_VER .
+        SwallowProgress -f --pattern "Downloading Geant3 $G3_VER" svn co http://root.cern.ch$SVN_G3/tags/$G3_VER .
       fi
     fi
 
@@ -467,7 +484,7 @@ function ModuleGeant3() {
     # Build Geant3
     #
 
-    Swallow -f "Building Geant3" make
+    SwallowProgress -f --pattern "Building Geant3" make
 
   fi
 
@@ -658,7 +675,7 @@ function ModuleAliRoot() {
 
     fi
 
-    SwallowProgress -f "Building AliRoot" make -j$MJ
+    SwallowProgress -f --percentage "Building AliRoot" make -j$MJ
 
     Swallow -f "Symlinking AliRoot include directory" \
       ln -nfs "$ALICE_BUILD"/include "$ALICE_ROOT"/include
@@ -675,51 +692,64 @@ function ModuleAliRoot() {
 
 }
 
-# Progress with percentage (parsed from the last line)
+# Get file size - depending on the operating system
+function GetFileSizeBytes() {(
+  V=$( wc -c "$1" | awk '{ print $1 }' )
+  echo $V
+)}
+
+# Progress with moving dots
 function SwallowProgress() {
+  local BkgPid Op Fatal TsStart TsEnd Size OldSize Ret ProgressCount
 
-  local BGPID PCT PCT_FMT OP FATAL
-
-  # Abort on error?
-  if [ "$1" == "-f" ]; then
-    FATAL=1
+  if [ "$1" == '-f' ] ; then
+    Fatal=1
     shift
   else
-    FATAL=0
+    Fatal=0
   fi
 
-  OP="$1"
+  if [ "$1" == '--pattern' ] || [ "$1" == '--percentage' ] ; then
+    Mode="$1"
+    shift
+  fi
+
+  Op="$1"
   shift
 
-  SwallowStart "$OP" "$@"
-  TSSTART=$(date +%s)
+  SwallowStart "$Op" "$@"
+  TsStart=$( date +%s )
 
-  #( $@ > "$SWALLOW_LOG".out 2> "$SWALLOW_LOG".err ) &
   "$@" >> "$OUT" 2>> "$ERR" &
-  BGPID=$!
+  BkgPid=$!
 
-  while kill -0 $BGPID > /dev/null 2>&1 ; do
+  Size=0
+  ProgressCount=-1
 
-    # Parse current percentage
-    PCT=$( grep -Eo '[0-9]{1,3}%' "$OUT" | tail -n1 | tr -d '%' )
-
-    # Show progress
-    SwallowStep "$OP" "$PCT" $TSSTART
-
-    # Sleep
+  while kill -0 $BkgPid > /dev/null 2>&1 ; do
+    if [ "$Mode" == '--pattern' ] ; then
+      # Based on output size
+      OldSize="$Size"
+      Size=$( GetFileSizeBytes "$OUT" )
+      if [ "$OldSize" != "$Size" ] ; then
+        let ProgressCount++
+      fi
+    else
+      # Based on the percentage (default)
+      ProgressCount=$( grep -Eo '[0-9]{1,3}%' "$OUT" | tail -n1 | tr -d '%' )
+    fi
+    SwallowStep $Mode "$Op" $ProgressCount $TsStart
     sleep 1
-
   done
 
-  # It has finished: check exitcode
-  wait $BGPID
-  RET=$?
+  wait $BkgPid
+  Ret=$?
 
-  TSEND=$(date +%s)
-  SwallowEnd "$OP" $FATAL $RET $TSSTART $TSEND "$@"
+  TsEnd=$( date +%s )
+  SwallowEnd "$Op" $Fatal $Ret $TsStart $TsEnd "$@"
 
-  if [ $RET != 0 ] && [ $FATAL == 1 ]; then
-    LastLogLines -e "$OP"
+  if [ $Ret != 0 ] && [ $Fatal == 1 ]; then
+    LastLogLines -e "$Op"
     exit 1
   fi
 
