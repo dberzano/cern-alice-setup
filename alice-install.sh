@@ -446,8 +446,7 @@ function ModuleGeant3() {
       # Trunk: download if needed, update to latest if already present
       if [ ! -f "Makefile" ]; then
         # We have to download it
-        Swallow -f "Downloading Geant3 trunk" \
-          MultiSvn "$SVN_LIST" co "@SERVER@$SVN_G3/trunk" .
+        Swallow -f "Downloading Geant3 trunk" svn co http://root.cern.ch$SVN_G3/trunk .
       else
         # We just have to update it; run "upgrade" first just in case
         Swallow "Upgrading to latest SVN version" svn upgrade --non-interactive
@@ -456,8 +455,7 @@ function ModuleGeant3() {
     else
       # No trunk: just download, never update
       if [ ! -f "Makefile" ]; then
-        Swallow -f "Downloading Geant3 $G3_VER" \
-          MultiSvn "$SVN_LIST" co "@SERVER@$SVN_G3/tags/$G3_VER" .
+        Swallow -f "Downloading Geant3 $G3_VER" svn co http://root.cern.ch$SVN_G3/tags/$G3_VER .
       fi
     fi
 
