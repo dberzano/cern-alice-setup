@@ -512,12 +512,12 @@ function ModuleFastJet() {
     #
 
     if [ ! -e $FASTJET_TARBALL ]; then
-      Swallow -f "Downloading FastJet v$FASTJET_VER" \
+      SwallowProgress -f --percentage "Downloading FastJet v$FASTJET_VER" \
         Dl $( printf "$FASTJET_URL_PATTERN" "$FASTJET_VER" ) $FASTJET_TARBALL
     fi
 
     if [ ! -d fastjet-"$FASTJET_VER" ]; then
-      Swallow -f "Unpacking FastJet tarball" \
+      SwallowProgress -f --pattern "Unpacking FastJet tarball" \
         tar xzvvf $FASTJET_TARBALL
     fi
 
@@ -565,11 +565,11 @@ function ModuleFastJet() {
       cd "$FASTJET/src/fastjet-$FASTJET_VER"
 
     export CXXFLAGS="$BUILDOPT_LDFLAGS -lgmp"
-    Swallow -f "Configuring FastJet" \
+    SwallowProgress -f --pattern "Configuring FastJet" \
       ./configure --enable-cgal --prefix=$FASTJET
     unset CXXFLAGS
 
-    Swallow -f "Building FastJet" make -j$MJ install
+    SwallowProgress -f --pattern "Building FastJet" make -j$MJ install
 
   fi
 
