@@ -593,7 +593,7 @@ function ModuleAliRoot() {
     if [ ! -d "$ALICE_ROOT/.git" ] ; then
       rmdir "$ALICE_ROOT" > /dev/null 2>&1  # works if dir is empty
       Swallow -f "Creating a local clone for version $ALICE_VER" \
-        bash "$GitNewWd" "$AliRootGit" "$ALICE_ROOT" "$ALICE_VER"
+        git-new-workdir "$AliRootGit" "$ALICE_ROOT" "$ALICE_VER"
     fi
 
     Swallow -f "Moving to local clone" cd "$ALICE_ROOT"
