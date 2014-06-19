@@ -771,7 +771,10 @@ function SwallowProgress() {
       fi
     else
       # Based on the percentage (default)
-      ProgressCount=$( grep -Eo '[0-9]{1,3}%' "$OUT" | tail -n1 | tr -d '%' )
+      ProgressCount=$( tail -n10 "$OUT" | grep -Eo '[0-9]{1,3}([,\.][0-9])?%' | tail -n1 | tr -d '%' )
+      ProgressCount=${ProgressCount%%,*}
+      ProgressCount=${ProgressCount%%.*}
+      ProgressCount=$((ProgressCount+0))
     fi
     SwallowStep $Mode "$Op" $ProgressCount $TsStart
     sleep 1
@@ -841,12 +844,13 @@ function ModuleCleanAliRoot() {
 
 # Download URL $1 to file $2 using wget or curl
 function Dl() {
+  # All output on stdout to allow for SwallowProgress to work
   which curl > /dev/null 2>&1
   if [ $? == 0 ]; then
-    curl -Lo "$2" "$1"
+    curl --progress-bar -Lo "$2" "$1" 2>&1
     return $?
   else
-    wget -O "$2" "$1"
+    wget -O "$2" "$1" 2>&1
     return $?
   fi
 }
