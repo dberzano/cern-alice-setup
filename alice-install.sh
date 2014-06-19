@@ -497,6 +497,10 @@ function ModuleFastJet() {
   local FASTJET_URL_PATTERN='http://fastjet.fr/repo/fastjet-%s.tar.gz'
   local FASTJET_TARBALL='source.tar.gz'
 
+  # FastJet contrib (optional)
+  local FJCONTRIB_URL_PATTERN='http://fastjet.hepforge.org/contrib/downloads/fjcontrib-%s.tar.gz'
+  local FJCONTRIB_TARBALL='contrib.tar.gz'
+
   Banner "Installing FastJet..."
   Swallow -f "Sourcing envvars" SourceEnvVars
 
@@ -519,6 +523,22 @@ function ModuleFastJet() {
     if [ ! -d fastjet-"$FASTJET_VER" ]; then
       SwallowProgress -f --pattern "Unpacking FastJet tarball" \
         tar xzvvf $FASTJET_TARBALL
+    fi
+
+    if [ "$FJCONTRIB_VER" != '' ] ; then
+
+      # Optional FastJet contrib
+
+      if [ ! -e "$FJCONTRIB_TARBALL" ]; then
+        SwallowProgress -f --percentage "Downloading FastJet contrib v$FJCONTRIB_VER" \
+          Dl $( printf "$FJCONTRIB_URL_PATTERN" "$FJCONTRIB_VER" ) "$FJCONTRIB_TARBALL"
+      fi
+
+      if [ ! -d fjcontrib-"$FJCONTRIB_VER" ]; then
+        SwallowProgress -f --pattern "Unpacking FastJet contrib tarball" \
+          tar xzvvf "$FJCONTRIB_TARBALL"
+      fi
+
     fi
 
     # Patch FastJet to make namespaces seen by CINT
@@ -567,9 +587,19 @@ function ModuleFastJet() {
     export CXXFLAGS="$BUILDOPT_LDFLAGS -lgmp"
     SwallowProgress -f --pattern "Configuring FastJet" \
       ./configure --enable-cgal --prefix=$FASTJET
-    unset CXXFLAGS
 
     SwallowProgress -f --pattern "Building FastJet" make -j$MJ install
+
+    if [ "$FJCONTRIB_VER" != '' ] ; then
+      Swallow -f "Sourcing envvars" SourceEnvVars
+      Swallow -f "Moving into FastJet contrib build directory" \
+        cd "$FASTJET/src/fjcontrib-$FJCONTRIB_VER"
+
+      SwallowProgress -f --pattern "Configuring FastJet contrib" ./configure
+      SwallowProgress -f --pattern "Building FastJet contrib" make -j$MJ install
+
+    fi
+    unset CXXFLAGS
 
   fi
 
