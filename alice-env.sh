@@ -413,7 +413,7 @@ function AliMain() {
 
   [ "$OPT_NONINTERACTIVE" != 1 ] && AliMenu
 
-  unset ROOT_VER G3_VER ALICE_VER FASTJET_VER
+  unset ROOT_VER G3_VER ALICE_VER FASTJET_VER FJCONTRIB_VER
   if [ $N_TRIAD -gt 0 ]; then
     C=0
     for T in ${TRIAD[$N_TRIAD]}
@@ -459,7 +459,7 @@ function AliMain() {
       ROOT_VER ROOT_SUBDIR \
       G3_VER G3_SUBDIR \
       ALICE_VER ALICE_SUBDIR \
-      FASTJET_VER FASTJET_SUBDIR \
+      FASTJET_VER FASTJET_SUBDIR FJCONTRIB_VER \
       alien_API_USER
     if [ "$OPT_QUIET" != 1 ]; then
       echo -e "\033[33mALICE environment variables cleared\033[m"
