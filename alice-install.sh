@@ -543,7 +543,7 @@ function ModuleFastJet() {
 
     # Patch FastJet to make namespaces seen by CINT
     function FastJetPatchCINTNamespace() {
-      find include/fastjet -name '*.h' -or -name '*.hh' -maxdepth 2 | \
+      find . -name '*.h' -or -name '*.hh' -or -name '*.cc' -or -name '*.icc' | \
         while read F; do
           sed -e 's|^FASTJET_BEGIN_NAMESPACE.*|namespace fastjet {|' \
               -e 's|^FASTJET_END_NAMESPACE.*|} // end "fastjet" namespace|' \
