@@ -603,6 +603,7 @@ function ModuleFastJet() {
 
       SwallowProgress -f --pattern "Configuring FastJet contrib" ./configure
       SwallowProgress -f --pattern "Building FastJet contrib" make -j$MJ install
+      SwallowProgress -f --pattern "Building FastJet contrib shared library" make -j$MJ fragile-shared-install
 
     fi
 
