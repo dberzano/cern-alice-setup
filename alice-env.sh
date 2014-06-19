@@ -29,11 +29,12 @@ else
   # the command
   #export alien_API_USER="myalienusername"
 
-  # Triads in the form "ROOT Geant3 AliRoot [FastJet]". Indices starts from 1,
-  # not 0. The FastJet entry is optional.
+  # Triads in the form "ROOT Geant3 AliRoot [FastJet[_FJContrib]]". Indices
+  # start from 1 not 0. The FastJet entry is optional, and so is FJContrib.
   # More information: http://aliceinfo.cern.ch/Offline/AliRoot/Releases.html
-  TRIAD[1]="v5-34-11 v1-15a master 2.4.5"
-  TRIAD[2]="v5-34-00-patches trunk master"
+  TRIAD[1]="v5-34-11 v1-15a master" # no FastJet
+  TRIAD[2]="v5-34-11 v1-15a master 2.4.5" # with FastJet
+  TRIAD[3]="v5-34-18 v1-15a master 3.0.6_1.012" # with FastJet and FJ contrib
   # ...add more "triads" here without skipping array indices...
 
   # This is the "triad" that will be selected in non-interactive mode.
