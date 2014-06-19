@@ -507,7 +507,7 @@ function ModuleFastJet() {
   Swallow "Checking if FastJet support has been requested" [ "$FASTJET_VER" != '' ] || return
 
   Swallow -f "Creating FastJet directory" mkdir -p "$FASTJET/src"
-  Swallow -f "Moving into FastJet directory" cd "$FASTJET/src"
+  Swallow -f "Moving into FastJet source directory" cd "$FASTJET/src"
 
   if [ "$DOWNLOAD_MODE" == '' ] || [ "$DOWNLOAD_MODE" == 'only' ]; then
 
@@ -515,14 +515,14 @@ function ModuleFastJet() {
     # Download, unpack and patch FastJet tarball
     #
 
-    if [ ! -e $FASTJET_TARBALL ]; then
+    if [ ! -e "$FASTJET_TARBALL" ]; then
       SwallowProgress -f --percentage "Downloading FastJet v$FASTJET_VER" \
-        Dl $( printf "$FASTJET_URL_PATTERN" "$FASTJET_VER" ) $FASTJET_TARBALL
+        Dl $( printf "$FASTJET_URL_PATTERN" "$FASTJET_VER" ) "$FASTJET_TARBALL"
     fi
 
     if [ ! -d fastjet-"$FASTJET_VER" ]; then
       SwallowProgress -f --pattern "Unpacking FastJet tarball" \
-        tar xzvvf $FASTJET_TARBALL
+        tar xzvvf "$FASTJET_TARBALL"
     fi
 
     if [ "$FJCONTRIB_VER" != '' ] ; then
@@ -581,7 +581,7 @@ function ModuleFastJet() {
     # Build FastJet
     #
 
-    Swallow -f "Moving into build directory" \
+    Swallow -f "Moving into FastJet build directory" \
       cd "$FASTJET/src/fastjet-$FASTJET_VER"
 
     export CXXFLAGS="$BUILDOPT_LDFLAGS -lgmp"
