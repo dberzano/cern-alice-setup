@@ -232,7 +232,17 @@ function AliExportVars() {
   #
 
   if [ "$FASTJET_VER" != '' ] ; then
+
     # Export FastJet variables only if we mean to have FastJet
+
+    # Do we have contrib?
+    FJCONTRIB_VER=${FASTJET_VER##*_}
+    if [ "$FJCONTRIB_VER" != "$FASTJET_VER" ] && [ "$FJCONTRIB_VER" != '' ] ; then
+      export FJCONTRIB_VER
+      export FASTJET_VER="${FASTJET_VER%_*}"
+      echo "*** We have FJContrib $FJCONTRIB_VER and FastJet $FASTJET_VER ***"
+    fi
+
     export FASTJET="$ALICE_PREFIX/fastjet/$FASTJET_SUBDIR"
     export FASTJET_VER
     if [ -d "$FASTJET/bin" ] && [ -d "$FASTJET/lib" ] ; then
