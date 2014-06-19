@@ -600,12 +600,12 @@ function ModuleAliRoot() {
     Swallow -f 'Creating AliRoot Git local directory' mkdir -p "$AliRootGit"
     Swallow -f 'Moving into AliRoot Git local directory' cd "$AliRootGit"
     if [ ! -e "$AliRootGit/.git" ] ; then
-      Swallow -f 'Cloning AliRoot Git repository (might take some time)' \
+      SwallowProgress -f --pattern 'Cloning AliRoot Git repository (might take some time)' \
         git clone http://git.cern.ch/pub/AliRoot .
     fi
     AliRootGit=$(cd "$AliRootGit";pwd)
 
-    Swallow -f 'Updating list of remote AliRoot Git branches' \
+    SwallowProgress -f --pattern 'Updating list of remote AliRoot Git branches' \
       git remote update origin
 
     # Semantic fix: many people will still call it 'trunk'...
@@ -621,7 +621,7 @@ function ModuleAliRoot() {
     # Shallow copy with git-new-workdir
     if [ ! -d "$ALICE_ROOT/.git" ] ; then
       rmdir "$ALICE_ROOT" > /dev/null 2>&1  # works if dir is empty
-      Swallow -f "Creating a local clone for version $ALICE_VER" \
+      SwallowProgress -f --pattern "Creating a local clone for version $ALICE_VER" \
         git-new-workdir "$AliRootGit" "$ALICE_ROOT" "$ALICE_VER"
     fi
 
@@ -630,7 +630,7 @@ function ModuleAliRoot() {
 
     # Note: if we are working on a clone made with git-new-workdir, changes
     # here will be propagated to all directories cloned with the same tool
-    Swallow "Updating AliRoot $ALICE_VER" git pull --rebase  # non-fatal
+    SwallowProgress --pattern "Updating AliRoot $ALICE_VER" git pull --rebase  # non-fatal
 
     # In the end we still have:
     #  - source in $ALICE_ROOT
@@ -653,7 +653,7 @@ function ModuleAliRoot() {
       if [ "$BUILDOPT_LDFLAGS" != '' ]; then
 
         # Special configuration for latest Ubuntu/Linux Mint
-        Swallow -f "Bootstrapping AliRoot build with cmake (using LDFLAGS)" \
+        SwallowProgress -f --pattern "Bootstrapping AliRoot build with cmake (using LDFLAGS)" \
           cmake "$ALICE_ROOT" \
             -DCMAKE_C_COMPILER=`root-config --cc` \
             -DCMAKE_CXX_COMPILER=`root-config --cxx` \
@@ -665,7 +665,7 @@ function ModuleAliRoot() {
       else
 
         # Any other configuration (no linker)
-        Swallow -f "Bootstrapping AliRoot build with cmake" \
+        SwallowProgress -f --pattern "Bootstrapping AliRoot build with cmake" \
           cmake "$ALICE_ROOT" \
             -DCMAKE_C_COMPILER=`root-config --cc` \
             -DCMAKE_CXX_COMPILER=`root-config --cxx` \
@@ -684,7 +684,7 @@ function ModuleAliRoot() {
 
     if [ "$DISPLAY" != "" ]; then
       # Non-fatal
-      Swallow "Testing ROOT with AliRoot libraries" \
+      SwallowProgress --pattern "Testing ROOT with AliRoot libraries" \
         root -l -q "$ALICE_ROOT"/macros/loadlibs.C
     fi
 
