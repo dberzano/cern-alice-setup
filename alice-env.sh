@@ -145,7 +145,7 @@ function AliCleanPathList() {
 # Cleans up the environment from previously set (DY)LD_LIBRARY_PATH and PATH
 # variables
 function AliCleanEnv() {
-  AliRemovePaths PATH alien_cp aliroot root
+  AliRemovePaths PATH alien_cp aliroot root fastjet-config
   AliRemovePaths LD_LIBRARY_PATH libCint.so libSTEER.so libXrdSec.so \
     libgeant321.so libgapiUI.so libfastjet.so libfastjet.dylib
   AliRemovePaths DYLD_LIBRARY_PATH libCint.so libSTEER.so libXrdSec.so \
@@ -236,6 +236,7 @@ function AliExportVars() {
     export FASTJET="$ALICE_PREFIX/fastjet/$FASTJET_SUBDIR"
     export FASTJET_VER
     if [ -d "$FASTJET/bin" ] && [ -d "$FASTJET/lib" ] ; then
+      export PATH="$PATH:$FASTJET/bin"
       export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$FASTJET/lib"
     fi
   else
