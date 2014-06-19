@@ -497,13 +497,17 @@ function ModuleFastJet() {
   local FASTJET_URL_PATTERN='http://fastjet.fr/repo/fastjet-%s.tar.gz'
   local FASTJET_TARBALL='source.tar.gz'
 
+  # FastJet contrib (optional)
+  local FJCONTRIB_URL_PATTERN='http://fastjet.hepforge.org/contrib/downloads/fjcontrib-%s.tar.gz'
+  local FJCONTRIB_TARBALL='contrib.tar.gz'
+
   Banner "Installing FastJet..."
   Swallow -f "Sourcing envvars" SourceEnvVars
 
   Swallow "Checking if FastJet support has been requested" [ "$FASTJET_VER" != '' ] || return
 
   Swallow -f "Creating FastJet directory" mkdir -p "$FASTJET/src"
-  Swallow -f "Moving into FastJet directory" cd "$FASTJET/src"
+  Swallow -f "Moving into FastJet source directory" cd "$FASTJET/src"
 
   if [ "$DOWNLOAD_MODE" == '' ] || [ "$DOWNLOAD_MODE" == 'only' ]; then
 
@@ -511,19 +515,35 @@ function ModuleFastJet() {
     # Download, unpack and patch FastJet tarball
     #
 
-    if [ ! -e $FASTJET_TARBALL ]; then
+    if [ ! -e "$FASTJET_TARBALL" ]; then
       SwallowProgress -f --percentage "Downloading FastJet v$FASTJET_VER" \
-        Dl $( printf "$FASTJET_URL_PATTERN" "$FASTJET_VER" ) $FASTJET_TARBALL
+        Dl $( printf "$FASTJET_URL_PATTERN" "$FASTJET_VER" ) "$FASTJET_TARBALL"
     fi
 
     if [ ! -d fastjet-"$FASTJET_VER" ]; then
       SwallowProgress -f --pattern "Unpacking FastJet tarball" \
-        tar xzvvf $FASTJET_TARBALL
+        tar xzvvf "$FASTJET_TARBALL"
+    fi
+
+    if [ "$FJCONTRIB_VER" != '' ] ; then
+
+      # Optional FastJet contrib
+
+      if [ ! -e "$FJCONTRIB_TARBALL" ]; then
+        SwallowProgress -f --percentage "Downloading FastJet contrib v$FJCONTRIB_VER" \
+          Dl $( printf "$FJCONTRIB_URL_PATTERN" "$FJCONTRIB_VER" ) "$FJCONTRIB_TARBALL"
+      fi
+
+      if [ ! -d fjcontrib-"$FJCONTRIB_VER" ]; then
+        SwallowProgress -f --pattern "Unpacking FastJet contrib tarball" \
+          tar xzvvf "$FJCONTRIB_TARBALL"
+      fi
+
     fi
 
     # Patch FastJet to make namespaces seen by CINT
     function FastJetPatchCINTNamespace() {
-      find include/fastjet -name '*.h' -or -name '*.hh' -maxdepth 2 | \
+      find . -name '*.h' -or -name '*.hh' -or -name '*.cc' -or -name '*.icc' | \
         while read F; do
           sed -e 's|^FASTJET_BEGIN_NAMESPACE.*|namespace fastjet {|' \
               -e 's|^FASTJET_END_NAMESPACE.*|} // end "fastjet" namespace|' \
@@ -561,7 +581,7 @@ function ModuleFastJet() {
     # Build FastJet
     #
 
-    Swallow -f "Moving into build directory" \
+    Swallow -f "Moving into FastJet build directory" \
       cd "$FASTJET/src/fastjet-$FASTJET_VER"
 
     export CXXFLAGS="$BUILDOPT_LDFLAGS -lgmp"
@@ -570,6 +590,21 @@ function ModuleFastJet() {
     unset CXXFLAGS
 
     SwallowProgress -f --pattern "Building FastJet" make -j$MJ install
+
+    if [ "$FJCONTRIB_VER" != '' ] ; then
+
+      #
+      # Build FastJet contrib (optional)
+      #
+
+      Swallow -f "Sourcing envvars" SourceEnvVars
+      Swallow -f "Moving into FastJet contrib build directory" \
+        cd "$FASTJET/src/fjcontrib-$FJCONTRIB_VER"
+
+      SwallowProgress -f --pattern "Configuring FastJet contrib" ./configure
+      SwallowProgress -f --pattern "Building FastJet contrib" make -j$MJ install
+
+    fi
 
   fi
 
@@ -736,7 +771,10 @@ function SwallowProgress() {
       fi
     else
       # Based on the percentage (default)
-      ProgressCount=$( grep -Eo '[0-9]{1,3}%' "$OUT" | tail -n1 | tr -d '%' )
+      ProgressCount=$( tail -n10 "$OUT" | grep -Eo '[0-9]{1,3}([,\.][0-9])?%' | tail -n1 | tr -d '%' )
+      ProgressCount=${ProgressCount%%,*}
+      ProgressCount=${ProgressCount%%.*}
+      ProgressCount=$((ProgressCount+0))
     fi
     SwallowStep $Mode "$Op" $ProgressCount $TsStart
     sleep 1
@@ -806,12 +844,13 @@ function ModuleCleanAliRoot() {
 
 # Download URL $1 to file $2 using wget or curl
 function Dl() {
+  # All output on stdout to allow for SwallowProgress to work
   which curl > /dev/null 2>&1
   if [ $? == 0 ]; then
-    curl -Lo "$2" "$1"
+    curl --progress-bar -Lo "$2" "$1" 2>&1
     return $?
   else
-    wget -O "$2" "$1"
+    wget -O "$2" "$1" 2>&1
     return $?
   fi
 }

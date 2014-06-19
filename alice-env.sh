@@ -29,11 +29,12 @@ else
   # the command
   #export alien_API_USER="myalienusername"
 
-  # Triads in the form "ROOT Geant3 AliRoot [FastJet]". Indices starts from 1,
-  # not 0. The FastJet entry is optional.
+  # Triads in the form "ROOT Geant3 AliRoot [FastJet[_FJContrib]]". Indices
+  # start from 1 not 0. The FastJet entry is optional, and so is FJContrib.
   # More information: http://aliceinfo.cern.ch/Offline/AliRoot/Releases.html
-  TRIAD[1]="v5-34-11 v1-15a master 2.4.5"
-  TRIAD[2]="v5-34-00-patches trunk master"
+  TRIAD[1]="v5-34-11 v1-15a master" # no FastJet
+  TRIAD[2]="v5-34-11 v1-15a master 2.4.5" # with FastJet
+  TRIAD[3]="v5-34-18 v1-15a master 3.0.6_1.012" # with FastJet and FJ contrib
   # ...add more "triads" here without skipping array indices...
 
   # This is the "triad" that will be selected in non-interactive mode.
@@ -145,7 +146,7 @@ function AliCleanPathList() {
 # Cleans up the environment from previously set (DY)LD_LIBRARY_PATH and PATH
 # variables
 function AliCleanEnv() {
-  AliRemovePaths PATH alien_cp aliroot root
+  AliRemovePaths PATH alien_cp aliroot root fastjet-config
   AliRemovePaths LD_LIBRARY_PATH libCint.so libSTEER.so libXrdSec.so \
     libgeant321.so libgapiUI.so libfastjet.so libfastjet.dylib
   AliRemovePaths DYLD_LIBRARY_PATH libCint.so libSTEER.so libXrdSec.so \
@@ -232,10 +233,21 @@ function AliExportVars() {
   #
 
   if [ "$FASTJET_VER" != '' ] ; then
+
     # Export FastJet variables only if we mean to have FastJet
+
+    # Do we have contrib?
+    FJCONTRIB_VER=${FASTJET_VER##*_}
+    if [ "$FJCONTRIB_VER" != "$FASTJET_VER" ] && [ "$FJCONTRIB_VER" != '' ] ; then
+      export FJCONTRIB_VER
+      export FASTJET_VER="${FASTJET_VER%_*}"
+      echo "*** We have FJContrib $FJCONTRIB_VER and FastJet $FASTJET_VER ***"
+    fi
+
     export FASTJET="$ALICE_PREFIX/fastjet/$FASTJET_SUBDIR"
     export FASTJET_VER
     if [ -d "$FASTJET/bin" ] && [ -d "$FASTJET/lib" ] ; then
+      export PATH="$PATH:$FASTJET/bin"
       export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$FASTJET/lib"
     fi
   else
@@ -402,7 +414,7 @@ function AliMain() {
 
   [ "$OPT_NONINTERACTIVE" != 1 ] && AliMenu
 
-  unset ROOT_VER G3_VER ALICE_VER FASTJET_VER
+  unset ROOT_VER G3_VER ALICE_VER FASTJET_VER FJCONTRIB_VER
   if [ $N_TRIAD -gt 0 ]; then
     C=0
     for T in ${TRIAD[$N_TRIAD]}
@@ -448,7 +460,7 @@ function AliMain() {
       ROOT_VER ROOT_SUBDIR \
       G3_VER G3_SUBDIR \
       ALICE_VER ALICE_SUBDIR \
-      FASTJET_VER FASTJET_SUBDIR \
+      FASTJET_VER FASTJET_SUBDIR FJCONTRIB_VER \
       alien_API_USER
     if [ "$OPT_QUIET" != 1 ]; then
       echo -e "\033[33mALICE environment variables cleared\033[m"
