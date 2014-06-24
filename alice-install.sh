@@ -564,7 +564,7 @@ function ModuleFastJet() {
           while read F; do
             echo '#include <cstdlib>' > "$F.0" && \
               cat "$F" | grep -v '#include <cstdlib>' >> "$F.0" && \
-              mv "$F.0" "$F" || return 1
+              \mv -f "$F.0" "$F" || return 1
           done
       }
 
