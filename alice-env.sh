@@ -30,7 +30,8 @@ else
   #export alien_API_USER="myalienusername"
 
   # Triads in the form "ROOT Geant3 AliRoot [FastJet[_FJContrib]]". Indices
-  # start from 1 not 0. The FastJet entry is optional, and so is FJContrib.
+  # start from 1 not 0. The FastJet entry is optional. FJ Contrib is optional
+  # with FastJet 2 and mandatory with FastJet 3.
   # More information: http://aliceinfo.cern.ch/Offline/AliRoot/Releases.html
   TRIAD[1]="v5-34-11 v1-15a master" # no FastJet
   TRIAD[2]="v5-34-11 v1-15a master 2.4.5" # with FastJet
