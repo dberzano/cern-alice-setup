@@ -154,6 +154,10 @@ function AliCleanEnv() {
     libgeant321.so libgapiUI.so libfastjet.so libfastjet.dylib
   AliRemovePaths PYTHONPATH ROOT.py 
 
+  # Restore prompt
+  [ "$ALIPS1" == '' ] || export PS1="$ALIPS1"
+  unset ALIPS1
+
   # Unset other environment variables and aliases
   unset MJ ALIEN_DIR GSHELL_ROOT ROOTSYS ALICE ALICE_ROOT ALICE_BUILD \
     ALICE_TARGET GEANT3DIR X509_CERT_DIR ALICE FASTJET
@@ -254,6 +258,25 @@ function AliExportVars() {
     unset FASTJET_VER FASTJET_SUBDIR
   fi
 
+  #
+  # Git prompt
+  #
+
+  export ALIPS1="$PS1"
+  export PS1='`AliPrompt`'"$PS1"
+
+}
+
+# Prompt with current Git revision
+function AliPrompt() {
+  local REF=`git rev-parse --abbrev-ref HEAD 2> /dev/null`
+  local COL_GIT="\033[35mgit:\033[m"
+  if [ "$REF" == 'HEAD' ] ; then
+    echo -e "\n$COL_GIT \033[33myou are not currently on any branch\033[m"
+  elif [ "$REF" != '' ] ; then
+    echo -e "\n$COL_GIT \033[33myou are currently on branch \033[36m$REF\033[m"
+  fi
+  echo '[AliEnv] '
 }
 
 # Prints out the ALICE paths. In AliRoot, the SVN revision number is also echoed
@@ -461,7 +484,7 @@ function AliMain() {
       G3_VER G3_SUBDIR \
       ALICE_VER ALICE_SUBDIR \
       FASTJET_VER FASTJET_SUBDIR FJCONTRIB_VER \
-      alien_API_USER
+      alien_API_USER AliPrompt
     if [ "$OPT_QUIET" != 1 ]; then
       echo -e "\033[33mALICE environment variables cleared\033[m"
     fi
