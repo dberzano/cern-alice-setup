@@ -446,34 +446,23 @@ function ModuleGeant3() {
   Banner "Installing Geant3..."
   Swallow -f "Sourcing envvars" SourceEnvVars
 
-  if [ ! -d "$GEANT3DIR" ]; then
-    Swallow -f "Creating Geant3 directory" mkdir -p "$GEANT3DIR"
-  fi
-
-  Swallow -f "Moving into Geant3 directory" cd "$GEANT3DIR"
-
   if [ "$DOWNLOAD_MODE" == '' ] || [ "$DOWNLOAD_MODE" == 'only' ] ; then
 
     #
-    # Download Geant3
+    # Git clone of Geant3
     #
 
-    # Different behaviors if it is trunk or not
-    if [ "$G3_VER" == "trunk" ]; then
-      # Trunk: download if needed, update to latest if already present
-      if [ ! -f "Makefile" ]; then
-        # We have to download it
-        SwallowProgress -f --pattern "Downloading Geant3 trunk" svn co http://root.cern.ch$SVN_G3/trunk .
-      else
-        # We just have to update it; run "upgrade" first just in case
-        SwallowProgress --pattern "Upgrading to latest SVN version" svn upgrade --non-interactive
-        SwallowProgress -f --pattern "Updating Geant3 to latest trunk" svn up --non-interactive
-      fi
-    else
-      # No trunk: just download, never update
-      if [ ! -f "Makefile" ]; then
-        SwallowProgress -f --pattern "Downloading Geant3 $G3_VER" svn co http://root.cern.ch$SVN_G3/tags/$G3_VER .
-      fi
+    Swallow -f "Creating Geant3 Git clone directory" mkdir -p $ALICE_PREFIX/geant3/git
+    Swallow -f "Moving to the Geant3 Git clone directory" cd $ALICE_PREFIX/geant3/git
+
+    if [ ! -d "$ALICE_PREFIX/geant3/git/.git" ] ; then
+      SwallowProgress -f --pattern "Cloning Geant3 Git repository" git clone http://root.cern.ch/git/geant3.git .
+    fi
+
+    SwallowProgress -f --pattern "Updating the list of Git references" git remote update --prune
+
+    if [ ! -d "$GEANT3DIR/.git" ] ; then
+      SwallowProgress -f --pattern "Creating a local Git clone for Geant3 version $G3_VER" git-new-workdir "$ALICE_PREFIX/geant3/git" "$GEANT3DIR" "$G3_VER"
     fi
 
   fi # end download
@@ -484,6 +473,7 @@ function ModuleGeant3() {
     # Build Geant3
     #
 
+    Swallow -f "Moving to the local Git clone for Geant3 version $G3_VER" cd "$GEANT3DIR"
     SwallowProgress -f --pattern "Building Geant3" make -j$MJ
 
   fi
