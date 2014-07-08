@@ -484,7 +484,7 @@ function ModuleGeant3() {
     # Build Geant3
     #
 
-    SwallowProgress -f --pattern "Building Geant3" make
+    SwallowProgress -f --pattern "Building Geant3" make -j$MJ
 
   fi
 
