@@ -13,6 +13,26 @@ export LANG=C
 os_unpriv=$( stat -c "%U" "$0" )
 os_conffile="$PWD/openstack-install.conf"
 
+function _omnom() {
+  to_install=''
+  for p in "$@" ; do
+    if [ "${p##*.}" == 'rpm' ] ; then
+      p=${p##*/}
+      p=${p%-*}
+    fi
+    _e "checking $p"
+    rpm -q "$p" > /dev/null 2>&1 || to_install="$to_install $p"
+  done
+  if [ "$to_install" != '' ] ; then
+    _e "to install: $to_install"
+    yum -y install $to_install
+    return $?
+  else
+    _e "nothing to install"
+    return 0
+  fi
+}
+
 function _d() {
   date +%Y%m%d-%H%M%S
 }
@@ -48,22 +68,22 @@ function _i_common() {
 
   _e "*** common part ***"
 
-  _nx systemctl disable NetworkManager.service
-  _nx systemctl stop NetworkManager.service
-  _nx systemctl restart network.service
-  _nx systemctl enable network.service
+  _x systemctl disable NetworkManager.service
+  _x systemctl stop NetworkManager.service
+  _x systemctl restart network.service
+  _x systemctl enable network.service
 
-  _nx yum remove -y firewalld
-  _nx yum install -y iptables-services yum-plugin-priorities
+  _x yum remove -y firewalld
+  _x _omnom iptables-services yum-plugin-priorities
 
-  _nx yum install -y http://repos.fedorapeople.org/repos/openstack/openstack-icehouse/rdo-release-icehouse-3.noarch.rpm
+  _x _omnom http://repos.fedorapeople.org/repos/openstack/openstack-icehouse/rdo-release-icehouse-3.noarch.rpm
 
   repo=/etc/yum.repos.d/rdo-release.repo
-  _nx sed -e 's#$releasever#20# ; s#^\s*priority\s*=\s*.*$#priority=1#' -i "$repo"
+  _x sed -e 's#$releasever#20# ; s#^\s*priority\s*=\s*.*$#priority=1#' -i "$repo"
 
-  _nx yum install -y ftp://fr2.rpmfind.net/linux/fedora/linux/development/rawhide/x86_64/os/Packages/p/python-oslo-config-1.2.1-2.fc21.noarch.rpm
+  _x _omnom ftp://fr2.rpmfind.net/linux/fedora/linux/development/rawhide/x86_64/os/Packages/p/python-oslo-config-1.2.1-2.fc21.noarch.rpm
 
-  _nx yum install -y openstack-utils
+  _x _omnom openstack-utils
 
   # generate all the passwords; save them to a configuration file
   source "$os_conffile" 2> /dev/null
@@ -98,8 +118,8 @@ function _i_common() {
   source "$os_conffile"
 
   _e "checking if server address is set: $os_server_ip ($os_server_fqdn)"
-  _nx [ "$os_server_ip" != '' ]
-  _nx [ "$os_server_fqdn" != '' ]
+  _x [ "$os_server_ip" != '' ]
+  _x [ "$os_server_fqdn" != '' ]
 
   # custom part! beware!
   raw=$( ifconfig | grep -E '\s*inet 10.162.128.' 2> /dev/null | head -n1 )
@@ -107,14 +127,14 @@ function _i_common() {
     os_current_ip="${BASH_REMATCH[1]}"
   fi
   _e "current ip: $os_current_ip"
-  _nx [ "$os_current_ip" != '' ]
+  _x [ "$os_current_ip" != '' ]
 
 }
 
 function _i_head() {
   _e "*** head node part ***"
 
-  _nx yum install -y mariadb-server MySQL-python qpid-cpp-server \
+  _x _omnom mariadb-server MySQL-python qpid-cpp-server \
     openstack-keystone python-keystoneclient \
     openstack-glance python-glanceclient \
     openstack-nova-api openstack-nova-cert openstack-nova-conductor \
@@ -122,32 +142,32 @@ function _i_head() {
     python-novaclient
 
   my=/etc/my.cnf
-  [ ! -e "$my".before_openstack ] && _nx cp "$my" "$my".before_openstack
+  [ ! -e "$my".before_openstack ] && _x cp "$my" "$my".before_openstack
   cat "$my".before_openstack | grep -v 'bind-address|default-storage-engine|innodb_file_per_table|collation-server|init-connect|character-set-server' > "$my"
-  _nx sed -e "s#\[mysqld\]#[mysqld]\nbind-address = $os_server_ip\ndefault-storage-engine = innodb\ninnodb_file_per_table\ncollation_server = utf8_general_ci\ninit-connect = 'SET NAMES utf8'\ncharacter-set-server = utf8#" -i "$my"
+  _x sed -e "s#\[mysqld\]#[mysqld]\nbind-address = $os_server_ip\ndefault-storage-engine = innodb\ninnodb_file_per_table\ncollation_server = utf8_general_ci\ninit-connect = 'SET NAMES utf8'\ncharacter-set-server = utf8#" -i "$my"
 
-  _nx systemctl restart mysqld.service
-  _nx systemctl enable mysqld.service
+  _x systemctl restart mysqld.service
+  _x systemctl enable mysqld.service
 
   _e "about to configure mysql for the first time"
   _e "conf is interactive: answer yes to all questions"
   _e "use as root password: $os_pwd_mysql_root"
-  _e "press enter to start..."
-  _nx read
-  _nx mysql_secure_installation
+  _e "press enter to start (type skip to skip)..."
+  _x read ans
+  [ "$ans" != 'skip' ] && _x mysql_secure_installation
 
   qpid=/etc/qpidd.conf
-  [ ! -e "$qpid".before_openstack ] && _nx cp "$qpid" "$qpid".before_openstack
+  [ ! -e "$qpid".before_openstack ] && _x cp "$qpid" "$qpid".before_openstack
   cat "$qpid".before_openstack | grep -vE '^\s*auth\s*=' > "$qpid"
   echo -e "\nauth=no" >> "$qpid"
-  _nx grep -q 'auth=no' "$qpid"
+  _x grep -q 'auth=no' "$qpid"
 
-  _nx systemctl restart qpidd.service
-  _nx systemctl enable qpidd.service
+  _x systemctl restart qpidd.service
+  _x systemctl enable qpidd.service
 
   # database creation part!
 
-  _nx mysql -u root --password=$os_pwd_mysql_root --table -vvv <<EOF
+  _x mysql -u root --password=$os_pwd_mysql_root --table -vvv <<EOF
 
 CREATE DATABASE IF NOT EXISTS keystone ;
 GRANT ALL PRIVILEGES ON keystone.* TO 'keystone'@'localhost' IDENTIFIED BY '$os_pwd_mysql_keystone' ;
@@ -168,47 +188,58 @@ EOF
 
   # service: keystone
   cf=/etc/keystone/keystone.conf
-  _nx openstack-config --set "$cf" DEFAULT admin_token $os_pwd_admin_token
-  _nx openstack-config --set "$cf" database connection mysql://keystone:$os_pwd_mysql_keystone@$os_server_fqdn/keystone
+  _x openstack-config --set "$cf" DEFAULT admin_token $os_pwd_admin_token
+  _x openstack-config --set "$cf" database connection mysql://keystone:$os_pwd_mysql_keystone@$os_server_fqdn/keystone
 
   if [ ! -d /etc/keystone/ssl ] ; then
-    _nx keystone-manage pki_setup --keystone-user keystone --keystone-group keystone
-    _nx chown -R keystone:keystone /etc/keystone/ssl
-    _nx chmod -R o-rwx /etc/keystone/ssl
+    _x keystone-manage pki_setup --keystone-user keystone --keystone-group keystone
+    _x chown -R keystone:keystone /etc/keystone/ssl
+    _x chmod -R o-rwx /etc/keystone/ssl
   fi
 
-  _nx chgrp keystone /var/log/keystone/keystone.log
-  _nx chmod 0660 /var/log/keystone/keystone.log
-  _nx sudo -u keystone keystone-manage db_sync
+  _x chgrp keystone /var/log/keystone/keystone.log
+  _x chmod 0660 /var/log/keystone/keystone.log
+  _x sudo -u keystone keystone-manage db_sync
 
   (crontab -l -u keystone 2>&1 | grep -q token_flush) || \
     echo '@hourly /usr/bin/keystone-manage token_flush >/var/log/keystone/keystone-tokenflush.log 2>&1' >> /var/spool/cron/keystone
-  _nx grep -q 'keystone-manage token_flush' /var/spool/cron/keystone
+  _x grep -q 'keystone-manage token_flush' /var/spool/cron/keystone
 
-  _nx systemctl restart openstack-keystone
-  _nx systemctl enable openstack-keystone
+  _x systemctl restart openstack-keystone
+  _x systemctl enable openstack-keystone
 
   (
     export OS_SERVICE_TOKEN=$os_pwd_admin_token
     export OS_SERVICE_ENDPOINT=http://$os_server_fqdn:35357/v2.0
 
     # admin user, admin tenant and service tenant
-    _nx sudo -Eu nobody keystone user-create --name=admin --pass=$os_pwd_ospwd_admin --email=admin@dummy.openstack.org
+    keystone user-list | grep -qE '|\s+admin\s+|' || \
+      _x sudo -Eu nobody keystone user-create --name=admin --pass=$os_pwd_ospwd_admin --email=admin@dummy.openstack.org
 
-    _nx sudo -Eu nobody keystone role-create --name=admin
-    _nx sudo -Eu nobody keystone tenant-create --name=admin --description="Admin Tenant"
-    _nx sudo -Eu nobody keystone user-role-add --user=admin --tenant=admin --role=admin
-    _nx sudo -Eu nobody keystone user-role-add --user=admin --role=_member_ --tenant=admin
+    keystone role-list | grep -qE '|\s+admin\s+|' || \
+      _x sudo -Eu nobody keystone role-create --name=admin
 
-    _nx sudo -Eu nobody keystone user-create --name=demo --pass=$os_pwd_ospwd_demo --email=demo@dummy.openstack.org
-    _nx sudo -Eu nobody keystone tenant-create --name=demo --description="Demo Tenant"
-    _nx sudo -Eu nobody keystone user-role-add --user=demo --role=_member_ --tenant=demo
+    if ! keystone tenant-list | grep -qE '|\s+admin\s+|' ; then
+      _x sudo -Eu nobody keystone tenant-create --name=admin --description="Admin Tenant"
+      _x sudo -Eu nobody keystone user-role-add --user=admin --tenant=admin --role=admin
+      _x sudo -Eu nobody keystone user-role-add --user=admin --tenant=admin --role=_member_
+    fi
 
-    _nx sudo -Eu nobody keystone tenant-create --name=service --description="Service Tenant"
+    keystone user-list | grep -qE '|\s+demo\s+|' || \
+      _x sudo -Eu nobody keystone user-create --name=demo --pass=$os_pwd_ospwd_demo --email=demo@dummy.openstack.org
+
+    if ! keystone tenant-list | grep -qE '|\s+demo\s+|' ; then
+      _x sudo -Eu nobody keystone tenant-create --name=demo --description="Demo Tenant"
+      _x sudo -Eu nobody keystone user-role-add --user=demo --tenant=demo --role=_member_
+    fi
+
+    ## safe against re-run up to this point ##
+
+    _x sudo -Eu nobody keystone tenant-create --name=service --description="Service Tenant"
 
     # register service endpoints
-    _nx sudo -Eu nobody keystone service-create --name=keystone --type=identity --description="OpenStack Identity"
-    _nx sudo -Eu nobody keystone endpoint-create \
+    _x sudo -Eu nobody keystone service-create --name=keystone --type=identity --description="OpenStack Identity"
+    _x sudo -Eu nobody keystone endpoint-create \
       --service-id=$(keystone service-list | awk '/ identity / {print $2}') \
       --publicurl=http://$os_server_fqdn:5000/v2.0 \
       --internalurl=http://$os_server_fqdn:5000/v2.0 \
@@ -216,7 +247,7 @@ EOF
   ) || exit $?
 
   # try to get a token for test
-  #_nx keystone --os-username=admin --os-password=$os_pwd_ospwd_admin --os-auth-url=http://$os_server_fqdn:35357/v2.0 token-get
+  #_x keystone --os-username=admin --os-password=$os_pwd_ospwd_admin --os-auth-url=http://$os_server_fqdn:35357/v2.0 token-get
 
   _e "to use openstack as admin:"
   _e "  export OS_AUTH_URL=http://$os_server_fqdn:35357/v2.0"
@@ -225,47 +256,47 @@ EOF
   _e "  export OS_TENANT_NAME=admin"
 
   # service: glance
-  _nx openstack-config --set /etc/glance/glance-api.conf database connection mysql://glance:$os_pwd_mysql_glance@$os_server_fqdn/glance
-  _nx openstack-config --set /etc/glance/glance-registry.conf database connection mysql://glance:$os_pwd_mysql_glance@$os_server_fqdn/glance
-  _nx sudo -u glance glance-manage db_sync
+  _x openstack-config --set /etc/glance/glance-api.conf database connection mysql://glance:$os_pwd_mysql_glance@$os_server_fqdn/glance
+  _x openstack-config --set /etc/glance/glance-registry.conf database connection mysql://glance:$os_pwd_mysql_glance@$os_server_fqdn/glance
+  _x sudo -u glance glance-manage db_sync
 
   cf=/etc/glance/glance-api.conf
-  _nx openstack-config --set $cf keystone_authtoken auth_uri http://$os_server_fqdn:5000
-  _nx openstack-config --set $cf keystone_authtoken auth_host $os_server_fqdn
-  _nx openstack-config --set $cf keystone_authtoken auth_port 35357
-  _nx openstack-config --set $cf keystone_authtoken auth_protocol http
-  _nx openstack-config --set $cf keystone_authtoken admin_tenant_name service
-  _nx openstack-config --set $cf keystone_authtoken admin_user glance
-  _nx openstack-config --set $cf keystone_authtoken admin_password $os_pwd_ospwd_glance
-  _nx openstack-config --set $cf paste_deploy flavor keystone
+  _x openstack-config --set $cf keystone_authtoken auth_uri http://$os_server_fqdn:5000
+  _x openstack-config --set $cf keystone_authtoken auth_host $os_server_fqdn
+  _x openstack-config --set $cf keystone_authtoken auth_port 35357
+  _x openstack-config --set $cf keystone_authtoken auth_protocol http
+  _x openstack-config --set $cf keystone_authtoken admin_tenant_name service
+  _x openstack-config --set $cf keystone_authtoken admin_user glance
+  _x openstack-config --set $cf keystone_authtoken admin_password $os_pwd_ospwd_glance
+  _x openstack-config --set $cf paste_deploy flavor keystone
 
   cf=/etc/glance/glance-registry.conf
-  _nx openstack-config --set $cf keystone_authtoken auth_uri http://$os_server_fqdn:5000
-  _nx openstack-config --set $cf keystone_authtoken auth_host $os_server_fqdn
-  _nx openstack-config --set $cf keystone_authtoken auth_port 35357
-  _nx openstack-config --set $cf keystone_authtoken auth_protocol http
-  _nx openstack-config --set $cf keystone_authtoken admin_tenant_name service
-  _nx openstack-config --set $cf keystone_authtoken admin_user glance
-  _nx openstack-config --set $cf keystone_authtoken admin_password $os_pwd_ospwd_glance
-  _nx openstack-config --set $cf paste_deploy flavor keystone
+  _x openstack-config --set $cf keystone_authtoken auth_uri http://$os_server_fqdn:5000
+  _x openstack-config --set $cf keystone_authtoken auth_host $os_server_fqdn
+  _x openstack-config --set $cf keystone_authtoken auth_port 35357
+  _x openstack-config --set $cf keystone_authtoken auth_protocol http
+  _x openstack-config --set $cf keystone_authtoken admin_tenant_name service
+  _x openstack-config --set $cf keystone_authtoken admin_user glance
+  _x openstack-config --set $cf keystone_authtoken admin_password $os_pwd_ospwd_glance
+  _x openstack-config --set $cf paste_deploy flavor keystone
 
   # service: nova controller
   cf=/etc/nova/nova.conf
-  _nx openstack-config --set $cf database connection mysql://nova:$os_pwd_mysql_nova@$os_server_fqdn/nova
-  _nx openstack-config --set $cf DEFAULT rpc_backend qpid
-  _nx openstack-config --set $cf DEFAULT qpid_hostname $os_server_fqdn
-  _nx openstack-config --set $cf DEFAULT my_ip $os_server_ip
-  _nx openstack-config --set $cf DEFAULT vncserver_listen $os_server_ip
-  _nx openstack-config --set $cf DEFAULT vncserver_proxyclient_address $os_server_ip
-  _nx openstack-config --set $cf DEFAULT auth_strategy keystone
-  _nx openstack-config --set $cf keystone_authtoken auth_uri http://$os_server_fqdn:5000
-  _nx openstack-config --set $cf keystone_authtoken auth_host $os_server_fqdn
-  _nx openstack-config --set $cf keystone_authtoken auth_protocol http
-  _nx openstack-config --set $cf keystone_authtoken auth_port 35357
-  _nx openstack-config --set $cf keystone_authtoken admin_user nova
-  _nx openstack-config --set $cf keystone_authtoken admin_tenant_name service
-  _nx openstack-config --set $cf keystone_authtoken admin_password $os_pwd_ospwd_nova
-  _nx sudo -u nova nova-manage db sync
+  _x openstack-config --set $cf database connection mysql://nova:$os_pwd_mysql_nova@$os_server_fqdn/nova
+  _x openstack-config --set $cf DEFAULT rpc_backend qpid
+  _x openstack-config --set $cf DEFAULT qpid_hostname $os_server_fqdn
+  _x openstack-config --set $cf DEFAULT my_ip $os_server_ip
+  _x openstack-config --set $cf DEFAULT vncserver_listen $os_server_ip
+  _x openstack-config --set $cf DEFAULT vncserver_proxyclient_address $os_server_ip
+  _x openstack-config --set $cf DEFAULT auth_strategy keystone
+  _x openstack-config --set $cf keystone_authtoken auth_uri http://$os_server_fqdn:5000
+  _x openstack-config --set $cf keystone_authtoken auth_host $os_server_fqdn
+  _x openstack-config --set $cf keystone_authtoken auth_protocol http
+  _x openstack-config --set $cf keystone_authtoken auth_port 35357
+  _x openstack-config --set $cf keystone_authtoken admin_user nova
+  _x openstack-config --set $cf keystone_authtoken admin_tenant_name service
+  _x openstack-config --set $cf keystone_authtoken admin_password $os_pwd_ospwd_nova
+  _x sudo -u nova nova-manage db sync
 
   (
     # unpriv operations: run as nobody, use admin openstack environment
@@ -276,21 +307,21 @@ EOF
     export OS_TENANT_NAME=admin
 
     # glance
-    _nx sudo -Eu nobody keystone user-create --name=glance --pass=$os_pwd_ospwd_glance --email=glance@dummy.openstack.org
-    _nx sudo -Eu nobody keystone user-role-add --user=glance --tenant=service --role=admin
-    _nx sudo -Eu nobody keystone service-create --name=glance --type=image \
+    _x sudo -Eu nobody keystone user-create --name=glance --pass=$os_pwd_ospwd_glance --email=glance@dummy.openstack.org
+    _x sudo -Eu nobody keystone user-role-add --user=glance --tenant=service --role=admin
+    _x sudo -Eu nobody keystone service-create --name=glance --type=image \
       --description="OpenStack Image Service"
-    _nx sudo -Eu nobody keystone endpoint-create \
+    _x sudo -Eu nobody keystone endpoint-create \
       --service-id=$(keystone service-list | awk '/ image / {print $2}') \
       --publicurl=http://$os_server_fqdn:9292 \
       --internalurl=http://$os_server_fqdn:9292 \
       --adminurl=http://$os_server_fqdn:9292
 
     # nova
-    _nx sudo -Eu nobody keystone user-create --name=nova --pass=$os_pwd_ospwd_nova --email=nova@dummy.openstack.org
-    _nx sudo -Eu nobody keystone user-role-add --user=nova --tenant=service --role=admin
-    _nx sudo -Eu nobody keystone service-create --name=nova --type=compute --description="OpenStack Compute"
-    _nx sudo -Eu nobody keystone endpoint-create \
+    _x sudo -Eu nobody keystone user-create --name=nova --pass=$os_pwd_ospwd_nova --email=nova@dummy.openstack.org
+    _x sudo -Eu nobody keystone user-role-add --user=nova --tenant=service --role=admin
+    _x sudo -Eu nobody keystone service-create --name=nova --type=compute --description="OpenStack Compute"
+    _x sudo -Eu nobody keystone endpoint-create \
       --service-id=$(keystone service-list | awk '/ compute / {print $2}') \
       --publicurl=http://$os_server_fqdn:8774/v2/%\(tenant_id\)s \
       --internalurl=http://$os_server_fqdn:8774/v2/%\(tenant_id\)s \
@@ -300,24 +331,24 @@ EOF
   # start services at the end of everything
 
   # glance
-  _nx systemctl restart openstack-glance-api
-  _nx systemctl restart openstack-glance-registry
-  _nx systemctl enable openstack-glance-api
-  _nx systemctl enable openstack-glance-registry
+  _x systemctl restart openstack-glance-api
+  _x systemctl restart openstack-glance-registry
+  _x systemctl enable openstack-glance-api
+  _x systemctl enable openstack-glance-registry
 
   # nova
-  _nx systemctl restart openstack-nova-api
-  _nx systemctl restart openstack-nova-cert
-  _nx systemctl restart openstack-nova-consoleauth
-  _nx systemctl restart openstack-nova-scheduler
-  _nx systemctl restart openstack-nova-conductor
-  _nx systemctl restart openstack-nova-novncproxy
-  _nx systemctl enable openstack-nova-api
-  _nx systemctl enable openstack-nova-cert
-  _nx systemctl enable openstack-nova-consoleauth
-  _nx systemctl enable openstack-nova-scheduler
-  _nx systemctl enable openstack-nova-conductor
-  _nx systemctl enable openstack-nova-novncproxy
+  _x systemctl restart openstack-nova-api
+  _x systemctl restart openstack-nova-cert
+  _x systemctl restart openstack-nova-consoleauth
+  _x systemctl restart openstack-nova-scheduler
+  _x systemctl restart openstack-nova-conductor
+  _x systemctl restart openstack-nova-novncproxy
+  _x systemctl enable openstack-nova-api
+  _x systemctl enable openstack-nova-cert
+  _x systemctl enable openstack-nova-consoleauth
+  _x systemctl enable openstack-nova-scheduler
+  _x systemctl enable openstack-nova-conductor
+  _x systemctl enable openstack-nova-novncproxy
 
   (
     # register an image
@@ -325,9 +356,9 @@ EOF
     export OS_USERNAME=admin
     export OS_PASSWORD=$os_pwd_ospwd_admin
     export OS_TENANT_NAME=admin
-    _nx curl -SsL http://cdn.download.cirros-cloud.net/0.3.2/cirros-0.3.2-x86_64-disk.img -o /tmp/cirros.img
+    _x curl -SsL http://cdn.download.cirros-cloud.net/0.3.2/cirros-0.3.2-x86_64-disk.img -o /tmp/cirros.img
     [ -e /tmp/cirros.img ] || touch /tmp/cirros.img
-    _nx glance image-create --name='CirrOS Test Image' --disk-format='qcow2' --container-format='bare' --is-public='true' < /tmp/cirros.img
+    _x glance image-create --name='CirrOS Test Image' --disk-format='qcow2' --container-format='bare' --is-public='true' < /tmp/cirros.img
     rm -f /tmp/cirros.img
   ) || exit $?
 
@@ -336,44 +367,44 @@ EOF
 function _i_worker() {
   _e "*** worker node part ***"
 
-  _nx yum install -y openstack-nova-compute --disablerepo='slc6-*'
+  _x _omnom openstack-nova-compute --disablerepo='slc6-*'
 
   # service: nova compute
   cf=/etc/nova/nova.conf
-  _nx openstack-config --set $cf database connection mysql://nova:$os_pwd_mysql_nova@$os_server_fqdn/nova
-  _nx openstack-config --set $cf DEFAULT auth_strategy keystone
-  _nx openstack-config --set $cf keystone_authtoken auth_uri http://$os_server_fqdn:5000
-  _nx openstack-config --set $cf keystone_authtoken auth_host $os_server_fqdn
-  _nx openstack-config --set $cf keystone_authtoken auth_protocol http
-  _nx openstack-config --set $cf keystone_authtoken auth_port 35357
-  _nx openstack-config --set $cf keystone_authtoken admin_user nova
-  _nx openstack-config --set $cf keystone_authtoken admin_tenant_name service
-  _nx openstack-config --set $cf keystone_authtoken admin_password $os_pwd_ospwd_nova
+  _x openstack-config --set $cf database connection mysql://nova:$os_pwd_mysql_nova@$os_server_fqdn/nova
+  _x openstack-config --set $cf DEFAULT auth_strategy keystone
+  _x openstack-config --set $cf keystone_authtoken auth_uri http://$os_server_fqdn:5000
+  _x openstack-config --set $cf keystone_authtoken auth_host $os_server_fqdn
+  _x openstack-config --set $cf keystone_authtoken auth_protocol http
+  _x openstack-config --set $cf keystone_authtoken auth_port 35357
+  _x openstack-config --set $cf keystone_authtoken admin_user nova
+  _x openstack-config --set $cf keystone_authtoken admin_tenant_name service
+  _x openstack-config --set $cf keystone_authtoken admin_password $os_pwd_ospwd_nova
 
   # nova compute --> qpid
-  _nx openstack-config --set $cf DEFAULT rpc_backend qpid
-  _nx openstack-config --set $cf DEFAULT qpid_hostname $os_server_fqdn
+  _x openstack-config --set $cf DEFAULT rpc_backend qpid
+  _x openstack-config --set $cf DEFAULT qpid_hostname $os_server_fqdn
 
   # nova compute --> vnc
-  _nx openstack-config --set $cf DEFAULT my_ip $os_current_ip
-  _nx openstack-config --set $cf DEFAULT vnc_enabled True
-  _nx openstack-config --set $cf DEFAULT vncserver_listen 0.0.0.0
-  _nx openstack-config --set $cf DEFAULT vncserver_proxyclient_address $os_current_ip
-  _nx openstack-config --set $cf DEFAULT novncproxy_base_url http://$os_server_fqdn:6080/vnc_auto.html
+  _x openstack-config --set $cf DEFAULT my_ip $os_current_ip
+  _x openstack-config --set $cf DEFAULT vnc_enabled True
+  _x openstack-config --set $cf DEFAULT vncserver_listen 0.0.0.0
+  _x openstack-config --set $cf DEFAULT vncserver_proxyclient_address $os_current_ip
+  _x openstack-config --set $cf DEFAULT novncproxy_base_url http://$os_server_fqdn:6080/vnc_auto.html
 
   # nova compute --> glance
-  _nx openstack-config --set $cf DEFAULT glance_host $os_server_fqdn
+  _x openstack-config --set $cf DEFAULT glance_host $os_server_fqdn
 
   # nova compute --> qemu (or docker?)
-  _nx openstack-config --set $cf libvirt virt_type qemu
+  _x openstack-config --set $cf libvirt virt_type qemu
 
   # nova compute services
-  _nx systemctl restart libvirtd
-  _nx systemctl restart dbus
-  _nx systemctl restart openstack-nova-compute
-  _nx systemctl enable libvirtd
-  _nx systemctl enable dbus
-  _nx systemctl enable openstack-nova-compute
+  _x systemctl restart libvirtd
+  _x systemctl restart dbus
+  _x systemctl restart openstack-nova-compute
+  _x systemctl enable libvirtd
+  _x systemctl enable dbus
+  _x systemctl enable openstack-nova-compute
 
 }
 
