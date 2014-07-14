@@ -910,7 +910,7 @@ function Help() {
   echo "Tries to perform automatic installation of the ALICE framework."
   echo "Installation procedure follows exactly the steps described on:"
   echo ""
-  echo -e "  ${C}http://newton.ph.unito.it/~berzano/w/doku.php?id=alice:compile${Z}"
+  echo -e "  ${C}https://dberzano.github.io/alice/install-aliroot/manual${Z}"
   echo ""
   echo "Usage:"
   echo ""
