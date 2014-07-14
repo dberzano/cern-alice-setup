@@ -56,14 +56,12 @@ function _i_common() {
   _nx yum remove -y firewalld
   _nx yum install -y iptables-services yum-plugin-priorities
 
-  _nx yum remove -y rdo-release-icehouse
   _nx yum install -y http://repos.fedorapeople.org/repos/openstack/openstack-icehouse/rdo-release-icehouse-3.noarch.rpm
 
   repo=/etc/yum.repos.d/rdo-release.repo
   _nx sed -e 's#$releasever#20# ; s#^\s*priority\s*=\s*.*$#priority=1#' -i "$repo"
 
-  _nx yum remove -y python-oslo-config
-  _nx yum install -y ftp://fr2.rpmfind.net/linux/fedora/linux/releases/20/Everything/x86_64/os/Packages/p/python-oslo-config-1.2.0-0.5.a3.fc20.noarch.rpm
+  _nx yum install -y ftp://fr2.rpmfind.net/linux/fedora/linux/development/rawhide/x86_64/os/Packages/p/python-oslo-config-1.2.1-2.fc21.noarch.rpm
 
   _nx yum install -y openstack-utils
 
@@ -100,8 +98,8 @@ function _i_common() {
   source "$os_conffile"
 
   _e "checking if server address is set: $os_server_ip ($os_server_fqdn)"
-  _x [ "$os_server_ip" != '' ]
-  _x [ "$os_server_fqdn" != '' ]
+  _nx [ "$os_server_ip" != '' ]
+  _nx [ "$os_server_fqdn" != '' ]
 
   # custom part! beware!
   raw=$( ifconfig | grep -E '\s*inet 10.162.128.' 2> /dev/null | head -n1 )
@@ -109,7 +107,7 @@ function _i_common() {
     os_current_ip="${BASH_REMATCH[1]}"
   fi
   _e "current ip: $os_current_ip"
-  _x [ "$os_current_ip" != '' ]
+  _nx [ "$os_current_ip" != '' ]
 
 }
 
@@ -124,7 +122,7 @@ function _i_head() {
     python-novaclient
 
   my=/etc/my.cnf
-  [ ! -e "$my".before_openstack ] && _x cp "$my" "$my".before_openstack
+  [ ! -e "$my".before_openstack ] && _nx cp "$my" "$my".before_openstack
   cat "$my".before_openstack | grep -v 'bind-address|default-storage-engine|innodb_file_per_table|collation-server|init-connect|character-set-server' > "$my"
   _nx sed -e "s#\[mysqld\]#[mysqld]\nbind-address = $os_server_ip\ndefault-storage-engine = innodb\ninnodb_file_per_table\ncollation_server = utf8_general_ci\ninit-connect = 'SET NAMES utf8'\ncharacter-set-server = utf8#" -i "$my"
 
@@ -139,7 +137,7 @@ function _i_head() {
   _nx mysql_secure_installation
 
   qpid=/etc/qpidd.conf
-  [ ! -e "$qpid".before_openstack ] && _x cp "$qpid" "$qpid".before_openstack
+  [ ! -e "$qpid".before_openstack ] && _nx cp "$qpid" "$qpid".before_openstack
   cat "$qpid".before_openstack | grep -vE '^\s*auth\s*=' > "$qpid"
   echo -e "\nauth=no" >> "$qpid"
   _nx grep -q 'auth=no' "$qpid"
@@ -174,9 +172,9 @@ EOF
   _nx openstack-config --set "$cf" database connection mysql://keystone:$os_pwd_mysql_keystone@$os_server_fqdn/keystone
 
   if [ ! -d /etc/keystone/ssl ] ; then
-    _x keystone-manage pki_setup --keystone-user keystone --keystone-group keystone
-    _x chown -R keystone:keystone /etc/keystone/ssl
-    _x chmod -R o-rwx /etc/keystone/ssl
+    _nx keystone-manage pki_setup --keystone-user keystone --keystone-group keystone
+    _nx chown -R keystone:keystone /etc/keystone/ssl
+    _nx chmod -R o-rwx /etc/keystone/ssl
   fi
 
   _nx chgrp keystone /var/log/keystone/keystone.log
@@ -195,22 +193,22 @@ EOF
     export OS_SERVICE_ENDPOINT=http://$os_server_fqdn:35357/v2.0
 
     # admin user, admin tenant and service tenant
-    _nx keystone user-create --name=admin --pass=$os_pwd_ospwd_admin --email=admin@dummy.openstack.org
+    _nx sudo -Eu nobody keystone user-create --name=admin --pass=$os_pwd_ospwd_admin --email=admin@dummy.openstack.org
 
-    _nx keystone role-create --name=admin
-    _nx keystone tenant-create --name=admin --description="Admin Tenant"
-    _nx keystone user-role-add --user=admin --tenant=admin --role=admin
-    _nx keystone user-role-add --user=admin --role=_member_ --tenant=admin
+    _nx sudo -Eu nobody keystone role-create --name=admin
+    _nx sudo -Eu nobody keystone tenant-create --name=admin --description="Admin Tenant"
+    _nx sudo -Eu nobody keystone user-role-add --user=admin --tenant=admin --role=admin
+    _nx sudo -Eu nobody keystone user-role-add --user=admin --role=_member_ --tenant=admin
 
-    _nx keystone user-create --name=demo --pass=$os_pwd_ospwd_demo --email=demo@dummy.openstack.org
-    _nx keystone tenant-create --name=demo --description="Demo Tenant"
-    _nx keystone user-role-add --user=demo --role=_member_ --tenant=demo
+    _nx sudo -Eu nobody keystone user-create --name=demo --pass=$os_pwd_ospwd_demo --email=demo@dummy.openstack.org
+    _nx sudo -Eu nobody keystone tenant-create --name=demo --description="Demo Tenant"
+    _nx sudo -Eu nobody keystone user-role-add --user=demo --role=_member_ --tenant=demo
 
-    _nx keystone tenant-create --name=service --description="Service Tenant"
+    _nx sudo -Eu nobody keystone tenant-create --name=service --description="Service Tenant"
 
     # register service endpoints
-    _nx keystone service-create --name=keystone --type=identity --description="OpenStack Identity"
-    _nx keystone endpoint-create \
+    _nx sudo -Eu nobody keystone service-create --name=keystone --type=identity --description="OpenStack Identity"
+    _nx sudo -Eu nobody keystone endpoint-create \
       --service-id=$(keystone service-list | awk '/ identity / {print $2}') \
       --publicurl=http://$os_server_fqdn:5000/v2.0 \
       --internalurl=http://$os_server_fqdn:5000/v2.0 \
@@ -218,7 +216,7 @@ EOF
   ) || exit $?
 
   # try to get a token for test
-  #_x keystone --os-username=admin --os-password=$os_pwd_ospwd_admin --os-auth-url=http://$os_server_fqdn:35357/v2.0 token-get
+  #_nx keystone --os-username=admin --os-password=$os_pwd_ospwd_admin --os-auth-url=http://$os_server_fqdn:35357/v2.0 token-get
 
   _e "to use openstack as admin:"
   _e "  export OS_AUTH_URL=http://$os_server_fqdn:35357/v2.0"
@@ -395,15 +393,20 @@ function _m() {
     case "$1" in
       --head)
         _i_common || return $?
-        _i_head || return $?
+        _i_head
+        return $?
       ;;
       --worker)
         _i_common || return $?
-        _i_worker || return $?
+        _i_worker
+        return $?
       ;;
     esac
     shift
   done
+
+  _e "nothing to do"
+  return 1
 
 }
 
