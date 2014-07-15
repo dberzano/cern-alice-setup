@@ -67,10 +67,12 @@ function _i_common() {
 
   _e "*** common part ***"
 
-  _x systemctl disable NetworkManager.service
-  _x systemctl stop NetworkManager.service
-  _x systemctl restart network.service
-  _x systemctl enable network.service
+  if systemctl is-active NetworkManager.service > /dev/null 2>&1 ; then
+    _x systemctl disable NetworkManager.service
+    _x systemctl stop NetworkManager.service
+    _x systemctl restart network.service
+    _x systemctl enable network.service
+  fi
 
   _x yum remove -y firewalld
   _x _omnom iptables-services yum-plugin-priorities openstack-neutron-ml2
