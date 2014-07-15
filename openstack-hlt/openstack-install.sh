@@ -212,6 +212,8 @@ EOF
   _x systemctl enable openstack-keystone
 
   (
+    _e "entering openstack service environment"
+
     export OS_SERVICE_TOKEN=$os_pwd_admin_token
     export OS_SERVICE_ENDPOINT=http://$os_server_fqdn:35357/v2.0
 
@@ -256,6 +258,7 @@ EOF
         --internalurl=http://$os_server_fqdn:5000/v2.0 \
         --adminurl=http://$os_server_fqdn:35357/v2.0
 
+    _e "exiting openstack service environment"
   ) || exit $?
 
   # try to get a token for test
@@ -312,6 +315,7 @@ EOF
 
   (
     # unpriv operations: run as nobody, use admin openstack environment
+    _e "entering openstack admin environment"
 
     export OS_AUTH_URL="http://$os_server_fqdn:35357/v2.0"
     export OS_USERNAME=admin
@@ -352,6 +356,7 @@ EOF
         --internalurl=http://$os_server_fqdn:8774/v2/%\(tenant_id\)s \
         --adminurl=http://$os_server_fqdn:8774/v2/%\(tenant_id\)s
 
+    _e "exiting openstack admin environment"
   ) || exit $?
 
   ## safe against re-run up to this point ##
@@ -381,6 +386,8 @@ EOF
 
   (
     # register an image
+    _e "entering openstack admin environment"
+
     export OS_AUTH_URL="http://$os_server_fqdn:35357/v2.0"
     export OS_USERNAME=admin
     export OS_PASSWORD=$os_pwd_ospwd_admin
@@ -389,6 +396,8 @@ EOF
     [ -e /tmp/cirros.img ] || touch /tmp/cirros.img
     _x glance image-create --name='CirrOS Test Image' --disk-format='qcow2' --container-format='bare' --is-public='true' < /tmp/cirros.img
     rm -f /tmp/cirros.img
+
+    _e "exiting openstack admin environment"
   ) || exit $?
 
 }
