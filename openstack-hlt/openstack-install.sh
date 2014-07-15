@@ -233,18 +233,24 @@ EOF
       _x sudo -Eu nobody keystone user-role-add --user=demo --tenant=demo --role=_member_
     fi
 
-    ## safe against re-run up to this point ##
-
-    _x sudo -Eu nobody keystone tenant-create --name=service --description="Service Tenant"
+    sudo -Eu nobody keystone tenant-list | grep -qE '|\s+service\s+|' || \
+      _x sudo -Eu nobody keystone tenant-create --name=service --description="Service Tenant"
 
     # register service endpoints
-    _x sudo -Eu nobody keystone service-create --name=keystone --type=identity --description="OpenStack Identity"
-    _x sudo -Eu nobody keystone endpoint-create \
-      --service-id=$(keystone service-list | awk '/ identity / {print $2}') \
-      --publicurl=http://$os_server_fqdn:5000/v2.0 \
-      --internalurl=http://$os_server_fqdn:5000/v2.0 \
-      --adminurl=http://$os_server_fqdn:35357/v2.0
+    sudo -Eu nobody keystone service-list | grep -qE '|\s+keystone\s+|' || \
+      _x sudo -Eu nobody keystone service-create --name=keystone --type=identity --description="OpenStack Identity"
+
+    sudo -Eu nobody keystone endpoint-list | grep -qE "|\s+http://$os_server_fqdn:5000/v2.0\s+|" || \
+      _x sudo -Eu nobody keystone endpoint-create \
+        --service-id=$(keystone service-list | awk '/ identity / {print $2}') \
+        --publicurl=http://$os_server_fqdn:5000/v2.0 \
+        --internalurl=http://$os_server_fqdn:5000/v2.0 \
+        --adminurl=http://$os_server_fqdn:35357/v2.0
+
   ) || exit $?
+
+  ## safe against re-run up to this point ##
+  _e "(safe up to here)"
 
   # try to get a token for test
   #_x keystone --os-username=admin --os-password=$os_pwd_ospwd_admin --os-auth-url=http://$os_server_fqdn:35357/v2.0 token-get
