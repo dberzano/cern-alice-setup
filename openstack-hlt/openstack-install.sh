@@ -152,9 +152,12 @@ function _i_head() {
   _e "about to configure mysql for the first time"
   _e "conf is interactive: answer yes to all questions"
   _e "use as root password: $os_pwd_mysql_root"
-  _e "press enter to start (type skip to skip)..."
-  _x read ans
-  [ "$ans" != 'skip' ] && _x mysql_secure_installation
+  _e "the first time, root password is empty, set it to: $os_pwd_mysql_root"
+  _e ">> will be run automatically in 10 seconds <<"
+  _e ">> 's' to skip, any other key to proceed <<"
+  read -t 10 -n 1 ans
+  _e ''
+  [ "$ans" != 's' ] && [ "$ans" != 'S' ] && _x mysql_secure_installation
 
   qpid=/etc/qpidd.conf
   [ ! -e "$qpid".before_openstack ] && _x cp "$qpid" "$qpid".before_openstack
