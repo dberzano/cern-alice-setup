@@ -46,14 +46,8 @@ function _nx() {
 }
 
 function _x() {
+  #_nx "$@";return $?
   echo -e "\033[36m[$(_d)] executing: \033[35m$@\033[36m\033[m" >&2
-  # echo -en "\033[36m[$(_d)] executing: \033[35m$@\033[36m? [\033[32my\033[36m/\033[31mn\033[36m, default: \033[31mn\033[36m]\033[m " >&2
-  # read -n 1 ans
-  # echo ''
-  # if [ "${ans:0:1}" != 'y' ] && [ "${ans:0:1}" != 'Y' ] ; then
-  #   echo -e "\033[33m[$(_d)] skipping\033[m" >&2
-  #   return 0
-  # fi
   "$@"
   r=$?
   if [ $r == 0 ] ; then
@@ -349,7 +343,7 @@ EOF
       _x sudo -Eu nobody keystone service-create --name=nova --type=compute --description="OpenStack Compute"
 
     # nova endpoint
-    sudo -Eu nobody keystone endpoint-list | grep -qE '\|'"\s+http://$os_server_fqdn:8774/v2/%(tenant_id)s\s+"'\|' || \
+    sudo -Eu nobody keystone endpoint-list | grep -qE '\|'"\s+http://$os_server_fqdn:8774/v2/%\(tenant_id\)s\s+"'\|' || \
       _x sudo -Eu nobody keystone endpoint-create \
         --service-id=$(keystone service-list | awk '/ compute / {print $2}') \
         --publicurl=http://$os_server_fqdn:8774/v2/%\(tenant_id\)s \
@@ -392,6 +386,7 @@ EOF
 
     if ! sudo -Eu nobody glance image-list | grep -qE '\|\s+CirrOS Test Image\s+\|' ; then
       t=$(mktemp)
+      chown nobody:nobody "$t"
       _x sudo -Eu nobody curl -SsL http://cdn.download.cirros-cloud.net/0.3.2/cirros-0.3.2-x86_64-disk.img -o "$t"
       _x sudo -Eu nobody glance image-create --name='CirrOS Test Image' --disk-format='qcow2' --container-format='bare' --is-public='true' < "$t"
       rm -f "$t"
