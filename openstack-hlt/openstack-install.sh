@@ -130,6 +130,48 @@ function _i_common() {
   _e "current ip: $os_current_ip"
   _x [ "$os_current_ip" != '' ]
 
+  # neutron: common parts
+  cf=/etc/neutron/neutron.conf
+
+  # controller+network+compute
+  _x openstack-config --set $cf DEFAULT auth_strategy keystone
+  _x openstack-config --set $cf keystone_authtoken auth_uri http://$os_server_fqdn:5000
+  _x openstack-config --set $cf keystone_authtoken auth_host $os_server_fqdn
+  _x openstack-config --set $cf keystone_authtoken auth_protocol http
+  _x openstack-config --set $cf keystone_authtoken auth_port 35357
+  _x openstack-config --set $cf keystone_authtoken admin_tenant_name service
+  _x openstack-config --set $cf keystone_authtoken admin_user neutron
+  _x openstack-config --set $cf keystone_authtoken admin_password $os_pwd_ospwd_neutron
+
+  # controller+network+compute
+  _x openstack-config --set $cf DEFAULT rpc_backend neutron.openstack.common.rpc.impl_qpid
+  _x openstack-config --set $cf DEFAULT qpid_hostname $os_server_fqdn
+
+  # controller+network+compute
+  _x openstack-config --set $cf DEFAULT core_plugin ml2
+  _x openstack-config --set $cf DEFAULT service_plugins router
+
+  # neutron:ml2: controller+network+compute
+  cf=/etc/neutron/plugins/ml2/ml2_conf.ini
+  _x openstack-config --set $cf ml2 type_drivers local,flat
+  _x openstack-config --set $cf ml2 mechanism_drivers openvswitch,l2population
+  _x openstack-config --set $cf ml2_type_flat flat_networks '*'
+
+  for cf in /etc/neutron/plugins/ml2/ml2_conf.ini /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini ; do
+    _x openstack-config --set $cf DEFAULT verbose True
+    _x openstack-config --set $cf DEFAULT debug True
+
+    _x openstack-config --set $cf securitygroup enable_security_group True
+    _x openstack-config --set $cf securitygroup firewall_driver neutron.agent.linux.iptables_firewall.OVSHybridIptablesFirewallDriver
+
+    _x openstack-config --set $cf ovs enable_tunneling False
+    _x openstack-config --set $cf ovs local_ip $os_current_ip
+    _x openstack-config --set $cf ovs network_vlan_ranges physnet1   # mystery
+    _x openstack-config --set $cf ovs bridge_mappings physnet1:$os_ovsbr  # mystery
+  done
+
+  _x ln -nfs plugins/ml2/ml2_conf.ini /etc/neutron/plugin.ini
+
 }
 
 function _i_head() {
@@ -183,8 +225,12 @@ GRANT ALL PRIVILEGES ON glance.* TO 'glance'@'localhost' IDENTIFIED BY '$os_pwd_
 GRANT ALL PRIVILEGES ON glance.* TO 'glance'@'%' IDENTIFIED BY '$os_pwd_mysql_glance' ;
 
 CREATE DATABASE IF NOT EXISTS nova ;
-GRANT ALL PRIVILEGES ON nova.* TO 'nova'@'localhost' IDENTIFIED BY '$os_pwd_mysql_nova';
+GRANT ALL PRIVILEGES ON nova.* TO 'nova'@'localhost' IDENTIFIED BY '$os_pwd_mysql_nova' ;
 GRANT ALL PRIVILEGES ON nova.* TO 'nova'@'%' IDENTIFIED BY '$os_pwd_mysql_nova' ;
+
+CREATE DATABASE IF NOT EXISTS neutron ;
+GRANT ALL PRIVILEGES ON neutron.* TO 'neutron'@'localhost' IDENTIFIED BY '$os_pwd_mysql_neutron' ;
+GRANT ALL PRIVILEGES ON neutron.* TO 'neutron'@'%' IDENTIFIED BY '$os_pwd_mysql_neutron' ;
 
 SHOW DATABASES ;
 SELECT user,host,password FROM mysql.user ;
@@ -324,15 +370,17 @@ EOF
     export OS_PASSWORD=$os_pwd_ospwd_admin
     export OS_TENANT_NAME=admin
 
-    # glance
+    # glance user
     if ! sudo -Eu nobody keystone user-list | grep -qE '\|\s+glance\s+\|' ; then
       _x sudo -Eu nobody keystone user-create --name=glance --pass=$os_pwd_ospwd_glance --email=glance@dummy.openstack.org
       _x sudo -Eu nobody keystone user-role-add --user=glance --tenant=service --role=admin
     fi
 
+    # glance service
     sudo -Eu nobody keystone service-list | grep -qE '\|\s+glance\s+\|' || \
       _x sudo -Eu nobody keystone service-create --name=glance --type=image --description="OpenStack Image Service"
 
+    # glance endpoint
     sudo -Eu nobody keystone endpoint-list | grep -qE '\|'"\s+http://$os_server_fqdn:9292\s+"'\|' || \
       _x sudo -Eu nobody keystone endpoint-create \
         --service-id=$(keystone service-list | awk '/ image / {print $2}') \
@@ -358,8 +406,75 @@ EOF
         --internalurl=http://$os_server_fqdn:8774/v2/%\(tenant_id\)s \
         --adminurl=http://$os_server_fqdn:8774/v2/%\(tenant_id\)s
 
+    # neutron user
+    if ! sudo -Eu nobody keystone user-list | grep -qE '\|\s+neutron\s+\|' ; then
+      _x sudo -Eu nobody keystone user-create --name neutron --pass=$os_pwd_ospwd_neutron --email neutron@dummy.openstack.org
+      _x sudo -Eu nobody keystone user-role-add --user neutron --tenant service --role admin
+    fi
+
+    # neutron service
+    sudo -Eu nobody keystone service-list | grep -qE '\|\s+neutron\s+\|' || \
+      _x sudo -Eu nobody keystone service-create --name neutron --type network --description "OpenStack Networking"
+
+    # neutron endpoint
+    sudo -Eu nobody keystone endpoint-list | grep -qE '\|'"\s+http://$os_server_fqdn:9696\s+"'\|' || \
+      _x sudo -Eu nobody keystone endpoint-create \
+        --service-id $(keystone service-list | awk '/ network / {print $2}') \
+        --publicurl http://$os_server_fqdn:9696 \
+        --adminurl http://$os_server_fqdn:9696 \
+        --internalurl http://$os_server_fqdn:9696
+
+    _e "list of services"
+    _x sudo -Eu nobody keystone service-list
+
     _e "exiting openstack admin environment"
   ) || exit $?
+
+  ## neutron ##
+
+  # neutron
+  cf=/etc/neutron/neutron.conf
+
+  # controller+network
+  _x openstack-config --set $cf database connection mysql://neutron:$os_pwd_mysql_neutron@$os_server_fqdn/neutron
+  _x openstack-config --set $cf DEFAULT verbose True
+  _x openstack-config --set $cf DEFAULT debug True
+
+  # controller
+  _x openstack-config --set $cf DEFAULT notify_nova_on_port_status_changes True
+  _x openstack-config --set $cf DEFAULT notify_nova_on_port_data_changes True
+  _x openstack-config --set $cf DEFAULT nova_url http://$os_server_fqdn:8774/v2
+  _x openstack-config --set $cf DEFAULT nova_admin_username nova
+  _x openstack-config --set $cf DEFAULT nova_admin_tenant_id $(export OS_SERVICE_TOKEN=$os_pwd_admin_token ; export OS_SERVICE_ENDPOINT=http://$os_server_fqdn:35357/v2.0 ; keystone tenant-list | awk '/ service / { print $2 }')
+  _x openstack-config --set $cf DEFAULT nova_admin_password $os_pwd_ospwd_nova
+  _x openstack-config --set $cf DEFAULT nova_admin_auth_url http://$os_server_fqdn:35357/v2.0
+
+  # controller (tell nova to use neutron)
+  cf=/etc/nova/nova.conf
+  _x openstack-config --set $cf DEFAULT network_api_class nova.network.neutronv2.api.API
+  _x openstack-config --set $cf DEFAULT neutron_url http://$os_server_fqdn:9696
+  _x openstack-config --set $cf DEFAULT neutron_auth_strategy keystone
+  _x openstack-config --set $cf DEFAULT neutron_admin_tenant_name service
+  _x openstack-config --set $cf DEFAULT neutron_admin_username neutron
+  _x openstack-config --set $cf DEFAULT neutron_admin_password $os_pwd_ospwd_neutron
+  _x openstack-config --set $cf DEFAULT neutron_admin_auth_url http://$os_server_fqdn:35357/v2.0
+  _x openstack-config --set $cf DEFAULT linuxnet_interface_driver nova.network.linux_net.LinuxOVSInterfaceDriver
+  _x openstack-config --set $cf DEFAULT firewall_driver nova.virt.firewall.NoopFirewallDriver
+  _x openstack-config --set $cf DEFAULT security_group_api neutron
+
+  # network (metadata agent)
+  cf=/etc/neutron/metadata_agent.ini
+  _x openstack-config --set $cf DEFAULT auth_url http://$os_server_fqdn:5000/v2.0
+  _x openstack-config --set $cf DEFAULT auth_region regionOne
+  _x openstack-config --set $cf DEFAULT admin_tenant_name service
+  _x openstack-config --set $cf DEFAULT admin_user neutron
+  _x openstack-config --set $cf DEFAULT admin_password $os_pwd_ospwd_neutron
+  _x openstack-config --set $cf DEFAULT nova_metadata_ip $os_server_fqdn
+  _x openstack-config --set $cf DEFAULT metadata_proxy_shared_secret $os_pwd_mdsecret
+
+  # cat $cf | sed -e '/^$/d' | grep -v '^\s*#' | sed -e 's#^\[#\n[#'
+
+  ## /neutron ##
 
   # start services at the end of everything
 
@@ -368,6 +483,12 @@ EOF
   _x systemctl restart openstack-glance-registry
   _x systemctl enable openstack-glance-api
   _x systemctl enable openstack-glance-registry
+
+  # neutron
+  _x systemctl restart neutron-server
+  _x systemctl restart neutron-metadata-agent
+  _x systemctl enable neutron-server
+  _x systemctl enable neutron-metadata-agent
 
   # nova
   _x systemctl restart openstack-nova-api
@@ -414,7 +535,7 @@ function _i_worker() {
   _x [ "$os_physif" != '' ]
   _x [ "$os_ovsbr" != '' ]
 
-  if [ "$(ovs-vsctl iface-to-br "$os_physif" 2> /dev/null)" != "$os_ovsbr" ] ; then
+  if [ "$(ovs-vsctl iface-to-br "$os_physif" 2> /dev/null)" != "$os_ovsbr" ] || ! ovs-vsctl br-exists br-int ; then
 
     _e "creating bridge $os_ovsbr with port $os_physif"
 
@@ -433,6 +554,17 @@ DELAY=0
 HOTPLUG=no
 EOF
     _x grep -q '^TYPE=OVSBridge$' "${pref}/ifcfg-${os_ovsbr}"
+
+    # create the integration bridge
+    cat > "${pref}/ifcfg-br-int" <<EOF
+DEVICE=br-int
+ONBOOT=yes
+BOOTPROTO=none
+DEVICETYPE=ovs
+TYPE=OVSBridge
+DELAY=0
+HOTPLUG=no
+EOF
 
     # make a backup
     mkdir -p "${pref}/openstack-backup"
@@ -491,6 +623,10 @@ EOF
 
   # nova compute --> qemu (or docker?)
   _x openstack-config --set $cf libvirt virt_type qemu
+
+  # neutron services
+  _x systemctl restart neutron-openvswitch-agent
+  _x systemctl enable neutron-openvswitch-agent
 
   # nova compute services
   _x systemctl restart libvirtd
