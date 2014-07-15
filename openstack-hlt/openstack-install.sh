@@ -218,40 +218,40 @@ EOF
     export OS_SERVICE_ENDPOINT=http://$os_server_fqdn:35357/v2.0
 
     # create the admin role
-    sudo -Eu nobody keystone role-list | grep -qE '|\s+admin\s+|' || \
+    sudo -Eu nobody keystone role-list | grep -qE '\|\s+admin\s+\|' || \
       _x sudo -Eu nobody keystone role-create --name=admin
 
     # create the admin tenant
-    sudo -Eu nobody keystone tenant-list | grep -qE '|\s+admin\s+|' || \
+    sudo -Eu nobody keystone tenant-list | grep -qE '\|\s+admin\s+\|' || \
       _x sudo -Eu nobody keystone tenant-create --name=admin --description="Admin Tenant"
 
     # admin user, and roles
-    if ! sudo -Eu nobody keystone user-list | grep -qE '|\s+admin\s+|' ; then
+    if ! sudo -Eu nobody keystone user-list | grep -qE '\|\s+admin\s+\|' ; then
       _x sudo -Eu nobody keystone user-create --name=admin --pass=$os_pwd_ospwd_admin --email=admin@dummy.openstack.org
       _x sudo -Eu nobody keystone user-role-add --user=admin --tenant=admin --role=admin
       _x sudo -Eu nobody keystone user-role-add --user=admin --tenant=admin --role=_member_
     fi
 
     # demo tenant
-    sudo -Eu nobody keystone tenant-list | grep -qE '|\s+demo\s+|' || \
+    sudo -Eu nobody keystone tenant-list | grep -qE '\|\s+demo\s+\|' || \
       _x sudo -Eu nobody keystone tenant-create --name=demo --description="Demo Tenant"
 
     # demo user, and role
-    if ! sudo -Eu nobody keystone user-list | grep -qE '|\s+demo\s+|' ; then
+    if ! sudo -Eu nobody keystone user-list | grep -qE '\|\s+demo\s+\|' ; then
       _x sudo -Eu nobody keystone user-create --name=demo --pass=$os_pwd_ospwd_demo --email=demo@dummy.openstack.org
       _x sudo -Eu nobody keystone user-role-add --user=demo --tenant=demo --role=_member_
     fi
 
     # service tenant
-    sudo -Eu nobody keystone tenant-list | grep -qE '|\s+service\s+|' || \
+    sudo -Eu nobody keystone tenant-list | grep -qE '\|\s+service\s+\|' || \
       _x sudo -Eu nobody keystone tenant-create --name=service --description="Service Tenant"
 
     # register keystone service
-    sudo -Eu nobody keystone service-list | grep -qE '|\s+keystone\s+|' || \
+    sudo -Eu nobody keystone service-list | grep -qE '\|\s+keystone\s+\|' || \
       _x sudo -Eu nobody keystone service-create --name=keystone --type=identity --description="OpenStack Identity"
 
     # register keystone endpoints
-    sudo -Eu nobody keystone endpoint-list | grep -qE "|\s+http://$os_server_fqdn:5000/v2.0\s+|" || \
+    sudo -Eu nobody keystone endpoint-list | grep -qE '\|'"\s+http://$os_server_fqdn:5000/v2.0\s+"'\|' || \
       _x sudo -Eu nobody keystone endpoint-create \
         --service-id=$(keystone service-list | awk '/ identity / {print $2}') \
         --publicurl=http://$os_server_fqdn:5000/v2.0 \
@@ -323,15 +323,15 @@ EOF
     export OS_TENANT_NAME=admin
 
     # glance
-    if ! sudo -Eu nobody keystone user-list | grep -qE '|\s+glance\s+|' ; then
+    if ! sudo -Eu nobody keystone user-list | grep -qE '\|\s+glance\s+\|' ; then
       _x sudo -Eu nobody keystone user-create --name=glance --pass=$os_pwd_ospwd_glance --email=glance@dummy.openstack.org
       _x sudo -Eu nobody keystone user-role-add --user=glance --tenant=service --role=admin
     fi
 
-    sudo -Eu nobody keystone service-list | grep -qE '|\s+glance\s+|' || \
+    sudo -Eu nobody keystone service-list | grep -qE '\|\s+glance\s+\|' || \
       _x sudo -Eu nobody keystone service-create --name=glance --type=image --description="OpenStack Image Service"
 
-    sudo -Eu nobody keystone endpoint-list | grep -qE "|\s+http://$os_server_fqdn:9292\s+|" || \
+    sudo -Eu nobody keystone endpoint-list | grep -qE '\|'"\s+http://$os_server_fqdn:9292\s+"'\|' || \
       _x sudo -Eu nobody keystone endpoint-create \
         --service-id=$(keystone service-list | awk '/ image / {print $2}') \
         --publicurl=http://$os_server_fqdn:9292 \
@@ -339,17 +339,17 @@ EOF
         --adminurl=http://$os_server_fqdn:9292
 
     # nova user
-    if ! sudo -Eu nobody keystone user-list | grep -qE '|\s+nova\s+|' ; then
+    if ! sudo -Eu nobody keystone user-list | grep -qE '\|\s+nova\s+\|' ; then
       _x sudo -Eu nobody keystone user-create --name=nova --pass=$os_pwd_ospwd_nova --email=nova@dummy.openstack.org
       _x sudo -Eu nobody keystone user-role-add --user=nova --tenant=service --role=admin
     fi
 
     # nova service
-    sudo -Eu nobody keystone service-list | grep -qE '|\s+nova\s+|' || \
+    sudo -Eu nobody keystone service-list | grep -qE '\|\s+nova\s+\|' || \
       _x sudo -Eu nobody keystone service-create --name=nova --type=compute --description="OpenStack Compute"
 
     # nova endpoint
-    sudo -Eu nobody keystone endpoint-list | grep -qE "|\s+http://$os_server_fqdn:8774/v2/%(tenant_id)s\s+|" || \
+    sudo -Eu nobody keystone endpoint-list | grep -qE '\|'"\s+http://$os_server_fqdn:8774/v2/%(tenant_id)s\s+"'\|' || \
       _x sudo -Eu nobody keystone endpoint-create \
         --service-id=$(keystone service-list | awk '/ compute / {print $2}') \
         --publicurl=http://$os_server_fqdn:8774/v2/%\(tenant_id\)s \
