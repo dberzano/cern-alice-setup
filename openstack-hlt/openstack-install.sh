@@ -15,17 +15,22 @@ os_conffile="$PWD/openstack-install.conf"
 
 function _omnom() {
   to_install=''
+  extra_opts=()
   for p in "$@" ; do
-    if [ "${p##*.}" == 'rpm' ] ; then
-      p=${p##*/}
-      p=${p%-*}
+    if [ ${p:0:1} == '-' ] ; then
+      extra_opts="${extra_opts[@]} ${p}"
+    else
+      if [ "${p##*.}" == 'rpm' ] ; then
+        p=${p##*/}
+        p=${p%-*}
+      fi
+      _e "checking if package is installed: $p"
+      rpm -q "$p" > /dev/null 2>&1 || to_install="$to_install $p"
     fi
-    _e "checking $p"
-    rpm -q "$p" > /dev/null 2>&1 || to_install="$to_install $p"
   done
   if [ "$to_install" != '' ] ; then
     _e "to install: $to_install"
-    yum -y install $to_install
+    yum -y install "${extra_opts[@]}" $to_install
     return $?
   else
     _e "nothing to install"
