@@ -359,9 +359,6 @@ EOF
     _e "exiting openstack admin environment"
   ) || exit $?
 
-  ## safe against re-run up to this point ##
-  _e "(safe up to here)"
-
   # start services at the end of everything
 
   # glance
@@ -392,10 +389,13 @@ EOF
     export OS_USERNAME=admin
     export OS_PASSWORD=$os_pwd_ospwd_admin
     export OS_TENANT_NAME=admin
-    _x curl -SsL http://cdn.download.cirros-cloud.net/0.3.2/cirros-0.3.2-x86_64-disk.img -o /tmp/cirros.img
-    [ -e /tmp/cirros.img ] || touch /tmp/cirros.img
-    _x glance image-create --name='CirrOS Test Image' --disk-format='qcow2' --container-format='bare' --is-public='true' < /tmp/cirros.img
-    rm -f /tmp/cirros.img
+
+    if ! sudo -Eu nobody glance image-list | grep -qE '\|\s+CirrOS Test Image\s+\|' ; then
+      t=$(mktemp)
+      _x sudo -Eu nobody curl -SsL http://cdn.download.cirros-cloud.net/0.3.2/cirros-0.3.2-x86_64-disk.img -o "$t"
+      _x sudo -Eu nobody glance image-create --name='CirrOS Test Image' --disk-format='qcow2' --container-format='bare' --is-public='true' < "$t"
+      rm -f "$t"
+    fi
 
     _e "exiting openstack admin environment"
   ) || exit $?
