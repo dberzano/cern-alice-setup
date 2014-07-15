@@ -30,7 +30,7 @@ function _omnom() {
   done
   if [ "$to_install" != '' ] ; then
     _e "to install: $to_install"
-    yum -y install "${extra_opts[@]}" $to_install
+    yum -y ${extra_opts[@]} install $to_install
     return $?
   else
     _e "nothing to install"
@@ -73,7 +73,7 @@ function _i_common() {
   _x systemctl enable network.service
 
   _x yum remove -y firewalld
-  _x _omnom iptables-services yum-plugin-priorities
+  _x _omnom iptables-services yum-plugin-priorities openstack-neutron-ml2
 
   _x _omnom http://repos.fedorapeople.org/repos/openstack/openstack-icehouse/rdo-release-icehouse-3.noarch.rpm
 
@@ -138,7 +138,8 @@ function _i_head() {
     openstack-glance python-glanceclient \
     openstack-nova-api openstack-nova-cert openstack-nova-conductor \
     openstack-nova-console openstack-nova-novncproxy openstack-nova-scheduler \
-    python-novaclient
+    python-novaclient \
+    openstack-neutron python-neutronclient
 
   my=/etc/my.cnf
   [ ! -e "$my".before_openstack ] && _x cp "$my" "$my".before_openstack
@@ -405,7 +406,60 @@ EOF
 function _i_worker() {
   _e "*** worker node part ***"
 
-  _x _omnom openstack-nova-compute --disablerepo='slc6-*'
+  _x _omnom openstack-nova-compute openstack-neutron-openvswitch --disablerepo='slc6-*'
+
+  _e "checking for phys iface ($os_physif) and ovs bridge ($os_ovsbr)"
+  _x [ "$os_physif" != '' ]
+  _x [ "$os_ovsbr" != '' ]
+
+  if [ "$(ovs-vsctl iface-to-br "$os_physif" 2> /dev/null)" != "$os_ovsbr" ] ; then
+
+    _e "creating bridge $os_ovsbr with port $os_physif"
+
+    # create the bridge
+    pref=/etc/sysconfig/network-scripts
+
+    cat > "${pref}/ifcfg-${os_ovsbr}" <<EOF
+DEVICE=$os_ovsbr
+ONBOOT=yes
+BOOTPROTO=dhcp
+OVSBOOTPROTO=dhcp
+OVSDHCPINTERFACES=$os_physif
+DEVICETYPE=ovs
+TYPE=OVSBridge
+DELAY=0
+HOTPLUG=no
+EOF
+    _x grep -q '^TYPE=OVSBridge$' "${pref}/ifcfg-${os_ovsbr}"
+
+    # make a backup
+    mkdir -p "${pref}/openstack-backup"
+    [ ! -e "${pref}/openstack-backup/ifcfg-$os_physif" ] && _x cp "$pref/ifcfg-$os_physif" "${pref}/openstack-backup/ifcfg-$os_physif"
+
+    (
+      grep -E '^\s*UUID=|^\s*HWADDR=|^\s*NAME=' "${pref}/openstack-backup/ifcfg-$os_physif" ;
+      cat <<EOF
+DEVICETYPE=ovs
+TYPE=OVSPort
+OVS_BRIDGE=$os_ovsbr
+DEVICE=$os_physif
+ONBOOT=yes
+BOOTPROTO=none
+USERCTL=no
+PEERDNS=yes
+DEFROUTE=no
+PEERROUTES=yes
+IPV4_FAILURE_FATAL=no
+EOF
+    ) > "${pref}/ifcfg-${os_physif}"
+    _x grep -q '^TYPE=OVSPort$' "${pref}/ifcfg-${os_physif}"
+
+    # restart networking... this can break lots of things
+    _e "about to restart network: this can fail!"
+    _x systemctl restart network.service
+  else
+    _e "bridge $os_ovsbr already configured"
+  fi
 
   # service: nova compute
   cf=/etc/nova/nova.conf
