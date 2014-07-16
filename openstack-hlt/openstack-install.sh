@@ -13,6 +13,9 @@ export LANG=C
 os_unpriv=$( stat -c "%U" "$0" )
 os_conffile="$PWD/openstack-install.conf"
 
+################################################################################
+# UTILITY FUNCTIONS
+################################################################################
 function _omnom() {
   to_install=''
   extra_opts=()
@@ -63,6 +66,9 @@ function _x() {
   fi
 }
 
+################################################################################
+# COMMON CONFIGURATION
+################################################################################
 function _i_common() {
 
   _e "*** common part ***"
@@ -82,7 +88,8 @@ function _i_common() {
   repo=/etc/yum.repos.d/rdo-release.repo
   _x sed -e 's#$releasever#20# ; s#^\s*priority\s*=\s*.*$#priority=1#' -i "$repo"
 
-  _x _omnom iptables-services yum-plugin-priorities openstack-neutron-ml2 openstack-utils openstack-neutron-openvswitch
+  # install common packages
+  _x _omnom iptables-services yum-plugin-priorities openstack-utils
 
   # generate all the passwords; save them to a configuration file
   source "$os_conffile" 2> /dev/null
@@ -90,9 +97,8 @@ function _i_common() {
   cat "$os_conffile" > "$t" 2>/dev/null
 
   pwd_prefix='os_pwd_'
-  pwds=( admin_token mdsecret mysql_glance mysql_keystone mysql_neutron \
-         mysql_nova mysql_root ospwd_admin ospwd_demo ospwd_glance \
-         ospwd_neutron ospwd_nova )
+  pwds=( admin_token mdsecret mysql_glance mysql_keystone mysql_nova \
+         mysql_root ospwd_admin ospwd_demo ospwd_glance ospwd_nova )
 
   for pn in ${pwds[@]} ; do
     # pn: password name
@@ -140,7 +146,6 @@ function _i_common() {
 
     # create the bridge
     pref=/etc/sysconfig/network-scripts
-    _x rm -f $pref/ifcfg-ovsbr100
 
     cat > "${pref}/ifcfg-${os_ovsbr}" <<EOF
 DEVICE=$os_ovsbr
@@ -197,72 +202,11 @@ EOF
 
   ## /network part ##
 
-  # neutron: common parts
-  cf=/etc/neutron/neutron.conf
-
-  # controller+network+compute
-  _x openstack-config --set $cf database connection mysql://neutron:$os_pwd_mysql_neutron@$os_server_fqdn/neutron
-  _x openstack-config --set $cf DEFAULT verbose True
-  _x openstack-config --set $cf DEFAULT debug True
-
-  # controller+network+compute
-  _x openstack-config --set $cf DEFAULT auth_strategy keystone
-  _x openstack-config --set $cf keystone_authtoken auth_uri http://$os_server_fqdn:5000
-  _x openstack-config --set $cf keystone_authtoken auth_host $os_server_fqdn
-  _x openstack-config --set $cf keystone_authtoken auth_protocol http
-  _x openstack-config --set $cf keystone_authtoken auth_port 35357
-  _x openstack-config --set $cf keystone_authtoken admin_tenant_name service
-  _x openstack-config --set $cf keystone_authtoken admin_user neutron
-  _x openstack-config --set $cf keystone_authtoken admin_password $os_pwd_ospwd_neutron
-
-  # controller+network+compute
-  _x openstack-config --set $cf DEFAULT rpc_backend neutron.openstack.common.rpc.impl_qpid
-  _x openstack-config --set $cf DEFAULT qpid_hostname $os_server_fqdn
-
-  # controller+network+compute
-  _x openstack-config --set $cf DEFAULT core_plugin ml2
-  _x openstack-config --set $cf DEFAULT service_plugins router
-
-  # neutron:ml2: controller+network+compute
-  cf=/etc/neutron/plugins/ml2/ml2_conf.ini
-  _x openstack-config --set $cf ml2 type_drivers local,flat
-  _x openstack-config --set $cf ml2 mechanism_drivers openvswitch,l2population
-  _x openstack-config --set $cf ml2_type_flat flat_networks '*'
-
-  for cf in /etc/neutron/plugins/ml2/ml2_conf.ini /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini ; do
-    _x openstack-config --set $cf DEFAULT verbose True
-    _x openstack-config --set $cf DEFAULT debug False
-
-    _x openstack-config --set $cf securitygroup enable_security_group True
-    _x openstack-config --set $cf securitygroup firewall_driver neutron.agent.linux.iptables_firewall.OVSHybridIptablesFirewallDriver
-
-    _x openstack-config --set $cf ovs enable_tunneling False
-    _x openstack-config --set $cf ovs local_ip $os_current_ip
-    _x openstack-config --set $cf ovs network_vlan_ranges physnet1   # mystery
-    _x openstack-config --set $cf ovs bridge_mappings physnet1:$os_ovsbr  # mystery
-  done
-
-  # !!! http://docs.openstack.org/icehouse/install-guide/install/yum/content/neutron-ml2-network-node.html !!!
-  # documentation SUCKS --> on the NETWORK NODE section there are instructions
-  # for the COMPUTE NODE networking that go in NOVA.CONF
-  cf=/etc/nova/nova.conf
-  _x openstack-config --set $cf DEFAULT service_neutron_metadata_proxy true
-  _x openstack-config --set $cf DEFAULT neutron_metadata_proxy_shared_secret $os_pwd_mdsecret
-
-  _x ln -nfs plugins/ml2/ml2_conf.ini /etc/neutron/plugin.ini
-
-
-  # fix packaging bug in fedora
-  # init=/etc/systemd/system/multi-user.target.wants/neutron-openvswitch-agent.service # NO, bug in a bug --> https://bugs.launchpad.net/ubuntu/+source/sed/+bug/367211
-  init=/usr/lib/systemd/system/neutron-openvswitch-agent.service
-  _x sed -e 's#plugins/openvswitch/ovs_neutron_plugin.ini#plugin.ini#g' -i "$init"
-
-  # neutron services
-  _x systemctl restart neutron-openvswitch-agent
-  _x systemctl enable neutron-openvswitch-agent
-
 }
 
+################################################################################
+# HEAD NODE CONFIGURATION
+################################################################################
 function _i_head() {
   _e "*** head node part ***"
 
@@ -271,8 +215,7 @@ function _i_head() {
     openstack-glance python-glanceclient \
     openstack-nova-api openstack-nova-cert openstack-nova-conductor \
     openstack-nova-console openstack-nova-novncproxy openstack-nova-scheduler \
-    python-novaclient \
-    openstack-neutron python-neutronclient
+    python-novaclient
 
   my=/etc/my.cnf
   [ ! -e "$my".before_openstack ] && _x cp "$my" "$my".before_openstack
@@ -311,7 +254,6 @@ function _i_head() {
 DROP DATABASE IF EXISTS keystone ;
 DROP DATABASE IF EXISTS glance ;
 DROP DATABASE IF EXISTS nova ;
-DROP DATABASE IF EXISTS neutron ;
 EOF
     _x rm -rf /var/lib/glance/images/*
   fi
@@ -331,10 +273,6 @@ GRANT ALL PRIVILEGES ON glance.* TO 'glance'@'%' IDENTIFIED BY '$os_pwd_mysql_gl
 CREATE DATABASE IF NOT EXISTS nova ;
 GRANT ALL PRIVILEGES ON nova.* TO 'nova'@'localhost' IDENTIFIED BY '$os_pwd_mysql_nova' ;
 GRANT ALL PRIVILEGES ON nova.* TO 'nova'@'%' IDENTIFIED BY '$os_pwd_mysql_nova' ;
-
-CREATE DATABASE IF NOT EXISTS neutron ;
-GRANT ALL PRIVILEGES ON neutron.* TO 'neutron'@'localhost' IDENTIFIED BY '$os_pwd_mysql_neutron' ;
-GRANT ALL PRIVILEGES ON neutron.* TO 'neutron'@'%' IDENTIFIED BY '$os_pwd_mysql_neutron' ;
 
 SHOW DATABASES ;
 SELECT user,host,password FROM mysql.user ;
@@ -511,82 +449,15 @@ EOF
         --internalurl=http://$os_server_fqdn:8774/v2/%\(tenant_id\)s \
         --adminurl=http://$os_server_fqdn:8774/v2/%\(tenant_id\)s
 
-    # neutron user
-    if ! sudo -Eu nobody keystone user-list | grep -qE '\|\s+neutron\s+\|' ; then
-      _x sudo -Eu nobody keystone user-create --name neutron --pass=$os_pwd_ospwd_neutron --email neutron@dummy.openstack.org
-      _x sudo -Eu nobody keystone user-role-add --user neutron --tenant service --role admin
-    fi
-
-    # neutron service
-    sudo -Eu nobody keystone service-list | grep -qE '\|\s+neutron\s+\|' || \
-      _x sudo -Eu nobody keystone service-create --name neutron --type network --description "OpenStack Networking"
-
-    # neutron endpoint
-    sudo -Eu nobody keystone endpoint-list | grep -qE '\|'"\s+http://$os_server_fqdn:9696\s+"'\|' || \
-      _x sudo -Eu nobody keystone endpoint-create \
-        --service-id $(keystone service-list | awk '/ network / {print $2}') \
-        --publicurl http://$os_server_fqdn:9696 \
-        --adminurl http://$os_server_fqdn:9696 \
-        --internalurl http://$os_server_fqdn:9696
-
     _e "list of services"
     _x sudo -Eu nobody keystone service-list
 
     _e "exiting openstack admin environment"
   ) || exit $?
 
-  ## neutron ##
-
-  # neutron
-  cf=/etc/neutron/neutron.conf
-
-  # controller
-  _x openstack-config --set $cf DEFAULT notify_nova_on_port_status_changes True
-  _x openstack-config --set $cf DEFAULT notify_nova_on_port_data_changes True
-  _x openstack-config --set $cf DEFAULT nova_url http://$os_server_fqdn:8774/v2
-  _x openstack-config --set $cf DEFAULT nova_admin_username nova
-  _x openstack-config --set $cf DEFAULT nova_admin_tenant_id $(export OS_SERVICE_TOKEN=$os_pwd_admin_token ; export OS_SERVICE_ENDPOINT=http://$os_server_fqdn:35357/v2.0 ; keystone tenant-list | awk '/ service / { print $2 }')
-  _x openstack-config --set $cf DEFAULT nova_admin_password $os_pwd_ospwd_nova
-  _x openstack-config --set $cf DEFAULT nova_admin_auth_url http://$os_server_fqdn:35357/v2.0
-
-  # controller (tell nova to use neutron)
-  cf=/etc/nova/nova.conf
-  _x openstack-config --set $cf DEFAULT network_api_class nova.network.neutronv2.api.API
-  _x openstack-config --set $cf DEFAULT neutron_url http://$os_server_fqdn:9696
-  _x openstack-config --set $cf DEFAULT neutron_auth_strategy keystone
-  _x openstack-config --set $cf DEFAULT neutron_admin_tenant_name service
-  _x openstack-config --set $cf DEFAULT neutron_admin_username neutron
-  _x openstack-config --set $cf DEFAULT neutron_admin_password $os_pwd_ospwd_neutron
-  _x openstack-config --set $cf DEFAULT neutron_admin_auth_url http://$os_server_fqdn:35357/v2.0
-  _x openstack-config --set $cf DEFAULT linuxnet_interface_driver nova.network.linux_net.LinuxOVSInterfaceDriver
-  _x openstack-config --set $cf DEFAULT firewall_driver nova.virt.firewall.NoopFirewallDriver
-  _x openstack-config --set $cf DEFAULT security_group_api neutron
-
-  # network (metadata agent)
-  cf=/etc/neutron/metadata_agent.ini
-  _x openstack-config --set $cf DEFAULT auth_url http://$os_server_fqdn:5000/v2.0
-  _x openstack-config --set $cf DEFAULT auth_region regionOne
-  _x openstack-config --set $cf DEFAULT admin_tenant_name service
-  _x openstack-config --set $cf DEFAULT admin_user neutron
-  _x openstack-config --set $cf DEFAULT admin_password $os_pwd_ospwd_neutron
-  _x openstack-config --set $cf DEFAULT nova_metadata_ip $os_server_fqdn
-  _x openstack-config --set $cf DEFAULT metadata_proxy_shared_secret $os_pwd_mdsecret
-
-  # network (dhcp agent)
-  cf=/etc/neutron/dhcp_agent.ini
-  _x openstack-config --set $cf DEFAULT interface_driver neutron.agent.linux.interface.OVSInterfaceDriver
-  _x openstack-config --set $cf DEFAULT dhcp_driver neutron.agent.linux.dhcp.Dnsmasq
-  _x openstack-config --set $cf DEFAULT use_namespaces True
-  _x openstack-config --set $cf DEFAULT verbose True
-
-  # network (l3)
-  cf=/etc/neutron/l3_agent.ini
-  _x openstack-config --set $cf DEFAULT interface_driver neutron.agent.linux.interface.OVSInterfaceDriver
-  _x openstack-config --set $cf DEFAULT use_namespaces True
+  ## configure network here ##
 
   # cat $cf | sed -e '/^$/d' | grep -v '^\s*#' | sed -e 's#^\[#\n[#'
-
-  ## /neutron ##
 
   # start services at the end of everything
 
@@ -596,17 +467,7 @@ EOF
   _x systemctl enable openstack-glance-api
   _x systemctl enable openstack-glance-registry
 
-  # neutron
-  _x systemctl restart openvswitch
-  _x systemctl restart neutron-server
-  _x systemctl restart neutron-metadata-agent
-  _x systemctl restart neutron-dhcp-agent
-  _x systemctl restart neutron-l3-agent
-  _x systemctl enable openvswitch
-  _x systemctl enable neutron-server
-  _x systemctl enable neutron-metadata-agent
-  _x systemctl enable neutron-dhcp-agent
-  _x systemctl enable neutron-l3-agent
+  # network services?
 
   # nova
   _x systemctl restart openstack-nova-api
@@ -641,30 +502,16 @@ EOF
 
     # --> https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux_OpenStack_Platform/4/html/Getting_Started_Guide/sect-Working_with_OpenStack_Networking.html
 
-    # create a network
-    if ! sudo -Eu nobody neutron net-list | grep -qE '\|\s+flat-net\s+\|' ; then
-      _x sudo -Eu nobody neutron net-create flat-net \
-        --router:external True \
-        --provider:network_type flat \
-        --provider:physical_network physnet1
-    fi
-
-    # create a subnetwork
-    if ! sudo -Eu nobody neutron subnet-list | grep -qE '\|\s+flat-subnet\s+\|' ; then
-      _x sudo -Eu nobody neutron subnet-create \
-        --gateway 10.162.223.254 \
-        --allocation-pool start=10.162.208.2,end=10.162.223.253 \
-        --disable-dhcp \
-        --name flat-subnet \
-        flat-net \
-        10.162.208.0/20
-    fi
+    ## create network here ##
 
     _e "exiting openstack admin environment"
   ) || exit $?
 
 }
 
+################################################################################
+# WORKER NODE CONFIGURATION
+################################################################################
 function _i_worker() {
   _e "*** worker node part ***"
 
@@ -712,6 +559,9 @@ function _i_worker() {
 
 }
 
+################################################################################
+# ENTRY POINT
+################################################################################
 function _m() {
 
   if [ `whoami` != 'root' ] ; then
