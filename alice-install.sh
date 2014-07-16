@@ -832,6 +832,14 @@ function Dl() {
   fi
 }
 
+# Check prerequisites
+function ModuleCheckPrereq() {
+
+  Banner "Checking prerequisites..."
+  Swallow -f "Checking if on a 64 bit machine" [ `uname -m` == 'x86_64' ]
+
+}
+
 # Install AliEn
 function ModuleAliEn() {
 
@@ -1283,6 +1291,9 @@ function Main() {
   echo ""
   echo -e "  \033[34mstderr:\033[m $ERR"
   echo -e "  \033[34mstdout:\033[m $OUT"
+
+  # Checking prerequisites
+  ModuleCheckPrereq
 
   # Perform required actions
   if [ $DO_PREP == 1 ]; then
