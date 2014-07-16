@@ -457,18 +457,22 @@ function _i_worker() {
 
   ## network part ###
 
-  _e "checking for phys iface ($os_physif), and bridge ($os_brif)"
+  _e "checking for phys iface ($os_physif), bridge ($os_brif) and mode ($os_novanet_mode)"
   _x [ "$os_physif" != '' ]
   _x [ "$os_brif" != '' ]
+  _x [ "$os_novanet_mode" != '' ]
 
-  if ! brctl show | grep -q "$os_brif" 2> /dev/null ; then
+  # reset network to an initial state
+  pref=/etc/sysconfig/network-scripts
+  if [ "$os_novanet_mode" == 'flat' ] ; then
+    _e 'configuring network as flat'
+    if ! brctl show | grep -q "$os_brif" 2> /dev/null ; then
 
-    _e "creating bridge $os_brif with port $os_physif"
+      _x systemctl stop network.service
+      _e "creating bridge $os_brif with port $os_physif"
 
-    # create the bridge
-    pref=/etc/sysconfig/network-scripts
-
-    cat > "${pref}/ifcfg-${os_brif}" <<EOF
+      # create the bridge
+      cat > "${pref}/ifcfg-${os_brif}" <<EOF
 DEVICE=${os_brif}
 TYPE=Bridge
 ONBOOT=Yes
@@ -476,15 +480,15 @@ BOOTPROTO=dhcp
 PERSISTENT_DHCLIENT=1
 IPV6INIT=no
 EOF
-    _x grep -q '^TYPE=Bridge$' "${pref}/ifcfg-${os_brif}"
+      _x grep -q '^TYPE=Bridge$' "${pref}/ifcfg-${os_brif}"
 
-    # make a backup
-    mkdir -p "${pref}/openstack-backup"
-    [ ! -e "${pref}/openstack-backup/ifcfg-$os_physif" ] && _x cp "$pref/ifcfg-$os_physif" "${pref}/openstack-backup/ifcfg-$os_physif"
+      # make a backup
+      mkdir -p "${pref}/openstack-backup"
+      [ ! -e "${pref}/openstack-backup/ifcfg-$os_physif" ] && _x cp "$pref/ifcfg-$os_physif" "${pref}/openstack-backup/ifcfg-$os_physif"
 
-    (
-      grep -E '^\s*UUID=|^\s*HWADDR=|^\s*NAME=' "${pref}/openstack-backup/ifcfg-$os_physif" ;
-      cat <<EOF
+      (
+        grep -E '^\s*UUID=|^\s*HWADDR=|^\s*NAME=' "${pref}/openstack-backup/ifcfg-$os_physif" ;
+        cat <<EOF
 DEVICE=$os_physif
 TYPE=Ethernet
 BRIDGE=$os_brif
@@ -496,14 +500,27 @@ DEFROUTE=no
 PEERROUTES=yes
 IPV4_FAILURE_FATAL=no
 EOF
-    ) > "${pref}/ifcfg-${os_physif}"
-    _x grep -q '^TYPE=Ethernet$' "${pref}/ifcfg-${os_physif}"
+      ) > "${pref}/ifcfg-${os_physif}"
+      _x grep -q '^TYPE=Ethernet$' "${pref}/ifcfg-${os_physif}"
+      _x systemctl start network.service
+    else
+      _e "bridge $os_brif already configured"
+    fi
+  elif [ "$os_novanet_mode" == 'vlan' ] ; then
+    _e 'configuring network as vlan'
+    if brctl show | grep -q "$os_brif" 2> /dev/null ; then
+      _x [ -e "${pref}/openstack-backup/ifcfg-${os_physif}" ]
+      _x systemctl stop network.service
+      _x rm -f "${pref}/ifcfg-${os_brif}"
+      _x cp "${pref}/openstack-backup/ifcfg-${os_physif}" "${pref}/ifcfg-${os_physif}"
+      _x systemctl start network.service
+    else
+      _e "no need to restore original interface $os_physif"
+    fi
 
-    # restart networking... this can break lots of things
-    _e "about to restart network: this can fail!"
-    _x systemctl restart network.service
   else
-    _e "bridge $os_brif already configured"
+    _e "network type can be only 'flat' or 'vlan'"
+    _x false
   fi
 
   ## /network part ##
