@@ -439,7 +439,7 @@ EOF
 
     # initial network
     sudo -Eu nobody nova net-list | grep -qE '\|\s+flat-net\s+\|' || \
-      _x sudo -Eu nobody nova network-create flat-net --bridge $os_brif --multi-host T --fixed-range-v4 10.162.208.0/20
+      _x sudo -Eu nobody nova network-create flat-net --bridge $os_brif --multi-host T --fixed-range-v4 10.66.208.0/20 --vlan=806
 
     _e "exiting openstack admin environment"
   ) || exit $?
@@ -539,9 +539,10 @@ EOF
   _x openstack-config --set $cf libvirt virt_type qemu
 
   # nova network (legacy)
+  # --> http://docs.openstack.org/grizzly/openstack-compute/admin/content/configuring-vlan-networking.html
   _x openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.api.API
   _x openstack-config --set /etc/nova/nova.conf DEFAULT security_group_api nova
-  _x openstack-config --set /etc/nova/nova.conf DEFAULT network_manager nova.network.manager.FlatDHCPManager
+  _x openstack-config --set /etc/nova/nova.conf DEFAULT network_manager nova.network.manager.VlanManager
   _x openstack-config --set /etc/nova/nova.conf DEFAULT firewall_driver nova.virt.libvirt.firewall.IptablesFirewallDriver
   _x openstack-config --set /etc/nova/nova.conf DEFAULT network_size 4094
   _x openstack-config --set /etc/nova/nova.conf DEFAULT allow_same_net_traffic False
@@ -549,6 +550,7 @@ EOF
   _x openstack-config --set /etc/nova/nova.conf DEFAULT send_arp_for_ha True
   _x openstack-config --set /etc/nova/nova.conf DEFAULT share_dhcp_address True
   _x openstack-config --set /etc/nova/nova.conf DEFAULT force_dhcp_release True
+  _x openstack-config --set /etc/nova/nova.conf DEFAULT vlan_interface $os_brif
   _x openstack-config --set /etc/nova/nova.conf DEFAULT flat_network_bridge $os_brif
   _x openstack-config --set /etc/nova/nova.conf DEFAULT flat_interface $os_physif
   _x openstack-config --set /etc/nova/nova.conf DEFAULT public_interface $os_physif
