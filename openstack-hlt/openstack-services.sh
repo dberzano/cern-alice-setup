@@ -52,6 +52,7 @@ function _m() {
           openstack-nova-scheduler openstack-nova-conductor \
           openstack-nova-novncproxy )
         novanet=()
+        ok=1
       ;;
       --worker)
         aux=( libvirtd dbus )
@@ -60,6 +61,7 @@ function _m() {
         neutron=( neutron-openvswitch-agent openvswitch )
         nova=( openstack-nova-compute )
         novanet=( openstack-nova-network openstack-nova-metadata-api )
+        ok=1
       ;;
       --status)
         action='status'
@@ -70,12 +72,7 @@ function _m() {
       --stop)
         action='stop'
       ;;
-      --all)     services='all' ;;
-      --aux)     services='aux' ;;
-      --auth)    services='auth' ;;
-      --glance)  services='glance' ;;
-      --neutron) services='neutron' ;;
-      --nova)    services='nova' ;;
+      --all|--aux|--auth|--glance|--neutron|--nova|--novanet) services="${1:2}" ;;
       *)
         _e "unknown param: $1"
         exit 1
@@ -95,8 +92,8 @@ function _m() {
     *)       srv="${auth[@]} ${glance[@]} ${novanet[@]} ${nova[@]}" ; services='os' ;;
   esac
 
-  if [ "$(echo ${srv[*]})" == '' ] ; then
-    _e "use --worker or --head to select pertaining services"
+  if [ "$services" == '' ] || [ "$ok" != 1 ] ; then
+    _e "usage: $0 [--worker|--head] [--all|--aux|--auth|--glance|--neutron|--nova|--novanet] [--restart|--stop]"
     exit 1
   fi
 
@@ -105,10 +102,11 @@ function _m() {
     for s in ${srv[@]} ; do
       _e " * $s"
     done
-    _e "proceed? (type yes)"
-    read ans
-    if [ "$ans" != 'yes' ] ; then
-      _e "aborting"
+    _e ">> press 'y' to proceed <<"
+    read -n1 ans
+    _e ''
+    if [ "$ans" != 'y' ] && [ "$ans" != 'Y' ] ; then
+      _e "cancelled"
       exit 1
     fi
   fi
@@ -116,12 +114,16 @@ function _m() {
   for s in ${srv[@]} ; do
     case "$action" in
       restart)
+        echo -en "\033[34m[\033[35m....\033[34m] $s\033[m"
         systemctl restart $s
         sleep 1
+        echo -en '\r'
         _status $s
       ;;
       stop)
+        echo -en "\033[34m[\033[35m....\033[34m] $s\033[m"
         systemctl stop $s
+        echo -en '\r'
         _status $s
       ;;
       *)
