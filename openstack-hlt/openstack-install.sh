@@ -388,7 +388,10 @@ EOF
     _e "exiting openstack admin environment"
   ) || exit $?
 
-  ## configure network here ##
+  # nova network (legacy, i.e. "old but gold")
+  cf=/etc/nova/nova.conf
+  _x openstack-config --set $cf DEFAULT network_api_class nova.network.api.API
+  _x openstack-config --set $cf DEFAULT security_group_api nova
 
   # cat $cf | sed -e '/^$/d' | grep -v '^\s*#' | sed -e 's#^\[#\n[#'
 
@@ -399,8 +402,6 @@ EOF
   _x systemctl restart openstack-glance-registry
   _x systemctl enable openstack-glance-api
   _x systemctl enable openstack-glance-registry
-
-  # network services?
 
   # nova
   _x systemctl restart openstack-nova-api
@@ -534,13 +535,32 @@ EOF
   # nova compute --> qemu (or docker?)
   _x openstack-config --set $cf libvirt virt_type qemu
 
+  # nova network (legacy)
+  _x openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.api.API
+  _x openstack-config --set /etc/nova/nova.conf DEFAULT security_group_api nova
+  _x openstack-config --set /etc/nova/nova.conf DEFAULT network_manager nova.network.manager.FlatDHCPManager
+  _x openstack-config --set /etc/nova/nova.conf DEFAULT firewall_driver nova.virt.libvirt.firewall.IptablesFirewallDriver
+  _x openstack-config --set /etc/nova/nova.conf DEFAULT network_size 4094
+  _x openstack-config --set /etc/nova/nova.conf DEFAULT allow_same_net_traffic False
+  _x openstack-config --set /etc/nova/nova.conf DEFAULT multi_host True
+  _x openstack-config --set /etc/nova/nova.conf DEFAULT send_arp_for_ha True
+  _x openstack-config --set /etc/nova/nova.conf DEFAULT share_dhcp_address True
+  _x openstack-config --set /etc/nova/nova.conf DEFAULT force_dhcp_release True
+  _x openstack-config --set /etc/nova/nova.conf DEFAULT flat_network_bridge $os_brif
+  _x openstack-config --set /etc/nova/nova.conf DEFAULT flat_interface $os_physif
+  _x openstack-config --set /etc/nova/nova.conf DEFAULT public_interface $os_physif
+
   # nova compute services
   _x systemctl restart libvirtd
   _x systemctl restart dbus
   _x systemctl restart openstack-nova-compute
+  _x systemctl restart openstack-nova-network
+  _x systemctl restart openstack-nova-metadata-api
   _x systemctl enable libvirtd
   _x systemctl enable dbus
   _x systemctl enable openstack-nova-compute
+  _x systemctl enable openstack-nova-network
+  _x systemctl enable openstack-nova-metadata-api
 
 }
 

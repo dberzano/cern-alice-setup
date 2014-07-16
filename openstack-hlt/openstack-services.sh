@@ -41,23 +41,25 @@ function _m() {
   while [ $# -gt 0 ] ; do
     case "$1" in
       --head)
-        aux=( mysqld qpidd openvswitch )
+        aux=( mysqld qpidd )
         auth=( openstack-keystone )
         glance=( openstack-glance-api openstack-glance-registry )
         neutron=( neutron-server neutron-metadata-agent \
           neutron-openvswitch-agent neutron-dhcp-agent \
-          neutron-l3-agent )
+          neutron-l3-agent openvswitch )
         nova=( \
           openstack-nova-api openstack-nova-cert openstack-nova-consoleauth \
           openstack-nova-scheduler openstack-nova-conductor \
           openstack-nova-novncproxy )
+        novanet=()
       ;;
       --worker)
-        aux=( libvirtd dbus openvswitch )
+        aux=( libvirtd dbus )
         auth=()
         glance=()
-        neutron=( neutron-openvswitch-agent )
-        nova=( openstack-nova-compute  )
+        neutron=( neutron-openvswitch-agent openvswitch )
+        nova=( openstack-nova-compute )
+        novanet=( openstack-nova-network openstack-nova-metadata-api )
       ;;
       --status)
         action='status'
@@ -84,12 +86,13 @@ function _m() {
 
   srv=''
   case "$services" in
-    all)     srv="${aux[@]} ${auth[@]} ${glance[@]} ${neutron[@]} ${nova[@]}" ;;
+    all)     srv="${aux[@]} ${auth[@]} ${glance[@]} ${novanet[@]} ${nova[@]}" ;;
     aux)     srv="${aux[@]}" ;;
     glance)  srv="${glance[@]}" ;;
     neutron) srv="${neutron[@]}" ;;
+    novanet) srv="${novanet[@]}" ;;
     nova)    srv="${nova[@]}" ;;
-    *)       srv="${auth[@]} ${glance[@]} ${neutron[@]} ${nova[@]}" ;;
+    *)       srv="${auth[@]} ${glance[@]} ${novanet[@]} ${nova[@]}" ; services='os' ;;
   esac
 
   if [ "$(echo ${srv[*]})" == '' ] ; then
