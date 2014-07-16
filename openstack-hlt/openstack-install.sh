@@ -135,74 +135,6 @@ function _i_common() {
   _e "current ip: $os_current_ip"
   _x [ "$os_current_ip" != '' ]
 
-  _e "checking for phys iface ($os_physif), ovs bridge ($os_ovsbr) and integration bridge (br-int)"
-  _x [ "$os_physif" != '' ]
-  _x [ "$os_ovsbr" != '' ]
-
-  ## network part ###
-
-  if [ "$(ovs-vsctl iface-to-br "$os_physif" 2> /dev/null)" != "$os_ovsbr" ] || ! ovs-vsctl br-exists br-int ; then
-
-    _e "creating bridge $os_ovsbr with port $os_physif"
-
-    # create the bridge
-    pref=/etc/sysconfig/network-scripts
-
-    cat > "${pref}/ifcfg-${os_ovsbr}" <<EOF
-DEVICE=$os_ovsbr
-ONBOOT=yes
-BOOTPROTO=dhcp
-OVSBOOTPROTO=dhcp
-OVSDHCPINTERFACES=$os_physif
-DEVICETYPE=ovs
-TYPE=OVSBridge
-DELAY=0
-HOTPLUG=no
-EOF
-    _x grep -q '^TYPE=OVSBridge$' "${pref}/ifcfg-${os_ovsbr}"
-
-    # create the integration bridge
-    cat > "${pref}/ifcfg-br-int" <<EOF
-DEVICE=br-int
-ONBOOT=yes
-BOOTPROTO=none
-DEVICETYPE=ovs
-TYPE=OVSBridge
-DELAY=0
-HOTPLUG=no
-EOF
-
-    # make a backup
-    mkdir -p "${pref}/openstack-backup"
-    [ ! -e "${pref}/openstack-backup/ifcfg-$os_physif" ] && _x cp "$pref/ifcfg-$os_physif" "${pref}/openstack-backup/ifcfg-$os_physif"
-
-    (
-      grep -E '^\s*UUID=|^\s*HWADDR=|^\s*NAME=' "${pref}/openstack-backup/ifcfg-$os_physif" ;
-      cat <<EOF
-DEVICETYPE=ovs
-TYPE=OVSPort
-OVS_BRIDGE=$os_ovsbr
-DEVICE=$os_physif
-ONBOOT=yes
-BOOTPROTO=none
-USERCTL=no
-PEERDNS=yes
-DEFROUTE=no
-PEERROUTES=yes
-IPV4_FAILURE_FATAL=no
-EOF
-    ) > "${pref}/ifcfg-${os_physif}"
-    _x grep -q '^TYPE=OVSPort$' "${pref}/ifcfg-${os_physif}"
-
-    # restart networking... this can break lots of things
-    _e "about to restart network: this can fail!"
-    _x systemctl restart network.service
-  else
-    _e "bridge $os_ovsbr already configured"
-  fi
-
-  ## /network part ##
-
 }
 
 ################################################################################
@@ -516,7 +448,61 @@ EOF
 function _i_worker() {
   _e "*** worker node part ***"
 
-  _x _omnom openstack-nova-compute openstack-nova-network --disablerepo='slc6-*'
+  _x _omnom openstack-nova-compute openstack-nova-network \
+    bridge-utils --disablerepo='slc6-*'
+
+  ## network part ###
+
+  _e "checking for phys iface ($os_physif), and bridge ($os_brif)"
+  _x [ "$os_physif" != '' ]
+  _x [ "$os_brif" != '' ]
+
+  if ! brctl show | grep -q "$os_brif" 2> /dev/null ; then
+
+    _e "creating bridge $os_brif with port $os_physif"
+
+    # create the bridge
+    pref=/etc/sysconfig/network-scripts
+
+    cat > "${pref}/ifcfg-${os_brif}" <<EOF
+DEVICE=${os_brif}
+TYPE=Bridge
+ONBOOT=Yes
+BOOTPROTO=dhcp
+PERSISTENT_DHCLIENT=1
+IPV6INIT=no
+EOF
+    _x grep -q '^TYPE=Bridge$' "${pref}/ifcfg-${os_brif}"
+
+    # make a backup
+    mkdir -p "${pref}/openstack-backup"
+    [ ! -e "${pref}/openstack-backup/ifcfg-$os_physif" ] && _x cp "$pref/ifcfg-$os_physif" "${pref}/openstack-backup/ifcfg-$os_physif"
+
+    (
+      grep -E '^\s*UUID=|^\s*HWADDR=|^\s*NAME=' "${pref}/openstack-backup/ifcfg-$os_physif" ;
+      cat <<EOF
+DEVICE=$os_physif
+TYPE=Ethernet
+BRIDGE=$os_brif
+ONBOOT=yes
+BOOTPROTO=none
+USERCTL=no
+PEERDNS=yes
+DEFROUTE=no
+PEERROUTES=yes
+IPV4_FAILURE_FATAL=no
+EOF
+    ) > "${pref}/ifcfg-${os_physif}"
+    _x grep -q '^TYPE=Ethernet$' "${pref}/ifcfg-${os_physif}"
+
+    # restart networking... this can break lots of things
+    _e "about to restart network: this can fail!"
+    _x systemctl restart network.service
+  else
+    _e "bridge $os_brif already configured"
+  fi
+
+  ## /network part ##
 
   # service: nova compute
   cf=/etc/nova/nova.conf
