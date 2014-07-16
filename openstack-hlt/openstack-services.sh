@@ -41,18 +41,22 @@ function _m() {
   while [ $# -gt 0 ] ; do
     case "$1" in
       --head)
-        aux=( mysqld qpidd )
+        aux=( mysqld qpidd openvswitch )
         auth=( openstack-keystone )
         glance=( openstack-glance-api openstack-glance-registry )
+        neutron=( neutron-server neutron-metadata-agent \
+          neutron-openvswitch-agent neutron-dhcp-agent \
+          neutron-l3-agent )
         nova=( \
           openstack-nova-api openstack-nova-cert openstack-nova-consoleauth \
           openstack-nova-scheduler openstack-nova-conductor \
           openstack-nova-novncproxy )
       ;;
       --worker)
-        aux=( libvirtd dbus )
+        aux=( libvirtd dbus openvswitch )
         auth=()
         glance=()
+        neutron=( neutron-openvswitch-agent )
         nova=( openstack-nova-compute  )
       ;;
       --status)
@@ -64,11 +68,12 @@ function _m() {
       --stop)
         action='stop'
       ;;
-      --all)    services='all' ;;
-      --aux)    services='aux' ;;
-      --auth)   services='auth' ;;
-      --glance) services='glance' ;;
-      --nova)   services='nova' ;;
+      --all)     services='all' ;;
+      --aux)     services='aux' ;;
+      --auth)    services='auth' ;;
+      --glance)  services='glance' ;;
+      --neutron) services='neutron' ;;
+      --nova)    services='nova' ;;
       *)
         _e "unknown param: $1"
         exit 1
@@ -79,11 +84,12 @@ function _m() {
 
   srv=''
   case "$services" in
-    all)    srv="${aux[@]} ${auth[@]} ${glance[@]} ${nova[@]}" ;;
-    aux)    srv="${aux[@]}" ;;
-    glance) srv="${glance[@]}" ;;
-    nova)   srv="${nova[@]}" ;;
-    *)      srv="${auth[@]} ${glance[@]} ${nova[@]}" ;;
+    all)     srv="${aux[@]} ${auth[@]} ${glance[@]} ${neutron[@]} ${nova[@]}" ;;
+    aux)     srv="${aux[@]}" ;;
+    glance)  srv="${glance[@]}" ;;
+    neutron) srv="${neutron[@]}" ;;
+    nova)    srv="${nova[@]}" ;;
+    *)       srv="${auth[@]} ${glance[@]} ${neutron[@]} ${nova[@]}" ;;
   esac
 
   if [ "$(echo ${srv[*]})" == '' ] ; then
@@ -108,6 +114,7 @@ function _m() {
     case "$action" in
       restart)
         systemctl restart $s
+        sleep 1
         _status $s
       ;;
       stop)
