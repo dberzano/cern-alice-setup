@@ -553,6 +553,7 @@ EOF
   _x openstack-config --set /etc/nova/nova.conf DEFAULT vlan_interface $os_brif
   _x openstack-config --set /etc/nova/nova.conf DEFAULT flat_network_bridge $os_brif
   _x openstack-config --set /etc/nova/nova.conf DEFAULT flat_interface $os_physif
+  _x openstack-config --set /etc/nova/nova.conf DEFAULT flat_injected False
   _x openstack-config --set /etc/nova/nova.conf DEFAULT public_interface $os_physif
 
   # nova compute services
