@@ -89,7 +89,8 @@ function _i_common() {
   _x sed -e 's#$releasever#20# ; s#^\s*priority\s*=\s*.*$#priority=1#' -i "$repo"
 
   # install common packages
-  _x _omnom iptables-services yum-plugin-priorities openstack-utils
+  _x _omnom iptables-services yum-plugin-priorities openstack-utils \
+    openstack-nova-api
 
   # generate all the passwords; save them to a configuration file
   source "$os_conffile" 2> /dev/null
@@ -213,7 +214,7 @@ function _i_head() {
   _x _omnom mariadb-server MySQL-python qpid-cpp-server \
     openstack-keystone python-keystoneclient \
     openstack-glance python-glanceclient \
-    openstack-nova-api openstack-nova-cert openstack-nova-conductor \
+    openstack-nova-cert openstack-nova-conductor \
     openstack-nova-console openstack-nova-novncproxy openstack-nova-scheduler \
     python-novaclient
 
@@ -515,7 +516,7 @@ EOF
 function _i_worker() {
   _e "*** worker node part ***"
 
-  _x _omnom openstack-nova-compute --disablerepo='slc6-*'
+  _x _omnom openstack-nova-compute openstack-nova-network --disablerepo='slc6-*'
 
   # service: nova compute
   cf=/etc/nova/nova.conf
@@ -548,11 +549,9 @@ function _i_worker() {
   _x openstack-config --set $cf libvirt virt_type qemu
 
   # nova compute services
-  _x systemctl restart openvswitch
   _x systemctl restart libvirtd
   _x systemctl restart dbus
   _x systemctl restart openstack-nova-compute
-  _x systemctl enable openvswitch
   _x systemctl enable libvirtd
   _x systemctl enable dbus
   _x systemctl enable openstack-nova-compute
