@@ -436,7 +436,9 @@ EOF
 
     # --> https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux_OpenStack_Platform/4/html/Getting_Started_Guide/sect-Working_with_OpenStack_Networking.html
 
-    ## create network here ##
+    # initial network
+    sudo -Eu nobody nova net-list | grep -qE '\|\s+flat-net\s+\|' || \
+      _x sudo -Eu nobody nova network-create flat-net --bridge $os_brif --multi-host T --fixed-range-v4 10.162.208.0/20
 
     _e "exiting openstack admin environment"
   ) || exit $?
