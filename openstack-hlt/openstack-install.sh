@@ -438,8 +438,20 @@ EOF
     # --> https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux_OpenStack_Platform/4/html/Getting_Started_Guide/sect-Working_with_OpenStack_Networking.html
 
     # initial network
-    sudo -Eu nobody nova net-list | grep -qE '\|\s+flat-net\s+\|' || \
-      _x sudo -Eu nobody nova network-create flat-net --bridge $os_brif --multi-host T --fixed-range-v4 10.66.208.0/20 --vlan=806
+    if [ "$os_novanet_mode" == 'vlan' ] ; then
+      netid=$( sudo -Eu nobody nova net-list | grep -E '\|\s+flat-net\s+\|' | awk '{ print $2 }' )
+      [ "$netid" != '' ] && _x sudo -Eu nobody nova net-delete "$netid"
+      sudo -Eu nobody nova net-list | grep -qE '\|\s+vlan-net\s+\|' || \
+        _x sudo -Eu nobody nova network-create vlan-net --multi-host T --fixed-range-v4 10.66.208.0/20 --vlan=806
+    elif [ "$os_novanet_mode" == 'flat' ] ; then
+      netid=$( sudo -Eu nobody nova net-list | grep -E '\|\s+vlan-net\s+\|' | awk '{ print $2 }' )
+      [ "$netid" != '' ] && _x sudo -Eu nobody nova net-delete "$netid"
+      sudo -Eu nobody nova net-list | grep -qE '\|\s+flat-net\s+\|' || \
+        _x sudo -Eu nobody nova network-create flat-net --bridge=$os_brif --multi-host T --fixed-range-v4 10.162.208.0/20
+    else
+      _e "network type can be only 'flat' or 'vlan'"
+      _x false
+    fi
 
     _e "exiting openstack admin environment"
   ) || exit $?
@@ -557,21 +569,30 @@ EOF
 
   # nova network (legacy)
   # --> http://docs.openstack.org/grizzly/openstack-compute/admin/content/configuring-vlan-networking.html
+  # --> http://www.mirantis.com/blog/openstack-networking-flatmanager-and-flatdhcpmanager/
   _x openstack-config --set /etc/nova/nova.conf DEFAULT network_api_class nova.network.api.API
   _x openstack-config --set /etc/nova/nova.conf DEFAULT security_group_api nova
-  _x openstack-config --set /etc/nova/nova.conf DEFAULT network_manager nova.network.manager.VlanManager
   _x openstack-config --set /etc/nova/nova.conf DEFAULT firewall_driver nova.virt.libvirt.firewall.IptablesFirewallDriver
   _x openstack-config --set /etc/nova/nova.conf DEFAULT network_size 4094
-  _x openstack-config --set /etc/nova/nova.conf DEFAULT allow_same_net_traffic False
+  _x openstack-config --set /etc/nova/nova.conf DEFAULT allow_same_net_traffic True
   _x openstack-config --set /etc/nova/nova.conf DEFAULT multi_host True
   _x openstack-config --set /etc/nova/nova.conf DEFAULT send_arp_for_ha True
   _x openstack-config --set /etc/nova/nova.conf DEFAULT share_dhcp_address True
   _x openstack-config --set /etc/nova/nova.conf DEFAULT force_dhcp_release True
-  _x openstack-config --set /etc/nova/nova.conf DEFAULT vlan_interface $os_brif
-  _x openstack-config --set /etc/nova/nova.conf DEFAULT flat_network_bridge $os_brif
-  _x openstack-config --set /etc/nova/nova.conf DEFAULT flat_interface $os_physif
-  _x openstack-config --set /etc/nova/nova.conf DEFAULT flat_injected False
   _x openstack-config --set /etc/nova/nova.conf DEFAULT public_interface $os_physif
+  _x openstack-config --set /etc/nova/nova.conf DEFAULT flat_injected False
+
+  if [ "$os_novanet_mode" == 'vlan' ] ; then
+    _x openstack-config --set $cf DEFAULT network_manager nova.network.manager.VlanManager
+    _x openstack-config --set $cf DEFAULT vlan_interface $os_physif
+    _x openstack-config --del $cf DEFAULT flat_network_bridge
+    _x openstack-config --del $cf DEFAULT flat_interface
+  else
+    _x openstack-config --set $cf DEFAULT network_manager nova.network.manager.FlatDHCPManager
+    _x openstack-config --del $cf DEFAULT vlan_interface
+    _x openstack-config --set $cf DEFAULT flat_network_bridge $os_brif
+    _x openstack-config --set $cf DEFAULT flat_interface $os_physif
+  fi
 
   # nova compute services
   _x systemctl restart libvirtd
