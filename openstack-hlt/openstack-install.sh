@@ -20,6 +20,7 @@ function _omnom() {
   to_install=''
   extra_opts=()
   for p in "$@" ; do
+    pkgfull="$p"
     if [ ${p:0:1} == '-' ] ; then
       extra_opts="${extra_opts[@]} ${p}"
     else
@@ -28,11 +29,11 @@ function _omnom() {
         p=${p%-*}
       fi
       _e "checking if package is installed: $p"
-      rpm -q "$p" > /dev/null 2>&1 || to_install="$to_install $p"
+      rpm -q "$p" > /dev/null 2>&1 || to_install="$to_install $pkgfull"
     fi
   done
   if [ "$to_install" != '' ] ; then
-    _e "to install: $to_install"
+    _e "to install:$to_install"
     yum -y ${extra_opts[@]} install $to_install
     return $?
   else
@@ -83,14 +84,14 @@ function _i_common() {
   _x yum remove -y firewalld
 
   _x _omnom http://repos.fedorapeople.org/repos/openstack/openstack-icehouse/rdo-release-icehouse-3.noarch.rpm
-  _x _omnom ftp://fr2.rpmfind.net/linux/fedora/linux/development/rawhide/x86_64/os/Packages/p/python-oslo-config-1.2.1-2.fc21.noarch.rpm
+  _x _omnom ftp://bo.mirror.garr.it/pub/1/fedora/linux/updates/20/x86_64/python-oslo-config-1.2.1-2.fc20.noarch.rpm
 
   repo=/etc/yum.repos.d/rdo-release.repo
   _x sed -e 's#$releasever#20# ; s#^\s*priority\s*=\s*.*$#priority=1#' -i "$repo"
 
   # install common packages
   _x _omnom iptables-services yum-plugin-priorities openstack-utils \
-    openstack-nova-api
+    openstack-nova-api tcpdump mtr htop
 
   # generate all the passwords; save them to a configuration file
   source "$os_conffile" 2> /dev/null
