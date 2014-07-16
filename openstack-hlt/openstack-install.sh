@@ -564,6 +564,12 @@ EOF
   _x systemctl enable openstack-nova-network
   _x systemctl enable openstack-nova-metadata-api
 
+  # remove default virsh network
+  if virsh net-info default > /dev/null 2>&1 ; then
+    _x virsh net-destroy default
+    _x virsh net-undefine default
+  fi
+
 }
 
 ################################################################################
