@@ -75,16 +75,14 @@ function _i_common() {
   fi
 
   _x yum remove -y firewalld
-  _x _omnom iptables-services yum-plugin-priorities openstack-neutron-ml2
 
   _x _omnom http://repos.fedorapeople.org/repos/openstack/openstack-icehouse/rdo-release-icehouse-3.noarch.rpm
+  _x _omnom ftp://fr2.rpmfind.net/linux/fedora/linux/development/rawhide/x86_64/os/Packages/p/python-oslo-config-1.2.1-2.fc21.noarch.rpm
 
   repo=/etc/yum.repos.d/rdo-release.repo
   _x sed -e 's#$releasever#20# ; s#^\s*priority\s*=\s*.*$#priority=1#' -i "$repo"
 
-  _x _omnom ftp://fr2.rpmfind.net/linux/fedora/linux/development/rawhide/x86_64/os/Packages/p/python-oslo-config-1.2.1-2.fc21.noarch.rpm
-
-  _x _omnom openstack-utils
+  _x _omnom iptables-services yum-plugin-priorities openstack-neutron-ml2 openstack-utils openstack-neutron-openvswitch
 
   # generate all the passwords; save them to a configuration file
   source "$os_conffile" 2> /dev/null
@@ -130,8 +128,82 @@ function _i_common() {
   _e "current ip: $os_current_ip"
   _x [ "$os_current_ip" != '' ]
 
+  _e "checking for phys iface ($os_physif), ovs bridge ($os_ovsbr) and integration bridge (br-int)"
+  _x [ "$os_physif" != '' ]
+  _x [ "$os_ovsbr" != '' ]
+
+  ## network part ###
+
+  if [ "$(ovs-vsctl iface-to-br "$os_physif" 2> /dev/null)" != "$os_ovsbr" ] || ! ovs-vsctl br-exists br-int ; then
+
+    _e "creating bridge $os_ovsbr with port $os_physif"
+
+    # create the bridge
+    pref=/etc/sysconfig/network-scripts
+    _x rm -f $pref/ifcfg-ovsbr100
+
+    cat > "${pref}/ifcfg-${os_ovsbr}" <<EOF
+DEVICE=$os_ovsbr
+ONBOOT=yes
+BOOTPROTO=dhcp
+OVSBOOTPROTO=dhcp
+OVSDHCPINTERFACES=$os_physif
+DEVICETYPE=ovs
+TYPE=OVSBridge
+DELAY=0
+HOTPLUG=no
+EOF
+    _x grep -q '^TYPE=OVSBridge$' "${pref}/ifcfg-${os_ovsbr}"
+
+    # create the integration bridge
+    cat > "${pref}/ifcfg-br-int" <<EOF
+DEVICE=br-int
+ONBOOT=yes
+BOOTPROTO=none
+DEVICETYPE=ovs
+TYPE=OVSBridge
+DELAY=0
+HOTPLUG=no
+EOF
+
+    # make a backup
+    mkdir -p "${pref}/openstack-backup"
+    [ ! -e "${pref}/openstack-backup/ifcfg-$os_physif" ] && _x cp "$pref/ifcfg-$os_physif" "${pref}/openstack-backup/ifcfg-$os_physif"
+
+    (
+      grep -E '^\s*UUID=|^\s*HWADDR=|^\s*NAME=' "${pref}/openstack-backup/ifcfg-$os_physif" ;
+      cat <<EOF
+DEVICETYPE=ovs
+TYPE=OVSPort
+OVS_BRIDGE=$os_ovsbr
+DEVICE=$os_physif
+ONBOOT=yes
+BOOTPROTO=none
+USERCTL=no
+PEERDNS=yes
+DEFROUTE=no
+PEERROUTES=yes
+IPV4_FAILURE_FATAL=no
+EOF
+    ) > "${pref}/ifcfg-${os_physif}"
+    _x grep -q '^TYPE=OVSPort$' "${pref}/ifcfg-${os_physif}"
+
+    # restart networking... this can break lots of things
+    _e "about to restart network: this can fail!"
+    _x systemctl restart network.service
+  else
+    _e "bridge $os_ovsbr already configured"
+  fi
+
+  ## /network part ##
+
   # neutron: common parts
   cf=/etc/neutron/neutron.conf
+
+  # controller+network+compute
+  _x openstack-config --set $cf database connection mysql://neutron:$os_pwd_mysql_neutron@$os_server_fqdn/neutron
+  _x openstack-config --set $cf DEFAULT verbose True
+  _x openstack-config --set $cf DEFAULT debug True
 
   # controller+network+compute
   _x openstack-config --set $cf DEFAULT auth_strategy keystone
@@ -159,7 +231,7 @@ function _i_common() {
 
   for cf in /etc/neutron/plugins/ml2/ml2_conf.ini /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini ; do
     _x openstack-config --set $cf DEFAULT verbose True
-    _x openstack-config --set $cf DEFAULT debug True
+    _x openstack-config --set $cf DEFAULT debug False
 
     _x openstack-config --set $cf securitygroup enable_security_group True
     _x openstack-config --set $cf securitygroup firewall_driver neutron.agent.linux.iptables_firewall.OVSHybridIptablesFirewallDriver
@@ -170,7 +242,24 @@ function _i_common() {
     _x openstack-config --set $cf ovs bridge_mappings physnet1:$os_ovsbr  # mystery
   done
 
+  # !!! http://docs.openstack.org/icehouse/install-guide/install/yum/content/neutron-ml2-network-node.html !!!
+  # documentation SUCKS --> on the NETWORK NODE section there are instructions
+  # for the COMPUTE NODE networking that go in NOVA.CONF
+  cf=/etc/nova/nova.conf
+  _x openstack-config --set $cf DEFAULT service_neutron_metadata_proxy true
+  _x openstack-config --set $cf DEFAULT neutron_metadata_proxy_shared_secret $os_pwd_mdsecret
+
   _x ln -nfs plugins/ml2/ml2_conf.ini /etc/neutron/plugin.ini
+
+
+  # fix packaging bug in fedora
+  # init=/etc/systemd/system/multi-user.target.wants/neutron-openvswitch-agent.service # NO, bug in a bug --> https://bugs.launchpad.net/ubuntu/+source/sed/+bug/367211
+  init=/usr/lib/systemd/system/neutron-openvswitch-agent.service
+  _x sed -e 's#plugins/openvswitch/ovs_neutron_plugin.ini#plugin.ini#g' -i "$init"
+
+  # neutron services
+  _x systemctl restart neutron-openvswitch-agent
+  _x systemctl enable neutron-openvswitch-agent
 
 }
 
@@ -190,9 +279,6 @@ function _i_head() {
   cat "$my".before_openstack | grep -v 'bind-address|default-storage-engine|innodb_file_per_table|collation-server|init-connect|character-set-server' > "$my"
   _x sed -e "s#\[mysqld\]#[mysqld]\nbind-address = $os_server_ip\ndefault-storage-engine = innodb\ninnodb_file_per_table\ncollation_server = utf8_general_ci\ninit-connect = 'SET NAMES utf8'\ncharacter-set-server = utf8#" -i "$my"
 
-  _x systemctl restart mysqld.service
-  _x systemctl enable mysqld.service
-
   _e "about to configure mysql for the first time"
   _e "conf is interactive: answer yes to all questions"
   _e "use as root password: $os_pwd_mysql_root"
@@ -203,6 +289,9 @@ function _i_head() {
   _e ''
   [ "$ans" != 's' ] && [ "$ans" != 'S' ] && _x mysql_secure_installation
 
+  _x systemctl restart mysqld.service
+  _x systemctl enable mysqld.service
+
   qpid=/etc/qpidd.conf
   [ ! -e "$qpid".before_openstack ] && _x cp "$qpid" "$qpid".before_openstack
   cat "$qpid".before_openstack | grep -vE '^\s*auth\s*=' > "$qpid"
@@ -211,6 +300,21 @@ function _i_head() {
 
   _x systemctl restart qpidd.service
   _x systemctl enable qpidd.service
+
+  # destroy database, logfiles, configuration
+  _e ">> press 'x' in 2 seconds if you want to destroy current configuration <<"
+  read -t 2 -n 1 ans
+  _e ''
+  if [ "$ans" == 'x' ] || [ "$ans" == 'X' ] ; then
+    _e 'exterminating...'
+    _x mysql -u root --password=$os_pwd_mysql_root --table -vvv <<EOF
+DROP DATABASE IF EXISTS keystone ;
+DROP DATABASE IF EXISTS glance ;
+DROP DATABASE IF EXISTS nova ;
+DROP DATABASE IF EXISTS neutron ;
+EOF
+    _x rm -rf /var/lib/glance/images/*
+  fi
 
   # database creation part!
 
@@ -359,6 +463,7 @@ EOF
   _x openstack-config --set $cf keystone_authtoken admin_user nova
   _x openstack-config --set $cf keystone_authtoken admin_tenant_name service
   _x openstack-config --set $cf keystone_authtoken admin_password $os_pwd_ospwd_nova
+  _x openstack-config --set $cf DEFAULT verbose True
   _x sudo -u nova nova-manage db sync
 
   (
@@ -435,11 +540,6 @@ EOF
   # neutron
   cf=/etc/neutron/neutron.conf
 
-  # controller+network
-  _x openstack-config --set $cf database connection mysql://neutron:$os_pwd_mysql_neutron@$os_server_fqdn/neutron
-  _x openstack-config --set $cf DEFAULT verbose True
-  _x openstack-config --set $cf DEFAULT debug True
-
   # controller
   _x openstack-config --set $cf DEFAULT notify_nova_on_port_status_changes True
   _x openstack-config --set $cf DEFAULT notify_nova_on_port_data_changes True
@@ -472,6 +572,18 @@ EOF
   _x openstack-config --set $cf DEFAULT nova_metadata_ip $os_server_fqdn
   _x openstack-config --set $cf DEFAULT metadata_proxy_shared_secret $os_pwd_mdsecret
 
+  # network (dhcp agent)
+  cf=/etc/neutron/dhcp_agent.ini
+  _x openstack-config --set $cf DEFAULT interface_driver neutron.agent.linux.interface.OVSInterfaceDriver
+  _x openstack-config --set $cf DEFAULT dhcp_driver neutron.agent.linux.dhcp.Dnsmasq
+  _x openstack-config --set $cf DEFAULT use_namespaces True
+  _x openstack-config --set $cf DEFAULT verbose True
+
+  # network (l3)
+  cf=/etc/neutron/l3_agent.ini
+  _x openstack-config --set $cf DEFAULT interface_driver neutron.agent.linux.interface.OVSInterfaceDriver
+  _x openstack-config --set $cf DEFAULT use_namespaces True
+
   # cat $cf | sed -e '/^$/d' | grep -v '^\s*#' | sed -e 's#^\[#\n[#'
 
   ## /neutron ##
@@ -485,10 +597,16 @@ EOF
   _x systemctl enable openstack-glance-registry
 
   # neutron
+  _x systemctl restart openvswitch
   _x systemctl restart neutron-server
   _x systemctl restart neutron-metadata-agent
+  _x systemctl restart neutron-dhcp-agent
+  _x systemctl restart neutron-l3-agent
+  _x systemctl enable openvswitch
   _x systemctl enable neutron-server
   _x systemctl enable neutron-metadata-agent
+  _x systemctl enable neutron-dhcp-agent
+  _x systemctl enable neutron-l3-agent
 
   # nova
   _x systemctl restart openstack-nova-api
@@ -521,6 +639,27 @@ EOF
       rm -f "$t"
     fi
 
+    # --> https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux_OpenStack_Platform/4/html/Getting_Started_Guide/sect-Working_with_OpenStack_Networking.html
+
+    # create a network
+    if ! sudo -Eu nobody neutron net-list | grep -qE '\|\s+flat-net\s+\|' ; then
+      _x sudo -Eu nobody neutron net-create flat-net \
+        --router:external True \
+        --provider:network_type flat \
+        --provider:physical_network physnet1
+    fi
+
+    # create a subnetwork
+    if ! sudo -Eu nobody neutron subnet-list | grep -qE '\|\s+flat-subnet\s+\|' ; then
+      _x sudo -Eu nobody neutron subnet-create \
+        --gateway 10.162.223.254 \
+        --allocation-pool start=10.162.208.2,end=10.162.223.253 \
+        --disable-dhcp \
+        --name flat-subnet \
+        flat-net \
+        10.162.208.0/20
+    fi
+
     _e "exiting openstack admin environment"
   ) || exit $?
 
@@ -529,71 +668,7 @@ EOF
 function _i_worker() {
   _e "*** worker node part ***"
 
-  _x _omnom openstack-nova-compute openstack-neutron-openvswitch --disablerepo='slc6-*'
-
-  _e "checking for phys iface ($os_physif) and ovs bridge ($os_ovsbr)"
-  _x [ "$os_physif" != '' ]
-  _x [ "$os_ovsbr" != '' ]
-
-  if [ "$(ovs-vsctl iface-to-br "$os_physif" 2> /dev/null)" != "$os_ovsbr" ] || ! ovs-vsctl br-exists br-int ; then
-
-    _e "creating bridge $os_ovsbr with port $os_physif"
-
-    # create the bridge
-    pref=/etc/sysconfig/network-scripts
-
-    cat > "${pref}/ifcfg-${os_ovsbr}" <<EOF
-DEVICE=$os_ovsbr
-ONBOOT=yes
-BOOTPROTO=dhcp
-OVSBOOTPROTO=dhcp
-OVSDHCPINTERFACES=$os_physif
-DEVICETYPE=ovs
-TYPE=OVSBridge
-DELAY=0
-HOTPLUG=no
-EOF
-    _x grep -q '^TYPE=OVSBridge$' "${pref}/ifcfg-${os_ovsbr}"
-
-    # create the integration bridge
-    cat > "${pref}/ifcfg-br-int" <<EOF
-DEVICE=br-int
-ONBOOT=yes
-BOOTPROTO=none
-DEVICETYPE=ovs
-TYPE=OVSBridge
-DELAY=0
-HOTPLUG=no
-EOF
-
-    # make a backup
-    mkdir -p "${pref}/openstack-backup"
-    [ ! -e "${pref}/openstack-backup/ifcfg-$os_physif" ] && _x cp "$pref/ifcfg-$os_physif" "${pref}/openstack-backup/ifcfg-$os_physif"
-
-    (
-      grep -E '^\s*UUID=|^\s*HWADDR=|^\s*NAME=' "${pref}/openstack-backup/ifcfg-$os_physif" ;
-      cat <<EOF
-DEVICETYPE=ovs
-TYPE=OVSPort
-OVS_BRIDGE=$os_ovsbr
-DEVICE=$os_physif
-ONBOOT=yes
-BOOTPROTO=none
-USERCTL=no
-PEERDNS=yes
-DEFROUTE=no
-PEERROUTES=yes
-IPV4_FAILURE_FATAL=no
-EOF
-    ) > "${pref}/ifcfg-${os_physif}"
-    _x grep -q '^TYPE=OVSPort$' "${pref}/ifcfg-${os_physif}"
-
-    # restart networking... this can break lots of things
-    _e "about to restart network: this can fail!"
-    _x systemctl restart network.service
-  else
-    _e "bridge $os_ovsbr already configured"
-  fi
+  _x _omnom openstack-nova-compute --disablerepo='slc6-*'
 
   # service: nova compute
   cf=/etc/nova/nova.conf
@@ -606,6 +681,7 @@ EOF
   _x openstack-config --set $cf keystone_authtoken admin_user nova
   _x openstack-config --set $cf keystone_authtoken admin_tenant_name service
   _x openstack-config --set $cf keystone_authtoken admin_password $os_pwd_ospwd_nova
+  _x openstack-config --set $cf DEFAULT verbose True
 
   # nova compute --> qpid
   _x openstack-config --set $cf DEFAULT rpc_backend qpid
@@ -624,14 +700,12 @@ EOF
   # nova compute --> qemu (or docker?)
   _x openstack-config --set $cf libvirt virt_type qemu
 
-  # neutron services
-  _x systemctl restart neutron-openvswitch-agent
-  _x systemctl enable neutron-openvswitch-agent
-
   # nova compute services
+  _x systemctl restart openvswitch
   _x systemctl restart libvirtd
   _x systemctl restart dbus
   _x systemctl restart openstack-nova-compute
+  _x systemctl enable openvswitch
   _x systemctl enable libvirtd
   _x systemctl enable dbus
   _x systemctl enable openstack-nova-compute
