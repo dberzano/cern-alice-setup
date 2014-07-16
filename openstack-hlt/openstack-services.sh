@@ -44,16 +44,24 @@ function _m() {
         aux=( mysqld qpidd )
         auth=( openstack-keystone )
         glance=( openstack-glance-api openstack-glance-registry )
+        neutron=( neutron-server neutron-metadata-agent \
+          neutron-openvswitch-agent neutron-dhcp-agent \
+          neutron-l3-agent openvswitch )
         nova=( \
           openstack-nova-api openstack-nova-cert openstack-nova-consoleauth \
           openstack-nova-scheduler openstack-nova-conductor \
           openstack-nova-novncproxy )
+        novanet=()
+        ok=1
       ;;
       --worker)
         aux=( libvirtd dbus )
         auth=()
         glance=()
-        nova=( openstack-nova-compute  )
+        neutron=( neutron-openvswitch-agent openvswitch )
+        nova=( openstack-nova-compute )
+        novanet=( openstack-nova-network openstack-nova-metadata-api )
+        ok=1
       ;;
       --status)
         action='status'
@@ -64,11 +72,7 @@ function _m() {
       --stop)
         action='stop'
       ;;
-      --all)    services='all' ;;
-      --aux)    services='aux' ;;
-      --auth)   services='auth' ;;
-      --glance) services='glance' ;;
-      --nova)   services='nova' ;;
+      --all|--aux|--auth|--glance|--neutron|--nova|--novanet) services="${1:2}" ;;
       *)
         _e "unknown param: $1"
         exit 1
@@ -79,15 +83,17 @@ function _m() {
 
   srv=''
   case "$services" in
-    all)    srv="${aux[@]} ${auth[@]} ${glance[@]} ${nova[@]}" ;;
-    aux)    srv="${aux[@]}" ;;
-    glance) srv="${glance[@]}" ;;
-    nova)   srv="${nova[@]}" ;;
-    *)      srv="${auth[@]} ${glance[@]} ${nova[@]}" ;;
+    all)     srv="${aux[@]} ${auth[@]} ${glance[@]} ${novanet[@]} ${nova[@]}" ;;
+    aux)     srv="${aux[@]}" ;;
+    glance)  srv="${glance[@]}" ;;
+    neutron) srv="${neutron[@]}" ;;
+    novanet) srv="${novanet[@]}" ;;
+    nova)    srv="${nova[@]}" ;;
+    *)       srv="${auth[@]} ${glance[@]} ${novanet[@]} ${nova[@]}" ; services='os' ;;
   esac
 
-  if [ "$(echo ${srv[*]})" == '' ] ; then
-    _e "use --worker or --head to select pertaining services"
+  if [ "$services" == '' ] || [ "$ok" != 1 ] ; then
+    _e "usage: $0 [--worker|--head] [--all|--aux|--auth|--glance|--neutron|--nova|--novanet] [--restart|--stop]"
     exit 1
   fi
 
@@ -96,10 +102,11 @@ function _m() {
     for s in ${srv[@]} ; do
       _e " * $s"
     done
-    _e "proceed? (type yes)"
-    read ans
-    if [ "$ans" != 'yes' ] ; then
-      _e "aborting"
+    _e ">> press 'y' to proceed <<"
+    read -n1 ans
+    _e ''
+    if [ "$ans" != 'y' ] && [ "$ans" != 'Y' ] ; then
+      _e "cancelled"
       exit 1
     fi
   fi
@@ -107,11 +114,16 @@ function _m() {
   for s in ${srv[@]} ; do
     case "$action" in
       restart)
+        echo -en "\033[34m[\033[35m....\033[34m] $s\033[m"
         systemctl restart $s
+        sleep 1
+        echo -en '\r'
         _status $s
       ;;
       stop)
+        echo -en "\033[34m[\033[35m....\033[34m] $s\033[m"
         systemctl stop $s
+        echo -en '\r'
         _status $s
       ;;
       *)

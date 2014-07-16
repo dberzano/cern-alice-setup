@@ -13,10 +13,14 @@ export LANG=C
 os_unpriv=$( stat -c "%U" "$0" )
 os_conffile="$PWD/openstack-install.conf"
 
+################################################################################
+# UTILITY FUNCTIONS
+################################################################################
 function _omnom() {
   to_install=''
   extra_opts=()
   for p in "$@" ; do
+    pkgfull="$p"
     if [ ${p:0:1} == '-' ] ; then
       extra_opts="${extra_opts[@]} ${p}"
     else
@@ -25,12 +29,12 @@ function _omnom() {
         p=${p%-*}
       fi
       _e "checking if package is installed: $p"
-      rpm -q "$p" > /dev/null 2>&1 || to_install="$to_install $p"
+      rpm -q "$p" > /dev/null 2>&1 || to_install="$to_install $pkgfull"
     fi
   done
   if [ "$to_install" != '' ] ; then
-    _e "to install: $to_install"
-    yum -y install "${extra_opts[@]}" $to_install
+    _e "to install:$to_install"
+    yum -y ${extra_opts[@]} install $to_install
     return $?
   else
     _e "nothing to install"
@@ -63,26 +67,31 @@ function _x() {
   fi
 }
 
+################################################################################
+# COMMON CONFIGURATION
+################################################################################
 function _i_common() {
 
   _e "*** common part ***"
 
-  _x systemctl disable NetworkManager.service
-  _x systemctl stop NetworkManager.service
-  _x systemctl restart network.service
-  _x systemctl enable network.service
+  if systemctl is-active NetworkManager.service > /dev/null 2>&1 ; then
+    _x systemctl disable NetworkManager.service
+    _x systemctl stop NetworkManager.service
+    _x systemctl restart network.service
+    _x systemctl enable network.service
+  fi
 
   _x yum remove -y firewalld
-  _x _omnom iptables-services yum-plugin-priorities
 
   _x _omnom http://repos.fedorapeople.org/repos/openstack/openstack-icehouse/rdo-release-icehouse-3.noarch.rpm
+  _x _omnom ftp://bo.mirror.garr.it/pub/1/fedora/linux/updates/20/x86_64/python-oslo-config-1.2.1-2.fc20.noarch.rpm
 
   repo=/etc/yum.repos.d/rdo-release.repo
   _x sed -e 's#$releasever#20# ; s#^\s*priority\s*=\s*.*$#priority=1#' -i "$repo"
 
-  _x _omnom ftp://fr2.rpmfind.net/linux/fedora/linux/development/rawhide/x86_64/os/Packages/p/python-oslo-config-1.2.1-2.fc21.noarch.rpm
-
-  _x _omnom openstack-utils
+  # install common packages
+  _x _omnom iptables-services yum-plugin-priorities openstack-utils \
+    openstack-nova-api tcpdump mtr htop
 
   # generate all the passwords; save them to a configuration file
   source "$os_conffile" 2> /dev/null
@@ -90,9 +99,8 @@ function _i_common() {
   cat "$os_conffile" > "$t" 2>/dev/null
 
   pwd_prefix='os_pwd_'
-  pwds=( admin_token mdsecret mysql_glance mysql_keystone mysql_neutron \
-         mysql_nova mysql_root ospwd_admin ospwd_demo ospwd_glance \
-         ospwd_neutron ospwd_nova )
+  pwds=( admin_token mdsecret mysql_glance mysql_keystone mysql_nova \
+         mysql_root ospwd_admin ospwd_demo ospwd_glance ospwd_nova )
 
   for pn in ${pwds[@]} ; do
     # pn: password name
@@ -121,7 +129,7 @@ function _i_common() {
   _x [ "$os_server_fqdn" != '' ]
 
   # custom part! beware!
-  raw=$( ifconfig | grep -E '\s*inet 10.162.128.' 2> /dev/null | head -n1 )
+  raw=$( ip addr list | grep -E '\s*inet 10.162.128.' 2> /dev/null | head -n1 )
   if [[ "$raw" =~ (([0-9]{1,3}\.){3}[0-9]{1,3}) ]] ; then   # fix color ))
     os_current_ip="${BASH_REMATCH[1]}"
   fi
@@ -130,13 +138,16 @@ function _i_common() {
 
 }
 
+################################################################################
+# HEAD NODE CONFIGURATION
+################################################################################
 function _i_head() {
   _e "*** head node part ***"
 
   _x _omnom mariadb-server MySQL-python qpid-cpp-server \
     openstack-keystone python-keystoneclient \
     openstack-glance python-glanceclient \
-    openstack-nova-api openstack-nova-cert openstack-nova-conductor \
+    openstack-nova-cert openstack-nova-conductor \
     openstack-nova-console openstack-nova-novncproxy openstack-nova-scheduler \
     python-novaclient
 
@@ -144,9 +155,6 @@ function _i_head() {
   [ ! -e "$my".before_openstack ] && _x cp "$my" "$my".before_openstack
   cat "$my".before_openstack | grep -v 'bind-address|default-storage-engine|innodb_file_per_table|collation-server|init-connect|character-set-server' > "$my"
   _x sed -e "s#\[mysqld\]#[mysqld]\nbind-address = $os_server_ip\ndefault-storage-engine = innodb\ninnodb_file_per_table\ncollation_server = utf8_general_ci\ninit-connect = 'SET NAMES utf8'\ncharacter-set-server = utf8#" -i "$my"
-
-  _x systemctl restart mysqld.service
-  _x systemctl enable mysqld.service
 
   _e "about to configure mysql for the first time"
   _e "conf is interactive: answer yes to all questions"
@@ -158,6 +166,9 @@ function _i_head() {
   _e ''
   [ "$ans" != 's' ] && [ "$ans" != 'S' ] && _x mysql_secure_installation
 
+  _x systemctl restart mysqld.service
+  _x systemctl enable mysqld.service
+
   qpid=/etc/qpidd.conf
   [ ! -e "$qpid".before_openstack ] && _x cp "$qpid" "$qpid".before_openstack
   cat "$qpid".before_openstack | grep -vE '^\s*auth\s*=' > "$qpid"
@@ -166,6 +177,20 @@ function _i_head() {
 
   _x systemctl restart qpidd.service
   _x systemctl enable qpidd.service
+
+  # destroy database, logfiles, configuration
+  _e ">> press 'x' in 2 seconds if you want to destroy current configuration <<"
+  read -t 2 -n 1 ans
+  _e ''
+  if [ "$ans" == 'x' ] || [ "$ans" == 'X' ] ; then
+    _e 'exterminating...'
+    _x mysql -u root --password=$os_pwd_mysql_root --table -vvv <<EOF
+DROP DATABASE IF EXISTS keystone ;
+DROP DATABASE IF EXISTS glance ;
+DROP DATABASE IF EXISTS nova ;
+EOF
+    _x rm -rf /var/lib/glance/images/*
+  fi
 
   # database creation part!
 
@@ -180,7 +205,7 @@ GRANT ALL PRIVILEGES ON glance.* TO 'glance'@'localhost' IDENTIFIED BY '$os_pwd_
 GRANT ALL PRIVILEGES ON glance.* TO 'glance'@'%' IDENTIFIED BY '$os_pwd_mysql_glance' ;
 
 CREATE DATABASE IF NOT EXISTS nova ;
-GRANT ALL PRIVILEGES ON nova.* TO 'nova'@'localhost' IDENTIFIED BY '$os_pwd_mysql_nova';
+GRANT ALL PRIVILEGES ON nova.* TO 'nova'@'localhost' IDENTIFIED BY '$os_pwd_mysql_nova' ;
 GRANT ALL PRIVILEGES ON nova.* TO 'nova'@'%' IDENTIFIED BY '$os_pwd_mysql_nova' ;
 
 SHOW DATABASES ;
@@ -310,6 +335,7 @@ EOF
   _x openstack-config --set $cf keystone_authtoken admin_user nova
   _x openstack-config --set $cf keystone_authtoken admin_tenant_name service
   _x openstack-config --set $cf keystone_authtoken admin_password $os_pwd_ospwd_nova
+  _x openstack-config --set $cf DEFAULT verbose True
   _x sudo -u nova nova-manage db sync
 
   (
@@ -321,15 +347,17 @@ EOF
     export OS_PASSWORD=$os_pwd_ospwd_admin
     export OS_TENANT_NAME=admin
 
-    # glance
+    # glance user
     if ! sudo -Eu nobody keystone user-list | grep -qE '\|\s+glance\s+\|' ; then
       _x sudo -Eu nobody keystone user-create --name=glance --pass=$os_pwd_ospwd_glance --email=glance@dummy.openstack.org
       _x sudo -Eu nobody keystone user-role-add --user=glance --tenant=service --role=admin
     fi
 
+    # glance service
     sudo -Eu nobody keystone service-list | grep -qE '\|\s+glance\s+\|' || \
       _x sudo -Eu nobody keystone service-create --name=glance --type=image --description="OpenStack Image Service"
 
+    # glance endpoint
     sudo -Eu nobody keystone endpoint-list | grep -qE '\|'"\s+http://$os_server_fqdn:9292\s+"'\|' || \
       _x sudo -Eu nobody keystone endpoint-create \
         --service-id=$(keystone service-list | awk '/ image / {print $2}') \
@@ -355,8 +383,18 @@ EOF
         --internalurl=http://$os_server_fqdn:8774/v2/%\(tenant_id\)s \
         --adminurl=http://$os_server_fqdn:8774/v2/%\(tenant_id\)s
 
+    _e "list of services"
+    _x sudo -Eu nobody keystone service-list
+
     _e "exiting openstack admin environment"
   ) || exit $?
+
+  # nova network (legacy, i.e. "old but gold")
+  cf=/etc/nova/nova.conf
+  _x openstack-config --set $cf DEFAULT network_api_class nova.network.api.API
+  _x openstack-config --set $cf DEFAULT security_group_api nova
+
+  # cat $cf | sed -e '/^$/d' | grep -v '^\s*#' | sed -e 's#^\[#\n[#'
 
   # start services at the end of everything
 
@@ -397,15 +435,107 @@ EOF
       rm -f "$t"
     fi
 
+    # --> https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux_OpenStack_Platform/4/html/Getting_Started_Guide/sect-Working_with_OpenStack_Networking.html
+
+    # initial network
+    if [ "$os_novanet_mode" == 'vlan' ] ; then
+      netid=$( sudo -Eu nobody nova net-list | grep -E '\|\s+flat-net\s+\|' | awk '{ print $2 }' )
+      [ "$netid" != '' ] && _x sudo -Eu nobody nova net-delete "$netid"
+      sudo -Eu nobody nova net-list | grep -qE '\|\s+vlan-net\s+\|' || \
+        _x sudo -Eu nobody nova network-create vlan-net --multi-host T --fixed-range-v4 10.66.208.0/20 --vlan=806
+    elif [ "$os_novanet_mode" == 'flat' ] ; then
+      netid=$( sudo -Eu nobody nova net-list | grep -E '\|\s+vlan-net\s+\|' | awk '{ print $2 }' )
+      [ "$netid" != '' ] && _x sudo -Eu nobody nova net-delete "$netid"
+      sudo -Eu nobody nova net-list | grep -qE '\|\s+flat-net\s+\|' || \
+        _x sudo -Eu nobody nova network-create flat-net --bridge=$os_brif --multi-host T --fixed-range-v4 10.162.208.0/20
+    else
+      _e "network type can be only 'flat' or 'vlan'"
+      _x false
+    fi
+
     _e "exiting openstack admin environment"
   ) || exit $?
 
 }
 
+################################################################################
+# WORKER NODE CONFIGURATION
+################################################################################
 function _i_worker() {
   _e "*** worker node part ***"
 
-  _x _omnom openstack-nova-compute --disablerepo='slc6-*'
+  _x _omnom openstack-nova-compute openstack-nova-network \
+    bridge-utils --disablerepo='slc6-*'
+
+  ## network part ###
+
+  _e "checking for phys iface ($os_physif), bridge ($os_brif) and mode ($os_novanet_mode)"
+  _x [ "$os_physif" != '' ]
+  _x [ "$os_brif" != '' ]
+  _x [ "$os_novanet_mode" != '' ]
+
+  # reset network to an initial state
+  pref=/etc/sysconfig/network-scripts
+  if [ "$os_novanet_mode" == 'flat' ] ; then
+    _e 'configuring network as flat'
+    if ! brctl show | grep -q "$os_brif" 2> /dev/null ; then
+
+      _x systemctl stop network.service
+      _e "creating bridge $os_brif with port $os_physif"
+
+      # create the bridge
+      cat > "${pref}/ifcfg-${os_brif}" <<EOF
+DEVICE=${os_brif}
+TYPE=Bridge
+ONBOOT=Yes
+BOOTPROTO=dhcp
+PERSISTENT_DHCLIENT=1
+IPV6INIT=no
+EOF
+      _x grep -q '^TYPE=Bridge$' "${pref}/ifcfg-${os_brif}"
+
+      # make a backup
+      mkdir -p "${pref}/openstack-backup"
+      [ ! -e "${pref}/openstack-backup/ifcfg-$os_physif" ] && _x cp "$pref/ifcfg-$os_physif" "${pref}/openstack-backup/ifcfg-$os_physif"
+
+      (
+        grep -E '^\s*UUID=|^\s*HWADDR=|^\s*NAME=' "${pref}/openstack-backup/ifcfg-$os_physif" ;
+        cat <<EOF
+DEVICE=$os_physif
+TYPE=Ethernet
+BRIDGE=$os_brif
+ONBOOT=yes
+BOOTPROTO=none
+USERCTL=no
+PEERDNS=yes
+DEFROUTE=no
+PEERROUTES=yes
+IPV4_FAILURE_FATAL=no
+EOF
+      ) > "${pref}/ifcfg-${os_physif}"
+      _x grep -q '^TYPE=Ethernet$' "${pref}/ifcfg-${os_physif}"
+      _x systemctl start network.service
+    else
+      _e "bridge $os_brif already configured"
+    fi
+  elif [ "$os_novanet_mode" == 'vlan' ] ; then
+    _e 'configuring network as vlan'
+    if brctl show | grep -q "$os_brif" 2> /dev/null ; then
+      _x [ -e "${pref}/openstack-backup/ifcfg-${os_physif}" ]
+      _x systemctl stop network.service
+      _x rm -f "${pref}/ifcfg-${os_brif}"
+      _x cp "${pref}/openstack-backup/ifcfg-${os_physif}" "${pref}/ifcfg-${os_physif}"
+      _x systemctl start network.service
+    else
+      _e "no need to restore original interface $os_physif"
+    fi
+
+  else
+    _e "network type can be only 'flat' or 'vlan'"
+    _x false
+  fi
+
+  ## /network part ##
 
   # service: nova compute
   cf=/etc/nova/nova.conf
@@ -418,6 +548,7 @@ function _i_worker() {
   _x openstack-config --set $cf keystone_authtoken admin_user nova
   _x openstack-config --set $cf keystone_authtoken admin_tenant_name service
   _x openstack-config --set $cf keystone_authtoken admin_password $os_pwd_ospwd_nova
+  _x openstack-config --set $cf DEFAULT verbose True
 
   # nova compute --> qpid
   _x openstack-config --set $cf DEFAULT rpc_backend qpid
@@ -436,16 +567,56 @@ function _i_worker() {
   # nova compute --> qemu (or docker?)
   _x openstack-config --set $cf libvirt virt_type qemu
 
+  # nova network (legacy)
+  # --> http://docs.openstack.org/grizzly/openstack-compute/admin/content/configuring-vlan-networking.html
+  # --> http://www.mirantis.com/blog/openstack-networking-flatmanager-and-flatdhcpmanager/
+  _x openstack-config --set $cf DEFAULT network_api_class nova.network.api.API
+  _x openstack-config --set $cf DEFAULT security_group_api nova
+  _x openstack-config --set $cf DEFAULT firewall_driver nova.virt.libvirt.firewall.IptablesFirewallDriver
+  _x openstack-config --set $cf DEFAULT network_size 4094
+  _x openstack-config --set $cf DEFAULT allow_same_net_traffic True
+  _x openstack-config --set $cf DEFAULT multi_host True
+  _x openstack-config --set $cf DEFAULT send_arp_for_ha True
+  _x openstack-config --set $cf DEFAULT share_dhcp_address True
+  _x openstack-config --set $cf DEFAULT force_dhcp_release True
+  _x openstack-config --set $cf DEFAULT public_interface $os_physif
+  _x openstack-config --set $cf DEFAULT flat_injected False
+
+  if [ "$os_novanet_mode" == 'vlan' ] ; then
+    _x openstack-config --set $cf DEFAULT network_manager nova.network.manager.VlanManager
+    _x openstack-config --set $cf DEFAULT vlan_interface $os_physif
+    _x openstack-config --del $cf DEFAULT flat_network_bridge
+    _x openstack-config --del $cf DEFAULT flat_interface
+  else
+    _x openstack-config --set $cf DEFAULT network_manager nova.network.manager.FlatDHCPManager
+    _x openstack-config --del $cf DEFAULT vlan_interface
+    _x openstack-config --set $cf DEFAULT flat_network_bridge $os_brif
+    _x openstack-config --set $cf DEFAULT flat_interface $os_physif
+  fi
+
   # nova compute services
   _x systemctl restart libvirtd
   _x systemctl restart dbus
   _x systemctl restart openstack-nova-compute
+  _x systemctl restart openstack-nova-network
+  _x systemctl restart openstack-nova-metadata-api
   _x systemctl enable libvirtd
   _x systemctl enable dbus
   _x systemctl enable openstack-nova-compute
+  _x systemctl enable openstack-nova-network
+  _x systemctl enable openstack-nova-metadata-api
+
+  # remove default virsh network
+  if virsh net-info default > /dev/null 2>&1 ; then
+    _x virsh net-destroy default
+    _x virsh net-undefine default
+  fi
 
 }
 
+################################################################################
+# ENTRY POINT
+################################################################################
 function _m() {
 
   if [ `whoami` != 'root' ] ; then
