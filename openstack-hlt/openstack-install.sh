@@ -129,7 +129,7 @@ function _i_common() {
   _x [ "$os_server_fqdn" != '' ]
 
   # custom part! beware!
-  raw=$( ifconfig | grep -E '\s*inet 10.162.128.' 2> /dev/null | head -n1 )
+  raw=$( ip addr list | grep -E '\s*inet 10.162.128.' 2> /dev/null | head -n1 )
   if [[ "$raw" =~ (([0-9]{1,3}\.){3}[0-9]{1,3}) ]] ; then   # fix color ))
     os_current_ip="${BASH_REMATCH[1]}"
   fi
