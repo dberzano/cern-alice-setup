@@ -582,17 +582,27 @@ EOF
   _x openstack-config --set $cf DEFAULT public_interface $os_physif
   _x openstack-config --set $cf DEFAULT flat_injected False
 
+  dnsmasqcf='/etc/nova/dnsmasq.conf'
   if [ "$os_novanet_mode" == 'vlan' ] ; then
     _x openstack-config --set $cf DEFAULT network_manager nova.network.manager.VlanManager
     _x openstack-config --set $cf DEFAULT vlan_interface $os_physif
     _x openstack-config --del $cf DEFAULT flat_network_bridge
     _x openstack-config --del $cf DEFAULT flat_interface
+    _x openstack-config --del $cf DEFAULT dnsmasq_config_file
+    rm -f $dnsmasqcf
   else
     _x openstack-config --set $cf DEFAULT network_manager nova.network.manager.FlatDHCPManager
     _x openstack-config --del $cf DEFAULT vlan_interface
     _x openstack-config --set $cf DEFAULT flat_network_bridge $os_brif
     _x openstack-config --set $cf DEFAULT flat_interface $os_physif
+    _x openstack-config --set $cf DEFAULT dnsmasq_config_file $dnsmasqcf
+    cat > $dnsmasqcf <<EOF
+dhcp-option=3,10.162.223.254
+EOF
   fi
+
+  # kill nova's dnsmasq (will be restarted by nova-network if needed)
+  kill -15 $( ps -e -o user,pid,command | grep '/var/lib/nova/networks' | grep ^nobody | grep -v grep | awk '{ print $2 }' ) > /dev/null 2>&1
 
   # nova compute services
   _x systemctl restart libvirtd
