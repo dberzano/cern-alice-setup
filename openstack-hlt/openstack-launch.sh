@@ -26,4 +26,5 @@ exec nova boot \
   --image 'CirrOS Test Image' \
   --nic net-id="$netid" \
   --security-group default \
+  "$@" \
   $name
