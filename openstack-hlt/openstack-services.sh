@@ -25,10 +25,24 @@ function _x() {
 function _status() {
   systemctl status $s > /dev/null 2>&1
   if [ $? == 0 ] ; then
-    echo -e "\033[34m[\033[32m up \033[34m] $s\033[m"
+    echo -en "\033[34m[\033[32m up \033[34m] $s"
   else
-    echo -e "\033[34m[\033[31mdown\033[34m] $s\033[m"
+    echo -en "\033[34m[\033[31mdown\033[34m] $s"
   fi
+  if [ "$s" == 'openstack-nova-network' ] ; then
+    pids=$( _pid_dnsmasq )
+    [ "$pids" != '' ] && echo -n " (dnsmasq: $pids)"
+  fi
+  echo -e "\033[m"
+}
+
+function _pid_dnsmasq() {
+  ps -e -o user,pid,command | grep '/var/lib/nova/networks' | grep ^nobody | grep -v grep | awk '{ print $2 }'
+}
+
+function _kill_dnsmasq() {
+  pids=$( _pid_dnsmasq )
+  [ "$pids" != '' ] && kill -15 "$pids"
 }
 
 function _m() {
@@ -115,13 +129,15 @@ function _m() {
     case "$action" in
       restart)
         echo -en "\033[34m[\033[35m....\033[34m] $s\033[m"
+        [ "$s" == 'openstack-nova-network' ] && _kill_dnsmasq
         systemctl restart $s
-        sleep 1
+        [ "$s" == 'openstack-nova-network' ] && sleep 5 || sleep 1
         echo -en '\r'
         _status $s
       ;;
       stop)
         echo -en "\033[34m[\033[35m....\033[34m] $s\033[m"
+        [ "$s" == 'openstack-nova-network' ] && _kill_dnsmasq
         systemctl stop $s
         echo -en '\r'
         _status $s
