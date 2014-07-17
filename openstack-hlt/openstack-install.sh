@@ -414,6 +414,26 @@ ALLOWED_HOSTS = [ 'localhost', 'head.internal' ]
 
 OPENSTACK_HOST = "$os_server_fqdn"
 EOF
+
+  # selinux is currently disabled. if enabled, we must allow http access
+  # setsebool -P httpd_can_network_connect on
+
+  # dashboard: httpd and proxies
+  cf=/etc/httpd/conf.modules.d/99-websocket-proxy-openstack.conf
+  echo 'LoadModule proxy_wstunnel_module modules/mod_proxy_wstunnel.so' > "$cf"
+
+  cf=/etc/httpd/conf.d/openstack-proxy.conf
+  cat > "$cf" <<EOF
+ProxyPass        /vnc/vnc_auto.html http://127.0.0.1:6080/vnc_auto.html
+ProxyPassReverse /vnc/vnc_auto.html http://127.0.0.1:6080/vnc_auto.html
+ProxyPass        /vnc/favicon.ico   http://127.0.0.1:6080/favicon.ico
+ProxyPassReverse /vnc/favicon.ico   http://127.0.0.1:6080/favicon.ico
+ProxyPass        /vnc/include/      http://127.0.0.1:6080/include/
+ProxyPassReverse /vnc/include/      http://127.0.0.1:6080/include/
+ProxyPass        /websockify        ws://127.0.0.1:6080/websockify
+ProxyPassReverse /websockify        ws://127.0.0.1:6080/websockify
+EOF
+
   # start services at the end of everything
 
   # glance
@@ -583,7 +603,9 @@ EOF
   _x openstack-config --set $cf DEFAULT vnc_enabled True
   _x openstack-config --set $cf DEFAULT vncserver_listen 0.0.0.0
   _x openstack-config --set $cf DEFAULT vncserver_proxyclient_address $os_current_ip
-  _x openstack-config --set $cf DEFAULT novncproxy_base_url http://$os_server_fqdn:6080/vnc_auto.html
+  # note: this is temporary, to accommodate ssh port forwarding for admin; relies on revproxy
+  #_x openstack-config --set $cf DEFAULT novncproxy_base_url http://$os_server_fqdn:6080/vnc_auto.html
+  _x openstack-config --set $cf DEFAULT novncproxy_base_url http://localhost:6081/vnc/vnc_auto.html
 
   # nova compute --> glance
   _x openstack-config --set $cf DEFAULT glance_host $os_server_fqdn
