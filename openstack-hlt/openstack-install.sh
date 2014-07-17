@@ -149,7 +149,8 @@ function _i_head() {
     openstack-glance python-glanceclient \
     openstack-nova-cert openstack-nova-conductor \
     openstack-nova-console openstack-nova-novncproxy openstack-nova-scheduler \
-    python-novaclient
+    python-novaclient \
+    memcached python-memcached mod_wsgi openstack-dashboard
 
   my=/etc/my.cnf
   [ ! -e "$my".before_openstack ] && _x cp "$my" "$my".before_openstack
@@ -396,6 +397,23 @@ EOF
 
   # cat $cf | sed -e '/^$/d' | grep -v '^\s*#' | sed -e 's#^\[#\n[#'
 
+  # dashboard
+  cf=/etc/openstack-dashboard/local_settings
+  [ ! -e "$cf".openstack-backup ] && _x cp "$cf" "$cf".openstack-backup
+  cat "$cf".openstack-backup > "$cf"
+  echo '' >> "$cf"
+  cat >> "$cf" <<EOF
+CACHES = {
+  'default': {
+    'BACKEND' : 'django.core.cache.backends.memcached.MemcachedCache',
+    'LOCATION' : '127.0.0.1:11211'
+  }
+}
+
+ALLOWED_HOSTS = [ 'localhost', 'head.internal' ]
+
+OPENSTACK_HOST = "$os_server_fqdn"
+EOF
   # start services at the end of everything
 
   # glance
@@ -417,6 +435,12 @@ EOF
   _x systemctl enable openstack-nova-scheduler
   _x systemctl enable openstack-nova-conductor
   _x systemctl enable openstack-nova-novncproxy
+
+  # dashboard
+  _x systemctl restart httpd
+  _x systemctl restart memcached
+  _x systemctl enable httpd
+  _x systemctl enable memcached
 
   (
     # register an image
