@@ -127,10 +127,16 @@ function _m() {
         _status $s
       ;;
       *)
+        action='status'
         _status $s
       ;;
     esac
   done
+
+  if [ "$action" == 'status' ] ; then
+    ni=$( virsh list 2> /dev/null | grep -cE '\s+instance-' )
+    _e "number of instances: \033[32m$ni"
+  fi
 
   return 1
 
