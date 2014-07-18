@@ -184,13 +184,23 @@ function _i_head() {
   read -t 2 -n 1 ans
   _e ''
   if [ "$ans" == 'x' ] || [ "$ans" == 'X' ] ; then
-    _e 'exterminating...'
-    _x mysql -u root --password=$os_pwd_mysql_root --table -vvv <<EOF
+
+    rightans='Yes, I really do!'
+    _e ">> ARE YOU SURE YOU WANT TO DESTROY THE CONFIGURATION? <<"
+    _e ">> you must type (respect case): $rightans <<"
+    read ans
+    if [ "$ans" != "$rightans" ] ; then
+      _e "cancelling: wrong answer provided"
+    else
+      _e 'exterminate! exterminate!! exterminate!!!'
+      _x false
+      _x mysql -u root --password=$os_pwd_mysql_root --table -vvv <<EOF
 DROP DATABASE IF EXISTS keystone ;
 DROP DATABASE IF EXISTS glance ;
 DROP DATABASE IF EXISTS nova ;
 EOF
-    _x rm -rf /var/lib/glance/images/*
+      _x rm -rf /var/lib/glance/images/*
+    fi
   fi
 
   # database creation part!
