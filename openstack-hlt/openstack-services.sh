@@ -77,15 +77,7 @@ function _m() {
         novanet=( openstack-nova-network openstack-nova-metadata-api )
         ok=1
       ;;
-      --status)
-        action='status'
-      ;;
-      --restart)
-        action='restart'
-      ;;
-      --stop)
-        action='stop'
-      ;;
+      --status|--restart|--stop|--disable|--enable) action="${1:2}" ;;
       --all|--aux|--auth|--glance|--neutron|--nova|--novanet) services="${1:2}" ;;
       *)
         _e "unknown param: $1"
@@ -94,6 +86,7 @@ function _m() {
     esac
     shift
   done
+  [ "$action" == '' ] && action='status'
 
   srv=''
   case "$services" in
@@ -107,11 +100,11 @@ function _m() {
   esac
 
   if [ "$services" == '' ] || [ "$ok" != 1 ] ; then
-    _e "usage: $0 [--worker|--head] [--all|--aux|--auth|--glance|--neutron|--nova|--novanet] [--restart|--stop]"
+    _e "usage: $0 [--worker|--head] [--all|--aux|--auth|--glance|--neutron|--nova|--novanet] [--status|--restart|--stop|--disable|--enable]"
     exit 1
   fi
 
-  if [ "$action" == 'restart' ] || [ "$action" == 'stop' ] ; then
+  if [ "$action" != 'status' ] ; then
     _e "the following services will be affected:"
     for s in ${srv[@]} ; do
       _e " * $s"
@@ -142,8 +135,11 @@ function _m() {
         echo -en '\r'
         _status $s
       ;;
-      *)
-        action='status'
+      disable|enable)
+        _e "$action $s"
+        systemctl $action $s
+      ;;
+      status)
         _status $s
       ;;
     esac
