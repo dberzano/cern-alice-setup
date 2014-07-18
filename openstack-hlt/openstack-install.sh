@@ -394,6 +394,18 @@ EOF
         --internalurl=http://$os_server_fqdn:8774/v2/%\(tenant_id\)s \
         --adminurl=http://$os_server_fqdn:8774/v2/%\(tenant_id\)s
 
+    # ec2 api
+    sudo -Eu nobody keystone service-list | grep -qE '\|\s+ec2\s+\|' || \
+      _x sudo -Eu nobody keystone service-create --name=ec2 --type=ec2 --description="EC2 Compatibility Layer"
+
+    # ec2 api endpoint
+    sudo -Eu nobody keystone endpoint-list | grep -qE '\|'"\s+http://$os_server_fqdn:8773\s+"'\|' || \
+      _x sudo -Eu nobody keystone endpoint-create \
+        --service-id=$(keystone service-list | awk '/ ec2 / {print $2}') \
+        --publicurl=http://$os_server_fqdn:8773/services/Cloud \
+        --internalurl=http://$os_server_fqdn:8773/services/Cloud \
+        --adminurl=http://$os_server_fqdn:8773/services/Admin
+
     _e "list of services"
     _x sudo -Eu nobody keystone service-list
 
