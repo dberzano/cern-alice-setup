@@ -149,7 +149,8 @@ function _i_head() {
     openstack-glance python-glanceclient \
     openstack-nova-cert openstack-nova-conductor \
     openstack-nova-console openstack-nova-novncproxy openstack-nova-scheduler \
-    python-novaclient
+    python-novaclient \
+    memcached python-memcached mod_wsgi openstack-dashboard
 
   my=/etc/my.cnf
   [ ! -e "$my".before_openstack ] && _x cp "$my" "$my".before_openstack
@@ -396,6 +397,43 @@ EOF
 
   # cat $cf | sed -e '/^$/d' | grep -v '^\s*#' | sed -e 's#^\[#\n[#'
 
+  # dashboard
+  cf=/etc/openstack-dashboard/local_settings
+  [ ! -e "$cf".openstack-backup ] && _x cp "$cf" "$cf".openstack-backup
+  cat "$cf".openstack-backup > "$cf"
+  echo '' >> "$cf"
+  cat >> "$cf" <<EOF
+CACHES = {
+  'default': {
+    'BACKEND' : 'django.core.cache.backends.memcached.MemcachedCache',
+    'LOCATION' : '127.0.0.1:11211'
+  }
+}
+
+ALLOWED_HOSTS = [ 'localhost', 'head.internal' ]
+
+OPENSTACK_HOST = "$os_server_fqdn"
+EOF
+
+  # selinux is currently disabled. if enabled, we must allow http access
+  # setsebool -P httpd_can_network_connect on
+
+  # dashboard: httpd and proxies
+  cf=/etc/httpd/conf.modules.d/99-websocket-proxy-openstack.conf
+  echo 'LoadModule proxy_wstunnel_module modules/mod_proxy_wstunnel.so' > "$cf"
+
+  cf=/etc/httpd/conf.d/openstack-proxy.conf
+  cat > "$cf" <<EOF
+ProxyPass        /vnc/vnc_auto.html http://127.0.0.1:6080/vnc_auto.html
+ProxyPassReverse /vnc/vnc_auto.html http://127.0.0.1:6080/vnc_auto.html
+ProxyPass        /vnc/favicon.ico   http://127.0.0.1:6080/favicon.ico
+ProxyPassReverse /vnc/favicon.ico   http://127.0.0.1:6080/favicon.ico
+ProxyPass        /vnc/include/      http://127.0.0.1:6080/include/
+ProxyPassReverse /vnc/include/      http://127.0.0.1:6080/include/
+ProxyPass        /websockify        ws://127.0.0.1:6080/websockify
+ProxyPassReverse /websockify        ws://127.0.0.1:6080/websockify
+EOF
+
   # start services at the end of everything
 
   # glance
@@ -417,6 +455,12 @@ EOF
   _x systemctl enable openstack-nova-scheduler
   _x systemctl enable openstack-nova-conductor
   _x systemctl enable openstack-nova-novncproxy
+
+  # dashboard
+  _x systemctl restart httpd
+  _x systemctl restart memcached
+  _x systemctl enable httpd
+  _x systemctl enable memcached
 
   (
     # register an image
@@ -559,7 +603,9 @@ EOF
   _x openstack-config --set $cf DEFAULT vnc_enabled True
   _x openstack-config --set $cf DEFAULT vncserver_listen 0.0.0.0
   _x openstack-config --set $cf DEFAULT vncserver_proxyclient_address $os_current_ip
-  _x openstack-config --set $cf DEFAULT novncproxy_base_url http://$os_server_fqdn:6080/vnc_auto.html
+  # note: this is temporary, to accommodate ssh port forwarding for admin; relies on revproxy
+  #_x openstack-config --set $cf DEFAULT novncproxy_base_url http://$os_server_fqdn:6080/vnc_auto.html
+  _x openstack-config --set $cf DEFAULT novncproxy_base_url http://localhost:6081/vnc/vnc_auto.html
 
   # nova compute --> glance
   _x openstack-config --set $cf DEFAULT glance_host $os_server_fqdn
