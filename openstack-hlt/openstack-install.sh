@@ -613,6 +613,13 @@ EOF
   # nova compute --> qemu (or docker?)
   _x openstack-config --set $cf libvirt virt_type qemu
 
+  # nova compute --> lvm (we must have an appropriate volume group)
+  _e "checking if we have volume group 'nova' (must be created manually)"
+  vgso=$( vgs --rows | grep 'VG nova' )
+  _x [ "$vgso" != '' ]
+  _x openstack-config --set $cf libvirt images_type lvm
+  _x openstack-config --set $cf libvirt images_volume_group nova
+
   # nova network (legacy)
   # --> http://docs.openstack.org/grizzly/openstack-compute/admin/content/configuring-vlan-networking.html
   # --> http://www.mirantis.com/blog/openstack-networking-flatmanager-and-flatdhcpmanager/
