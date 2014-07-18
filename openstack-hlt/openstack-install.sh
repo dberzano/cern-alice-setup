@@ -651,6 +651,7 @@ EOF
     _x openstack-config --set $cf DEFAULT dnsmasq_config_file $dnsmasqcf
     cat > $dnsmasqcf <<EOF
 dhcp-option=3,10.162.223.254
+dhcp-option=121,169.254.169.254/32,10.162.208.1
 EOF
   fi
 
