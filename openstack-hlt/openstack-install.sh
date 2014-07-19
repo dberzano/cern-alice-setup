@@ -632,8 +632,9 @@ EOF
   # nova compute --> glance
   _x openstack-config --set $cf DEFAULT glance_host $os_server_fqdn
 
-  # nova compute --> qemu (or docker?)
-  _x openstack-config --set $cf libvirt virt_type qemu
+  # nova compute --> qemu (no accel), kvm... (or docker?)
+  _x openstack-config --set $cf compute_driver libvirt.LibvirtDriver
+  _x openstack-config --set $cf libvirt virt_type kvm
 
   # nova compute --> lvm (we must have an appropriate volume group)
   _e "checking if we have volume group 'nova' (must be created manually)"
