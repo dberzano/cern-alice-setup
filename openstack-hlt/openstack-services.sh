@@ -66,7 +66,7 @@ function _m() {
           openstack-nova-scheduler openstack-nova-conductor \
           openstack-nova-novncproxy )
         novanet=()
-        ok=1
+        hosttype=head
       ;;
       --worker)
         aux=( libvirtd dbus )
@@ -75,7 +75,7 @@ function _m() {
         neutron=( neutron-openvswitch-agent openvswitch )
         nova=( openstack-nova-compute )
         novanet=( openstack-nova-network openstack-nova-metadata-api )
-        ok=1
+        hosttype=worker
       ;;
       --status|--restart|--stop|--disable|--enable) action="${1:2}" ;;
       --all|--aux|--auth|--glance|--neutron|--nova|--novanet) services="${1:2}" ;;
@@ -99,7 +99,7 @@ function _m() {
     *)       srv="${auth[@]} ${glance[@]} ${novanet[@]} ${nova[@]}" ; services='os' ;;
   esac
 
-  if [ "$services" == '' ] || [ "$ok" != 1 ] ; then
+  if [ "$services" == '' ] || [ "$hosttype" == '' ] ; then
     _e "usage: $0 [--worker|--head] [--all|--aux|--auth|--glance|--neutron|--nova|--novanet] [--status|--restart|--stop|--disable|--enable]"
     exit 1
   fi
@@ -145,9 +145,24 @@ function _m() {
     esac
   done
 
-  if [ "$action" == 'status' ] ; then
+  if [ "$action" == 'status' ] && [ "$hosttype" == 'worker' ] ; then
+
     ni=$( virsh list 2> /dev/null | grep -cE '\s+instance-' )
     _e "number of instances: \033[32m$ni"
+
+    nc=$( grep -c bogomips /proc/cpuinfo )
+    _e "number of cores: \033[32m$nc"
+
+    rammb=$( free -m | grep -E '^Mem:' | awk '{ print $2 }' )
+    _e "RAM memory (megabytes): \033[32m$rammb"
+
+    rammbpercore=$(( rammb / nc ))
+    _e "RAM memory per core (megabytes): \033[32m$rammbpercore"
+
+    nlv=$( lvs --noheadings nova | wc -l )
+    _e "LVM partitions for VMs: \033[32m$nlv"
+
+
   fi
 
   return 1
