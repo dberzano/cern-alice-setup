@@ -193,7 +193,6 @@ function _i_head() {
       _e "cancelling: wrong answer provided"
     else
       _e 'exterminate! exterminate!! exterminate!!!'
-      _x false
       _x mysql -u root --password=$os_pwd_mysql_root --table -vvv <<EOF
 DROP DATABASE IF EXISTS keystone ;
 DROP DATABASE IF EXISTS glance ;
