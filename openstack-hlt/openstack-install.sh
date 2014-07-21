@@ -660,6 +660,10 @@ EOF
   _x [ "$vgso" != '' ]
   _x openstack-config --set $cf libvirt images_type lvm
   _x openstack-config --set $cf libvirt images_volume_group nova
+  # lvm: when deleting VMs, wipe with dd, but only 1st megabyte
+  # less secure than wiping all (default) but we do not care and it is much faster
+  _x openstack-config --set $cf libvirt volume_clear zero
+  _x openstack-config --set $cf libvirt volume_clear_size 1
 
   # nova network (legacy)
   # --> http://docs.openstack.org/grizzly/openstack-compute/admin/content/configuring-vlan-networking.html
