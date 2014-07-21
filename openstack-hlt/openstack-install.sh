@@ -445,7 +445,16 @@ EOF
   echo 'LoadModule proxy_wstunnel_module modules/mod_proxy_wstunnel.so' > "$cf"
 
   cf=/etc/httpd/conf.d/openstack-proxy.conf
-  cat > "$cf" <<EOF
+  cat > "$cf" <<\EOF
+<LocationMatch "^/*$">
+  # redirect all reqs to / to /dashboard
+  RewriteEngine on
+  # L     stop the rewriting process now ("last")
+  # R=301 force HTTP redirect (301="moved permanently")
+  # QSD   discard all query strings (?query=val&query2=val2...)
+  RewriteRule ^.*$ /dashboard [L,R=301,QSD]
+</LocationMatch>
+
 ProxyPass        /vnc/vnc_auto.html http://127.0.0.1:6080/vnc_auto.html
 ProxyPassReverse /vnc/vnc_auto.html http://127.0.0.1:6080/vnc_auto.html
 ProxyPass        /vnc/favicon.ico   http://127.0.0.1:6080/favicon.ico
@@ -455,6 +464,16 @@ ProxyPassReverse /vnc/include/      http://127.0.0.1:6080/include/
 ProxyPass        /websockify        ws://127.0.0.1:6080/websockify
 ProxyPassReverse /websockify        ws://127.0.0.1:6080/websockify
 EOF
+  _x [ $(cat "$cf" | wc -l) -gt 0 ]
+
+  # comment out all welcome.conf
+  cf=/etc/httpd/conf.d/welcome.conf
+  nl=$( cat "$cf" | sed -e '/^\s*$/d' | grep -vE '^\s*#' | wc -l )
+  let nl+=0
+  if [ $nl -gt 0 ] ; then
+    cat "$cf" | sed -e 's/^\([^#].*\|\s*\)$/# \1/' > "$cf".0
+    _x mv "$cf".0 "$cf"
+  fi
 
   # start services at the end of everything
 
