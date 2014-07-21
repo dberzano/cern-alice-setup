@@ -656,7 +656,7 @@ EOF
 
   # nova compute --> lvm (we must have an appropriate volume group)
   _e "checking if we have volume group 'nova' (must be created manually)"
-  vgso=$( vgs --rows | grep 'VG nova' )
+  vgso=$( vgdisplay | grep 'VG Name' | grep nova )
   _x [ "$vgso" != '' ]
   _x openstack-config --set $cf libvirt images_type lvm
   _x openstack-config --set $cf libvirt images_volume_group nova
