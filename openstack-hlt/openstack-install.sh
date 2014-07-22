@@ -345,6 +345,14 @@ EOF
   _x openstack-config --set $cf keystone_authtoken admin_user nova
   _x openstack-config --set $cf keystone_authtoken admin_tenant_name service
   _x openstack-config --set $cf keystone_authtoken admin_password $os_pwd_ospwd_nova
+
+  # nova scheduler: no overcommit
+  # note: must add the CoreFilter
+  # see: http://docs.openstack.org/developer/nova/devref/filter_scheduler.html
+  _x openstack-config --set $cf DEFAULT scheduler_default_filters RetryFilter,AvailabilityZoneFilter,RamFilter,CoreFilter,ComputeFilter,ComputeCapabilitiesFilter,ImagePropertiesFilter,ServerGroupAntiAffinityFilter,ServerGroupAffinityFilter
+  _x openstack-config --set $cf DEFAULT cpu_allocation_ratio 1 # default: 16
+  _x openstack-config --set $cf DEFAULT ram_allocation_ratio 1 # default: 1
+
   _x openstack-config --set $cf DEFAULT verbose True
   _x sudo -u nova nova-manage db sync
 
