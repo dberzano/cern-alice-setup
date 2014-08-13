@@ -663,7 +663,6 @@ function AliMain() {
 AliMain "$@"
 ALI_rv=$?
 unset N_TRIAD TRIAD
-unset ALICE_ENV_LASTCHECK ALICE_ENV_REV ALICE_ENV_URL
 unset AliCleanEnv AliCleanPathList AliExportVars AliMain AliMenu AliPrintVars \
-  AliRemovePaths AliSetParallelMake AliConf
+  AliRemovePaths AliSetParallelMake AliConf AliUpdate
 return $ALI_rv
