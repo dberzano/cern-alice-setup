@@ -22,7 +22,7 @@ if [ -r "$HOME/.alice-env.conf" ]; then
 else
 
   # Installation prefix of everything
-  export ALICE_PREFIX="/opt/alice"
+  export ALICE_PREFIX="$HOME/alicesw"
 
   # By uncommenting this line, alien-token-init will automatically use the
   # variable as your default AliEn user without explicitly specifying it after
