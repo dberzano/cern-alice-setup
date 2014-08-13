@@ -506,16 +506,6 @@ function AliUpdate() {
   local UpdDelta=$(( UpdNowUtc - UpdLastUtc ))
   local UpdDeltaThreshold=43200  # update every 12 hours
 
-  # echo
-  # echo "updurl    = $UpdUrl"
-  # echo "desttmp   = $UpdTmp"
-  # echo "backup    = $UpdBackup"
-  # echo "envscript = $ALI_EnvScript"
-  # echo "updated   = $UpdLastUtc"
-  # echo "updnow    = $UpdNowUtc"
-  # echo "upddelta  = $UpdDelta"
-  # echo
-
   touch "$UpdTmp" 2> /dev/null || return 15  # cannot write
 
   if [ $UpdDelta -ge $UpdDeltaThreshold ] || [ "$1" == 2 ] ; then
@@ -599,11 +589,8 @@ function AliMain() {
       source "$ALI_EnvScript" "${ARGS[@]}" -k
       return $?
     elif [ $ALI_rv -ge 10 ] ; then
-    #else
       echo -e "Warning: automatic updater returned $ALI_rv"
     fi
-  else
-    echo "Warning: not updating"
   fi
 
   # Print menu if non-interactive
