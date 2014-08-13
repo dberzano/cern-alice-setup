@@ -433,9 +433,6 @@ function AliConf() {
 
 # Automatically created by alice-env.sh on $( LANG=C date )
 
-# ALICE installation prefix
-export ALICE_PREFIX="\$HOME/alicesw"
-
 #
 # Triads: they start from 1 (not 0) and must be consecutive
 #
@@ -480,8 +477,11 @@ _EoF_
     return 2
   fi
 
+  # Auto-detect the ALICE_PREFIX
+  export ALICE_PREFIX="${ALI_EnvScript%/*}"
   if [ "$OPT_QUIET" != 1 ] ; then
     echo -e "\nUsing config file \033[36m$ALI_Conf\033[m"
+    echo -e "ALICE software directory is \033[36m${ALICE_PREFIX}\033[m"
   fi
 
   return 0
