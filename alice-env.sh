@@ -509,13 +509,13 @@ function AliUpdate() {
   touch "$UpdTmp" 2> /dev/null || return 15  # cannot write
 
   if [ $UpdDelta -ge $UpdDeltaThreshold ] || [ "$1" == 2 ] ; then
-    rm -f "$UpdTmp" || return 11
+    \rm -f "$UpdTmp" || return 11
     curl -sL --max-time 5 "$UpdUrl" -o "$UpdTmp"
     if [ $? == 0 ] ; then
       echo $UpdNowUtc > "$UpdStatus"
       if ! cmp -s "$ALI_EnvScript" "$UpdTmp" ; then
-        cp -f "$ALI_EnvScript" "$UpdBackup" || return 12
-        mv "$UpdTmp" "$ALI_EnvScript" || return 13
+        \cp -f "$ALI_EnvScript" "$UpdBackup" || return 12
+        \mv "$UpdTmp" "$ALI_EnvScript" || return 13
         return 42  # updated ok, must resource
       else
         return 1  # no change
