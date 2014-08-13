@@ -8,7 +8,7 @@
 #
 # This script was tested under Ubuntu and Mac OS X.
 #
-# For updates: http://newton.ph.unito.it/~berzano/w/doku.php?id=alice:compile
+# Full guide: https://dberzano.github.io/alice/install-aliroot/
 #
 
 #
