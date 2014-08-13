@@ -265,6 +265,7 @@ function PrepareBugReport() {
 
   # Some environment variables
   (
+    echo "=== BUILD ENVIRONMENT ==="
     echo "PATH=$PATH"
     echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH"
     echo "DYLD_LIBRARY_PATH=$DYLD_LIBRARY_PATH"
@@ -282,7 +283,20 @@ function PrepareBugReport() {
     echo "root-config --cxx: `root-config --cxx 2>/dev/null`"
     echo "root-config --ld: `root-config --ld 2>/dev/null`"
     echo "root-config --features: `root-config --features 2>/dev/null`"
-    echo "=== COMPILER VERSIONS ==="
+    echo "root-config --cflags: `root-config --cflags 2>/dev/null`"
+    echo "root-config --auxcflags: `root-config --auxcflags 2>/dev/null`"
+    echo "root-config --ldflags: `root-config --ldflags 2>/dev/null`"
+    echo "=== ALICE SOFTWARE VERSIONS ==="
+    echo "ROOT: $ROOT_VER"
+    echo "Geant3: $G3_VER"
+    echo "AliRoot: $ALICE_VER"
+    echo "FastJet: $FASTJET_VER"
+    echo "FJ Contrib: $FJCONTRIB_VER"
+    echo "=== TOOLS VERSIONS ==="
+    if [ -r /etc/lsb-release ] ; then
+      echo "*** /etc/lsb-release ***"
+      cat /etc/lsb-release
+    fi
     echo "*** gcc ***"
     gcc -v 2>&1
     echo "*** g++ ***"
@@ -299,17 +313,10 @@ function PrepareBugReport() {
     cmake --version 2>&1
     echo "*** git ***"
     git --version 2>&1
-    if [ -r /etc/lsb-release ] ; then
-      echo "*** /etc/lsb-release ***"
-      cat /etc/lsb-release
-    fi
-    echo "=== END COMPILER VERSIONS ==="
     echo "=== DISK SPACE ==="
     df
-    echo "=== END DISK SPACE ==="
     echo "=== MOUNTED VOLUMES ==="
     mount
-    echo "=== END MOUNTED VOLUMES ==="
   ) >> $OUT 2>&1
 
 }
