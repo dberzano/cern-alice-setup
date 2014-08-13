@@ -150,7 +150,7 @@ function AliCleanEnv() {
   # Unset other environment variables and aliases
   unset MJ ALIEN_DIR GSHELL_ROOT ROOTSYS ALICE ALICE_ROOT ALICE_BUILD \
     ALICE_TARGET GEANT3DIR X509_CERT_DIR ALICE FASTJET \
-    ALI_EnvScript ALI_Conf
+    ALI_EnvScript ALI_Conf ALICE_ENV_UPDATE_URL ALICE_ENV_DONT_UPDATE
 }
 
 # Sets the number of parallel workers for make to the number of cores plus one
@@ -487,11 +487,67 @@ _EoF_
   return 0
 }
 
+# Updates this very file, if necessary. Return codes:
+#   0: nothing done
+#   42: updated and changed, must re-source
+#   1-9: no update, not an error
+#   10-20: no update, an error occurred
+# If you want to force-update:
+#   AliUpdate 2
+function AliUpdate() {
+
+  local UpdUrl=${ALICE_ENV_UPDATE_URL:-https://raw.githubusercontent.com/dberzano/cern-alice-setup/master/alice-env.sh}
+  local UpdStatus="${ALICE_PREFIX}/.alice-env.updated"
+  local UpdTmp="${ALICE_PREFIX}/.alice-env.sh.new"
+  local UpdBackup="${ALICE_PREFIX}/.alice-env.sh.old"
+  local UpdLastUtc=$( cat "$UpdStatus" 2> /dev/null )
+  UpdLastUtc=$( expr "$UpdLastUtc" + 0 2> /dev/null || echo 0 )
+  local UpdNowUtc=$( date -u +%s )
+  local UpdDelta=$(( UpdNowUtc - UpdLastUtc ))
+  local UpdDeltaThreshold=43200  # update every 12 hours
+
+  # echo
+  # echo "updurl    = $UpdUrl"
+  # echo "desttmp   = $UpdTmp"
+  # echo "backup    = $UpdBackup"
+  # echo "envscript = $ALI_EnvScript"
+  # echo "updated   = $UpdLastUtc"
+  # echo "updnow    = $UpdNowUtc"
+  # echo "upddelta  = $UpdDelta"
+  # echo
+
+  touch "$UpdTmp" 2> /dev/null || return 15  # cannot write
+
+  if [ $UpdDelta -ge $UpdDeltaThreshold ] || [ "$1" == 2 ] ; then
+    rm -f "$UpdTmp" || return 11
+    curl -sL --max-time 5 "$UpdUrl" -o "$UpdTmp"
+    if [ $? == 0 ] ; then
+      echo $UpdNowUtc > "$UpdStatus"
+      if ! cmp -s "$ALI_EnvScript" "$UpdTmp" ; then
+        cp -f "$ALI_EnvScript" "$UpdBackup" || return 12
+        mv "$UpdTmp" "$ALI_EnvScript" || return 13
+        return 42  # updated ok, must resource
+      else
+        return 1  # no change
+      fi
+    else
+      return 14  # dl failed
+    fi
+  fi
+
+  return 0  # noop
+}
+
 # Main function: takes parameters from the command line
 function AliMain() {
 
   local C T R
-  local OPT_QUIET OPT_NONINTERACTIVE OPT_CLEANENV OPT_DONTUPDATE
+  local OPT_QUIET=0
+  local OPT_NONINTERACTIVE=0
+  local OPT_CLEANENV=0
+  local OPT_DONTUPDATE=0
+  local OPT_FORCEUPDATE=0
+  local ARGS=("$@")
 
   # Parse command line options
   while [ $# -gt 0 ]; do
@@ -501,7 +557,8 @@ function AliMain() {
       "-n") OPT_NONINTERACTIVE=1 ;;
       "-i") OPT_NONINTERACTIVE=0 ;;
       "-c") OPT_CLEANENV=1; ;;
-      "-u") OPT_DONTUPDATE=1 ;;
+      "-k") OPT_DONTUPDATE=1 ;;
+      "-u") OPT_FORCEUPDATE=1 ;;
     esac
     shift
   done
@@ -519,6 +576,34 @@ function AliMain() {
   if [ $R != 0 ] ; then
     AliCleanEnv
     return $R
+  fi
+
+  # Update
+  local DoUpdate
+  if [ "$OPT_DONTUPDATE" == 1 ] ; then
+    DoUpdate=0  # -k
+  elif [ "$OPT_FORCEUPDATE" == 1 ] ; then
+    DoUpdate=2  # -u
+  elif [ "$ALICE_ENV_DONT_UPDATE" == 1 ] ; then
+    DoUpdate=0
+  else
+    DoUpdate=1
+  fi
+
+  if [ $DoUpdate -gt 0 ]; then
+    AliUpdate $DoUpdate
+    ALI_rv=$?
+    if [ $ALI_rv == 42 ] ; then
+      # Script changed: re-source
+      echo ; echo -e "\033[32mEnvironment script automatically updated to the latest version: reloading\033[m"
+      source "$ALI_EnvScript" "${ARGS[@]}" -k
+      return $?
+    elif [ $ALI_rv -ge 10 ] ; then
+    #else
+      echo -e "Warning: automatic updater returned $ALI_rv"
+    fi
+  else
+    echo "Warning: not updating"
   fi
 
   # Print menu if non-interactive
