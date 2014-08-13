@@ -1,52 +1,41 @@
 #
-# alice-env.sh - by Dario Berzano <dario.berzano@cern.ch>
+# alice-env.sh -- by Dario Berzano <dario.berzano@cern.ch>
 #
-# This script is meant to be sourced in order to prepare the environment to run
-# ALICE Offline Framework applications (AliEn, ROOT, Geant 3 and AliRoot).
+# Prepares the environment for running the ALICE Framework, in particular:
 #
-# On a typical setup, only the first lines of this script ought to be changed.
+#   AliEn
+#   ROOT
+#   Geant 3
+#   AliRoot
 #
-# This script was tested under Ubuntu and Mac OS X.
+# It optionally supports:
 #
-# Full guide: https://dberzano.github.io/alice/install-aliroot/
+#   FastJet
+#   FastJet Contrib
 #
-
+# This script is tested to work under Ubuntu and OS X. For more information on
+# compatibility and build instructions, please consult:
 #
-# Customizable variables
+#   https://dberzano.github.io/alice/install-aliroot/
 #
-
-# If the specified file exists, settings are read from there; elsewhere they
-# are read directly from this file
-if [ -r "$HOME/.alice-env.conf" ]; then
-  source "$HOME/.alice-env.conf"
-else
-
-  # Installation prefix of everything
-  export ALICE_PREFIX="$HOME/alicesw"
-
-  # By uncommenting this line, alien-token-init will automatically use the
-  # variable as your default AliEn user without explicitly specifying it after
-  # the command
-  #export alien_API_USER="myalienusername"
-
-  # Triads in the form "ROOT Geant3 AliRoot [FastJet[_FJContrib]]". Indices
-  # start from 1 not 0. The FastJet entry is optional. FJ Contrib is optional
-  # with FastJet 2 and mandatory with FastJet 3.
-  # More information: http://aliceinfo.cern.ch/Offline/AliRoot/Releases.html
-  TRIAD[1]="v5-34-11 v1-15a master" # no FastJet
-  TRIAD[2]="v5-34-11 v1-15a master 2.4.5" # with FastJet
-  TRIAD[3]="v5-34-18 v1-15a master 3.0.6_1.012" # with FastJet and FJ contrib
-  # ...add more "triads" here without skipping array indices...
-
-  # This is the "triad" that will be selected in non-interactive mode.
-  # Set it to the number of the array index of the desired "triad"
-  export N_TRIAD=1
-
-fi
 
 ################################################################################
 #                                                                              #
-#   * * * BEYOND THIS POINT THERE IS LIKELY NOTHING YOU NEED TO MODIFY * * *   #
+#                      * * * DON'T TOUCH THIS FILE! * * *                      #
+#                                                                              #
+# Configuration variables are found in a separate file, in the same directory  #
+# of this script:                                                              #
+#                                                                              #
+#   alice-env.conf                                                             #
+#                                                                              #
+# Or if you prefer, you can create a hidden file in your home:                 #
+#                                                                              #
+#   ~/.alice-env.conf                                                          #
+#                                                                              #
+# If none of the configuration files is found, a default alice-env.conf is     #
+# created in the same directory of this script.                                #
+#                                                                              #
+# This script gets updated automatically, so any change you make will be lost. #
 #                                                                              #
 ################################################################################
 
@@ -160,7 +149,8 @@ function AliCleanEnv() {
 
   # Unset other environment variables and aliases
   unset MJ ALIEN_DIR GSHELL_ROOT ROOTSYS ALICE ALICE_ROOT ALICE_BUILD \
-    ALICE_TARGET GEANT3DIR X509_CERT_DIR ALICE FASTJET
+    ALICE_TARGET GEANT3DIR X509_CERT_DIR ALICE FASTJET \
+    ALI_EnvScript ALI_Conf ALICE_ENV_UPDATE_URL ALICE_ENV_DONT_UPDATE
 }
 
 # Sets the number of parallel workers for make to the number of cores plus one
@@ -409,11 +399,145 @@ function NiceTriad() {
   unset D V
 }
 
+# Tries to source the first configuration file found. Returns nonzero on error
+function AliConf() {
+
+  local OPT_QUIET="$1"
+  local ALI_ConfFound ALI_ConfFiles
+
+  # Normalize path to this script
+  ALI_EnvScript="${BASH_SOURCE}"
+  if [ "${ALI_EnvScript:0:1}" != '/' ] ; then
+    ALI_EnvScript="${PWD}/${BASH_SOURCE}"
+  fi
+  ALI_EnvScript=$( cd "${ALI_EnvScript%/*}" ; pwd )"/${ALI_EnvScript##*/}"
+
+  # Configuration file path: the first file found is loaded
+  ALI_ConfFiles=( "${ALI_EnvScript%.*}.conf" "$HOME/.alice-env.conf" )
+  for ALI_Conf in "${ALI_ConfFiles[@]}" ; do
+    if [ -r "$ALI_Conf" ] ; then
+      source "$ALI_Conf" > /dev/null 2>&1
+      ALI_ConfFound=1
+      break
+    fi
+  done
+
+  if [ "$ALI_ConfFound" != 1 ] ; then
+    # No configuration file found: create a default one
+    echo -e "\033[33mNo configuration file found.\033[m"
+    echo
+
+    ALI_Conf="${ALI_ConfFiles[0]}"
+    cat > "$ALI_Conf" <<_EoF_
+#!/bin/bash
+
+# Automatically created by alice-env.sh on $( LANG=C date )
+
+#
+# Triads: they start from 1 (not 0) and must be consecutive
+#
+# Format:
+#   TRIAD[n]='ROOT Geant3 AliRoot [FastJet[_FJContrib]]'
+#
+# FastJet is optional. FJ Contrib is optional with FastJet 2 and mandatory with
+# FastJet 3.
+#
+
+# No FastJet
+TRIAD[1]='v5-34-18 v1-15a master'
+
+# FastJet 2
+#TRIAD[2]='v5-34-18 v1-15a master 2.4.5'
+
+# FastJet 3
+#TRIAD[3]='v5-34-18 v1-15a master 3.0.6_1.012'
+
+# You can add more triads
+#TRIAD[4]='...'
+
+# Default triad for automatic installation 
+export N_TRIAD=1
+_EoF_
+
+    if [ $? != 0 ] ; then
+      echo -e "\033[31mUnable to create default configuration:\033[m"
+      echo -e "  \033[36m${ALI_Conf}\033[m" ; echo
+      echo -e "\033[31mCheck your permissions.\033[m"
+      return 2
+    else
+      echo "A default one has been created. Find it at:"
+      echo -e "  \033[36m${ALI_Conf}\033[m" ; echo
+      echo "Edit it according to your needs, then source the environment again."
+      return 1
+    fi
+  fi
+
+  if [ ${#TRIAD[@]} == 0 ] ; then
+    echo -e "\033[33mNo \"triads\" found in config file $ALI_Conf, aborting.\033[m"
+    return 2
+  fi
+
+  # Auto-detect the ALICE_PREFIX
+  export ALICE_PREFIX="${ALI_EnvScript%/*}"
+  if [ "$OPT_QUIET" != 1 ] ; then
+    echo -e "\nUsing config file \033[36m$ALI_Conf\033[m"
+    echo -e "ALICE software directory is \033[36m${ALICE_PREFIX}\033[m"
+  fi
+
+  return 0
+}
+
+# Updates this very file, if necessary. Return codes:
+#   0: nothing done
+#   42: updated and changed, must re-source
+#   1-9: no update, not an error
+#   10-20: no update, an error occurred
+# If you want to force-update:
+#   AliUpdate 2
+function AliUpdate() {
+
+  local UpdUrl=${ALICE_ENV_UPDATE_URL:-https://raw.githubusercontent.com/dberzano/cern-alice-setup/master/alice-env.sh}
+  local UpdStatus="${ALICE_PREFIX}/.alice-env.updated"
+  local UpdTmp="${ALICE_PREFIX}/.alice-env.sh.new"
+  local UpdBackup="${ALICE_PREFIX}/.alice-env.sh.old"
+  local UpdLastUtc=$( cat "$UpdStatus" 2> /dev/null )
+  UpdLastUtc=$( expr "$UpdLastUtc" + 0 2> /dev/null || echo 0 )
+  local UpdNowUtc=$( date -u +%s )
+  local UpdDelta=$(( UpdNowUtc - UpdLastUtc ))
+  local UpdDeltaThreshold=21600  # update every 6 hours
+
+  touch "$UpdTmp" 2> /dev/null || return 15  # cannot write
+
+  if [ $UpdDelta -ge $UpdDeltaThreshold ] || [ "$1" == 2 ] ; then
+    rm -f "$UpdTmp" || return 11
+    curl -sL --max-time 5 "$UpdUrl" -o "$UpdTmp"
+    if [ $? == 0 ] ; then
+      echo $UpdNowUtc > "$UpdStatus"
+      if ! cmp -s "$ALI_EnvScript" "$UpdTmp" ; then
+        cp -f "$ALI_EnvScript" "$UpdBackup" || return 12
+        mv "$UpdTmp" "$ALI_EnvScript" || return 13
+        return 42  # updated ok, must resource
+      else
+        return 1  # no change
+      fi
+    else
+      return 14  # dl failed
+    fi
+  fi
+
+  return 0  # noop
+}
+
 # Main function: takes parameters from the command line
 function AliMain() {
 
-  local C T
-  local OPT_QUIET OPT_NONINTERACTIVE OPT_CLEANENV OPT_DONTUPDATE
+  local C T R
+  local OPT_QUIET=0
+  local OPT_NONINTERACTIVE=0
+  local OPT_CLEANENV=0
+  local OPT_DONTUPDATE=0
+  local OPT_FORCEUPDATE=0
+  local ARGS=("$@")
 
   # Parse command line options
   while [ $# -gt 0 ]; do
@@ -423,7 +547,8 @@ function AliMain() {
       "-n") OPT_NONINTERACTIVE=1 ;;
       "-i") OPT_NONINTERACTIVE=0 ;;
       "-c") OPT_CLEANENV=1; ;;
-      "-u") OPT_DONTUPDATE=1 ;;
+      "-k") OPT_DONTUPDATE=1 ;;
+      "-u") OPT_FORCEUPDATE=1 ;;
     esac
     shift
   done
@@ -435,6 +560,40 @@ function AliMain() {
     N_TRIAD=0
   fi
 
+  # Try to load configuration
+  AliConf "$OPT_QUIET"
+  R=$?
+  if [ $R != 0 ] ; then
+    AliCleanEnv
+    return $R
+  fi
+
+  # Update
+  local DoUpdate
+  if [ "$OPT_DONTUPDATE" == 1 ] ; then
+    DoUpdate=0  # -k
+  elif [ "$OPT_FORCEUPDATE" == 1 ] ; then
+    DoUpdate=2  # -u
+  elif [ "$ALICE_ENV_DONT_UPDATE" == 1 ] ; then
+    DoUpdate=0
+  else
+    DoUpdate=1
+  fi
+
+  if [ $DoUpdate -gt 0 ]; then
+    AliUpdate $DoUpdate
+    ALI_rv=$?
+    if [ $ALI_rv == 42 ] ; then
+      # Script changed: re-source
+      echo ; echo -e "\033[32mEnvironment script automatically updated to the latest version: reloading\033[m"
+      source "$ALI_EnvScript" "${ARGS[@]}" -k
+      return $?
+    elif [ $ALI_rv -ge 10 ] ; then
+      echo -e "Warning: automatic updater returned $ALI_rv"
+    fi
+  fi
+
+  # Print menu if non-interactive
   [ "$OPT_NONINTERACTIVE" != 1 ] && AliMenu
 
   unset ROOT_VER G3_VER ALICE_VER FASTJET_VER FJCONTRIB_VER
@@ -502,7 +661,8 @@ function AliMain() {
 #
 
 AliMain "$@"
+ALI_rv=$?
 unset N_TRIAD TRIAD
-unset ALICE_ENV_LASTCHECK ALICE_ENV_REV ALICE_ENV_URL
 unset AliCleanEnv AliCleanPathList AliExportVars AliMain AliMenu AliPrintVars \
-  AliRemovePaths AliSetParallelMake
+  AliRemovePaths AliSetParallelMake AliConf AliUpdate
+return $ALI_rv
