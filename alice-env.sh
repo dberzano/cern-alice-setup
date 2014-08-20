@@ -537,11 +537,13 @@ function AliMain() {
   local OPT_CLEANENV=0
   local OPT_DONTUPDATE=0
   local OPT_FORCEUPDATE=0
+  local OPT_INSTALL=0
   local ARGS=("$@")
 
   # Parse command line options
   while [ $# -gt 0 ]; do
     case "$1" in
+      "-a") OPT_INSTALL=1 ; shift ; break ;;
       "-q") OPT_QUIET=1 ;;
       "-v") OPT_QUIET=0 ;;
       "-n") OPT_NONINTERACTIVE=1 ;;
@@ -552,6 +554,11 @@ function AliMain() {
     esac
     shift
   done
+
+  # Just invoke auto-installer?
+  if [ "$OPT_INSTALL" == 1 ] ; then
+    exec bash <( curl -fsSL http://cern.ch/go/NcS7 ) "$@"
+  fi
 
   # Always non-interactive+do not update when cleaning environment
   if [ "$OPT_CLEANENV" == 1 ]; then
