@@ -592,11 +592,11 @@ function AliMain() {
     ALI_rv=$?
     if [ $ALI_rv == 42 ] ; then
       # Script changed: re-source
-      echo ; echo -e "\033[32mEnvironment script automatically updated to the latest version: reloading\033[m"
+      [ "$OPT_QUIET" != 1 ] && echo -e "\n\033[32mEnvironment script automatically updated to the latest version: reloading\033[m"
       source "$ALI_EnvScript" "${ARGS[@]}" -k
       return $?
     elif [ $ALI_rv -ge 10 ] ; then
-      echo -e "Warning: automatic updater returned $ALI_rv"
+      [ "$OPT_QUIET" != 1 ] && echo -e "Warning: automatic updater returned $ALI_rv"
     fi
   fi
 
