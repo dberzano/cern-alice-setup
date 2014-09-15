@@ -150,7 +150,7 @@ function AliCleanEnv() {
   # Unset other environment variables and aliases
   unset MJ ALIEN_DIR GSHELL_ROOT ROOTSYS ALICE ALICE_ROOT ALICE_BUILD \
     ALICE_TARGET GEANT3DIR X509_CERT_DIR ALICE FASTJET \
-    ALI_EnvScript ALI_Conf ALICE_ENV_UPDATE_URL ALICE_ENV_DONT_UPDATE
+    ALICE_ENV_UPDATE_URL ALICE_ENV_DONT_UPDATE
 }
 
 # Sets the number of parallel workers for make to the number of cores plus one
@@ -254,6 +254,14 @@ function AliExportVars() {
 
   export ALIPS1="$PS1"
   export PS1='`AliPrompt`'"$PS1"
+
+  #
+  # For the automatic installer
+  #
+
+  export ALI_N_TRIAD="$N_TRIAD"
+  export ALI_EnvScript
+  export ALI_Conf
 
 }
 
@@ -404,6 +412,7 @@ function AliConf() {
 
   local OPT_QUIET="$1"
   local ALI_ConfFound ALI_ConfFiles
+  local N_TRIAD_BEFORE="$N_TRIAD"
 
   # Normalize path to this script
   ALI_EnvScript="${BASH_SOURCE}"
@@ -472,10 +481,13 @@ _EoF_
     fi
   fi
 
-  if [ ${#TRIAD[@]} == 0 ] ; then
+  if [[ ${#TRIAD[@]} == 0 ]] ; then
     echo -e "\033[33mNo \"triads\" found in config file $ALI_Conf, aborting.\033[m"
     return 2
   fi
+
+  # If a triad was set before loading env, restore it
+  [[ "$N_TRIAD_BEFORE" != '' ]] && export N_TRIAD="$N_TRIAD_BEFORE"
 
   # Auto-detect the ALICE_PREFIX
   export ALICE_PREFIX="${ALI_EnvScript%/*}"
@@ -546,7 +558,11 @@ function AliMain() {
       "-a") OPT_INSTALL=1 ; shift ; break ;;
       "-q") OPT_QUIET=1 ;;
       "-v") OPT_QUIET=0 ;;
-      "-n") OPT_NONINTERACTIVE=1 ;;
+      "-n")
+        OPT_NONINTERACTIVE=1
+        N_TRIAD=$(( $2 ))
+        [[ $N_TRIAD == 0 ]] && unset N_TRIAD
+      ;;
       "-i") OPT_NONINTERACTIVE=0 ;;
       "-c") OPT_CLEANENV=1; ;;
       "-k") OPT_DONTUPDATE=1 ;;
@@ -604,7 +620,12 @@ function AliMain() {
   [ "$OPT_NONINTERACTIVE" != 1 ] && AliMenu
 
   unset ROOT_VER G3_VER ALICE_VER FASTJET_VER FJCONTRIB_VER
-  if [ $N_TRIAD -gt 0 ]; then
+  if [[ $N_TRIAD -gt ${#TRIAD[@]} || $N_TRIAD -lt 0 ]] ; then
+    echo ''
+    echo -e "\033[31mInvalid triad: \033[35m$N_TRIAD\033[m"
+    echo -e "\033[31mCheck the value of \033[35mN_TRIAD\033[31m in \033[35m$ALI_Conf\033[31m, or provide a correct value with -n <n_triad>\033[m"
+    OPT_CLEANENV=1
+  elif [[ $N_TRIAD != 0 ]] ; then
     C=0
     for T in ${TRIAD[$N_TRIAD]}
     do
@@ -650,9 +671,10 @@ function AliMain() {
       G3_VER G3_SUBDIR \
       ALICE_VER ALICE_SUBDIR \
       FASTJET_VER FASTJET_SUBDIR FJCONTRIB_VER \
-      alien_API_USER AliPrompt
+      alien_API_USER AliPrompt \
+      ALI_N_TRIAD ALI_EnvScript ALI_Conf
     if [ "$OPT_QUIET" != 1 ]; then
-      echo -e "\033[33mALICE environment variables cleared\033[m"
+      echo -e "\033[33mALICE environment variables purged\033[m"
     fi
   fi
 
