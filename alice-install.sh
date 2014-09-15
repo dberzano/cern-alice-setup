@@ -14,7 +14,6 @@
 export SWALLOW_LOG="/tmp/alice-autobuild-$USER"
 export ERR="$SWALLOW_LOG.err"
 export OUT="$SWALLOW_LOG.out"
-export ENVSCRIPT=""
 export NCORES=0
 export BUILD_MODE='' # clang, gcc, custom-gcc
 export SUPPORTED_BUILD_MODES=''
@@ -32,9 +31,10 @@ export DOWNLOAD_MODE=''
 # Sources environment variables
 function SourceEnvVars() {
   local R
-  source "$ENVSCRIPT" -n
+  [[ ! -r "$ALI_EnvScript" ]] && return 100
+  source "$ALI_EnvScript" -n "$ALI_N_TRIAD"
   R=$?
-  [ $NCORES -gt 0 ] && MJ=$NCORES
+  [[ $NCORES -gt 0 ]] && MJ=$NCORES
   return $R
 }
 
@@ -329,8 +329,8 @@ function ShowBugReportInfo() {
   [ -s "$ERR" ] && echo "  $ERR"
   [ -s "$OUT" ] && echo "  $OUT"
   echo ""
-  echo -e "\033[41m\033[1;37mNote:\033[m should you be concerned about the logs containing private information,"
-  echo "      you can edit them before sending."
+  echo -e "\033[41m\033[1;37mNote:\033[m should you be concerned about private information contained"
+  echo "      in the logs, you can edit them before sending."
   echo ""
 }
 
@@ -919,6 +919,9 @@ function Help() {
   local Cmd='bash <(curl -fsSL http://cern.ch/go/NcS7)'
   local C="\033[1m"
   local Z="\033[m"
+  local R="\033[31m"
+  local M="\033[35m"
+  local A="\033[36m"
   echo ""
   echo "alice-install.sh -- by Dario Berzano <dario.berzano@cern.ch>"
   echo ""
@@ -970,12 +973,13 @@ function Help() {
   echo -e "    ${C}$Cmd [--all|...] [--no-download|--download-only]${Z}"
   echo ""
 
-  SourceEnvVars > /dev/null 2> /dev/null
-  if [ "$?" != 0 ]; then
-    echo "Must be run from a directory containing alice-env.sh!"
-    echo "Environment script was expected in:"
-    echo ""
-    echo "  $ENVSCRIPT"
+  SourceEnvVars > /dev/null 2>&1
+  Rv=$?
+  if [[ "$Rv" == 100 ]] ; then
+    echo -e "${R}Please load your alice-env.sh script selecting the triad you wish to install first!${Z}"
+    echo -e "${R}Note: you might need to upgrade your alice-env.sh script before!${Z}"
+  elif [[ "$Rv" != 0 ]] ; then
+    echo -e "${R}Problem loading ${ALI_EnvScript} with triad ${ALI_N_TRIAD}.${Z}"
   else
 
     local ROOT_STR="$ROOT_VER"
@@ -1006,25 +1010,22 @@ function Help() {
       BUILD_MODE_STR="$BUILD_MODE (under $CUSTOM_GCC_PATH)"
     fi
 
-    echo "ALICE environment is read from:"
-    echo ""
-    echo -e "  ${C}$ENVSCRIPT${Z}"
-    echo ""
-    echo "Software install directory (make with --prepare in the first place):"
-    echo ""
-    echo -e "  ${C}$ALICE_PREFIX${Z}"
-    echo ""
-    echo "Versions of software that will be installed or cleaned up:"
-    echo ""
-    echo "  AliEn:   always the latest version"
-    echo "  ROOT:    $ROOT_STR"
-    echo "  Geant3:  $G3_STR"
-    echo "  FastJet: $FASTJET_STR"
-    echo "  AliRoot: $ALICE_STR"
-    echo ""
-    echo -e "Selected compiler: ${C}$BUILD_MODE_STR${Z}"
-    echo ""
-    echo "Choose them in alice-env.sh script with TRIADS and N_TRIAD vars."
+    echo -e "${R}Specify one or more actions among: ${M}--all, --alien, --aliroot, --geant3, --root, --fastjet${Z}"
+    echo
+    echo -e "If you re-run this script with one or more actions now, the following configuration will be used:"
+    echo
+    echo -e "${M}ALICE environment script: ${A}${ALI_EnvScript}${Z}"
+    echo -e "${M}Software installation directory: ${A}${ALICE_PREFIX}${Z}"
+    echo
+    echo -e "${M}You have selected the \"triad\" ${A}#${ALI_N_TRIAD}${M}:${Z}"
+    echo
+    echo -e "  ${M}AliEn:   ${A}always the latest version${Z}"
+    echo -e "  ${M}ROOT:    ${A}$ROOT_STR${Z}"
+    echo -e "  ${M}Geant3:  ${A}$G3_STR${Z}"
+    echo -e "  ${M}FastJet: ${A}$FASTJET_STR${Z}"
+    echo -e "  ${M}AliRoot: ${A}$ALICE_STR${Z}"
+    echo
+    echo -e "${M}Compiler: ${A}$BUILD_MODE_STR${Z}"
   fi
   echo ""
 
@@ -1104,14 +1105,6 @@ function Main() {
 
   # Detect proper build options
   DetectOsBuildOpts
-
-  # Environment script: look for it in current dir
-  ENVSCRIPT="$PWD/alice-env.sh"
-
-  if [ ! -r "$ENVSCRIPT" ]; then
-    Help
-    exit 1
-  fi
 
   # Parse parameters
   while [ $# -gt 0 ]; do

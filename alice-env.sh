@@ -150,7 +150,7 @@ function AliCleanEnv() {
   # Unset other environment variables and aliases
   unset MJ ALIEN_DIR GSHELL_ROOT ROOTSYS ALICE ALICE_ROOT ALICE_BUILD \
     ALICE_TARGET GEANT3DIR X509_CERT_DIR ALICE FASTJET \
-    ALI_EnvScript ALI_Conf ALICE_ENV_UPDATE_URL ALICE_ENV_DONT_UPDATE
+    ALICE_ENV_UPDATE_URL ALICE_ENV_DONT_UPDATE
 }
 
 # Sets the number of parallel workers for make to the number of cores plus one
@@ -256,10 +256,12 @@ function AliExportVars() {
   export PS1='`AliPrompt`'"$PS1"
 
   #
-  # Number of triad (for automatic installation)
+  # For the automatic installer
   #
 
   export ALI_N_TRIAD="$N_TRIAD"
+  export ALI_EnvScript
+  export ALI_Conf
 
 }
 
@@ -670,7 +672,7 @@ function AliMain() {
       ALICE_VER ALICE_SUBDIR \
       FASTJET_VER FASTJET_SUBDIR FJCONTRIB_VER \
       alien_API_USER AliPrompt \
-      ALI_N_TRIAD
+      ALI_N_TRIAD ALI_EnvScript ALI_Conf
     if [ "$OPT_QUIET" != 1 ]; then
       echo -e "\033[33mALICE environment variables purged\033[m"
     fi
