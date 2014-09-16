@@ -477,6 +477,14 @@ function ModuleGeant3() {
       SwallowProgress -f --pattern "Creating a local Git clone for Geant3 version $G3_VER" git-new-workdir "$ALICE_PREFIX/geant3/git" "$GEANT3DIR" "$G3_VER"
     fi
 
+    Swallow -f "Moving to the local Git clone for Geant3 version $G3_VER" cd "$GEANT3DIR"
+    Swallow -f "Checking out Geant3 version $G3_VER" git checkout "$G3_VER"
+
+    if [[ "$(git rev-parse --abbrev-ref HEAD)" != 'HEAD' ]] ; then
+      # update only if on a branch: errors are fatal
+      SwallowProgress -f --pattern "Updating Geant3 branch $G3_VER from Git" git pull --rebase
+    fi
+
   fi # end download
 
   if [ "$DOWNLOAD_MODE" == '' ] || [ "$DOWNLOAD_MODE" == 'no' ] ; then
