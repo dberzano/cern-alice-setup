@@ -364,13 +364,18 @@ function ModuleRoot() {
         git clone http://root.cern.ch/git/root.git .
 
     Swallow -f 'Updating list of remote ROOT Git branches' \
-      git remote update origin
+      git remote update origin --prune
 
     if [ "$ROOT_VER" == 'trunk' ] ; then
       ROOT_VER='master'
     fi
     Swallow -f "Checking out ROOT $ROOT_VER" git checkout "$ROOT_VER"
-    SwallowProgress --pattern "Updating ROOT $ROOT_VER from Git" git pull --rebase  # non-fatal
+
+    if [[ "$(git rev-parse --abbrev-ref HEAD)" != 'HEAD' ]] ; then
+      # update only if on a branch: errors are fatal
+      SwallowProgress -f --pattern "Updating ROOT $ROOT_VER from Git" git pull --rebase
+    fi
+
     SwallowProgress -f --pattern 'Staging ROOT source in build directory' \
       rsync -avc --exclude '**/.git' "$ROOTGit"/ "$ROOTSYS"
 
@@ -625,7 +630,7 @@ function ModuleAliRoot() {
     AliRootGit=$(cd "$AliRootGit";pwd)
 
     SwallowProgress -f --pattern 'Updating list of remote AliRoot Git branches' \
-      git remote update origin
+      git remote update origin --prune
 
     # Semantic fix: many people will still call it 'trunk'...
     [ "$ALICE_VER" == 'trunk' ] && ALICE_VER='master'
@@ -645,11 +650,14 @@ function ModuleAliRoot() {
     fi
 
     Swallow -f "Moving to local clone" cd "$ALICE_ROOT"
-    Swallow -f "Checking out AliRoot version $ALICE_VER"
+    Swallow -f "Checking out AliRoot version $ALICE_VER" git checkout "$ALICE_VER"
 
-    # Note: if we are working on a clone made with git-new-workdir, changes
-    # here will be propagated to all directories cloned with the same tool
-    SwallowProgress --pattern "Updating AliRoot $ALICE_VER" git pull --rebase  # non-fatal
+    if [[ "$(git rev-parse --abbrev-ref HEAD)" != 'HEAD' ]] ; then
+      # update only if on a branch: errors are fatal
+      # if we are working on a clone made with git-new-workdir, changes in the
+      # git object database will be propagated to all the sibling clones
+      SwallowProgress -f --pattern "Updating AliRoot $ALICE_VER from Git" git pull --rebase
+    fi
 
     # In the end we still have:
     #  - source in $ALICE_ROOT
