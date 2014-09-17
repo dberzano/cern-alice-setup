@@ -144,7 +144,7 @@ function AliCleanEnv() {
   AliRemovePaths PYTHONPATH ROOT.py 
 
   # Restore prompt
-  [ "$ALIPS1" == '' ] || export PS1="$ALIPS1"
+  [[ "$ALIPS1" != '' ]] && export PS1="$ALIPS1"
   unset ALIPS1
 
   # Unset other environment variables and aliases
@@ -252,8 +252,10 @@ function AliExportVars() {
   # Git prompt
   #
 
-  export ALIPS1="$PS1"
-  export PS1='`AliPrompt`'"$PS1"
+  if [[ "$ALICE_ENV_DONT_CHANGE_PS1" != 1 ]] ; then
+    export ALIPS1="$PS1"
+    export PS1='`AliPrompt`'"$PS1"
+  fi
 
   #
   # For the automatic installer
@@ -672,7 +674,8 @@ function AliMain() {
       ALICE_VER ALICE_SUBDIR \
       FASTJET_VER FASTJET_SUBDIR FJCONTRIB_VER \
       alien_API_USER AliPrompt \
-      ALI_N_TRIAD ALI_EnvScript ALI_Conf
+      ALI_N_TRIAD ALI_EnvScript ALI_Conf \
+      ALICE_ENV_DONT_CHANGE_PS1
     if [ "$OPT_QUIET" != 1 ]; then
       echo -e "\033[33mALICE environment variables purged\033[m"
     fi
