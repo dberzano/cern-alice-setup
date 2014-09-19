@@ -467,13 +467,14 @@ function ModuleGeant3() {
     Swallow -f "Creating Geant3 Git clone directory" mkdir -p $ALICE_PREFIX/geant3/git
     Swallow -f "Moving to the Geant3 Git clone directory" cd $ALICE_PREFIX/geant3/git
 
-    if [ ! -d "$ALICE_PREFIX/geant3/git/.git" ] ; then
+    if [[ ! -d "$ALICE_PREFIX/geant3/git/.git" ]] ; then
       SwallowProgress -f --pattern "Cloning Geant3 Git repository" git clone http://root.cern.ch/git/geant3.git .
     fi
 
     SwallowProgress -f --pattern "Updating the list of Git references" git remote update --prune
 
-    if [ ! -d "$GEANT3DIR/.git" ] ; then
+    if [[ ! -d "$GEANT3DIR/.git" ]] ; then
+      Swallow -f "Cleaning up leftovers on the local clone for $G3_VER" rm -rf "$GEANT3DIR"
       SwallowProgress -f --pattern "Creating a local Git clone for Geant3 version $G3_VER" git-new-workdir "$ALICE_PREFIX/geant3/git" "$GEANT3DIR" "$G3_VER"
     fi
 
