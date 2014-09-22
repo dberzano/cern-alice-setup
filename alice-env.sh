@@ -455,6 +455,7 @@ function AliParseVerDir() {
   eval "$cmd"
 }
 
+<<<<<<< HEAD
 # tries to source the first configuration file found: returns nonzero on error
 function AliConf() {
 
@@ -470,6 +471,12 @@ function AliConf() {
   ALI_EnvScript=$( cd "${ALI_EnvScript%/*}" ; pwd )"/${ALI_EnvScript##*/}"
 
   # configuration file path: the first file found is loaded
+=======
+function AliGetConfScriptName() {
+
+  AliGetEnvScriptName
+  # Configuration file path: the first file found is loaded
+>>>>>>> Adding -m option to pick a triad based on the name of the aliroot directory
   ALI_ConfFiles=( "${ALI_EnvScript%.*}.conf" "$HOME/.alice-env.conf" )
   for ALI_Conf in "${ALI_ConfFiles[@]}" ; do
     if [[ -r "$ALI_Conf" ]] ; then
