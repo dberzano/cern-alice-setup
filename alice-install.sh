@@ -812,7 +812,7 @@ function ModuleCleanAliEn() {
 function ModuleCleanRoot() {
   Banner "Cleaning ROOT..."
   Swallow -f "Sourcing envvars" SourceEnvVars
-  Swallow -f "Checking if ROOT is really installed" [ -f "$ROOTSYS"/Makefile ]
+  Swallow "Checking if ROOT is really installed" [ -f "$ROOTSYS"/Makefile ] || return 0
   Swallow -f "Removing ROOT $ROOT_VER" rm -rf "$ROOTSYS"
 }
 
@@ -820,8 +820,7 @@ function ModuleCleanRoot() {
 function ModuleCleanGeant3() {
   Banner "Cleaning Geant3..."
   Swallow -f "Sourcing envvars" SourceEnvVars
-  Swallow -f "Checking if Geant3 is really installed" \
-    [ -f "$GEANT3DIR"/Makefile ]
+  Swallow "Checking if Geant3 is really installed" [ -f "$GEANT3DIR"/Makefile ] || return 0
   Swallow -f "Removing Geant3 $G3_VER" rm -rf "$GEANT3DIR"
 }
 
@@ -829,8 +828,7 @@ function ModuleCleanGeant3() {
 function ModuleCleanFastJet() {
   Banner "Cleaning FastJet..."
   Swallow -f "Sourcing envvars" SourceEnvVars
-  Swallow -f "Checking if FastJet is really installed" \
-    [ -f "$FASTJET/src/fastjet-$FASTJET_VER/configure" ]
+  Swallow "Checking if FastJet is really installed" [ -f "$FASTJET/src/fastjet-$FASTJET_VER/configure" ] || return 0
   Swallow -f "Removing FastJet $FASTJET_VER" rm -rf "$FASTJET"
 }
 
@@ -838,8 +836,7 @@ function ModuleCleanFastJet() {
 function ModuleCleanAliRoot() {
   Banner "Cleaning AliRoot..."
   Swallow -f "Sourcing envvars" SourceEnvVars
-  Swallow -f "Checking if AliRoot is really installed" \
-    [ -d "$ALICE_BUILD"/../build ]
+  Swallow "Checking if AliRoot is really installed" [ -d "$ALICE_BUILD"/../build ] || return 0
   Swallow -f "Removing AliRoot build directory" rm -rf "$ALICE_BUILD"/../build
 }
 
@@ -966,7 +963,7 @@ function Help() {
   echo -e "    ${C}$Cmd [--clean-root] [--clean-geant3] [--clean-fastjet] [--clean-aliroot]${Z}"
   echo ""
 
-  echo "  To cleanup everything (except AliEn):"
+  echo "  To cleanup everything:"
   echo -e "    ${C}$Cmd --clean-all${Z}"
   echo ""
 
