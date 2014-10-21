@@ -873,6 +873,8 @@ function ModuleCheckPrereq() {
 
   Banner "Checking prerequisites..."
   Swallow -f "Checking if on a 64 bit machine" [ `uname -m` == 'x86_64' ]
+  Swallow --fatal --error-msg 'You must source the alice-env.sh script and pick the triad you desire to build first!' \
+    "Checking if ALICE environment works" SourceEnvVars
 
 }
 
