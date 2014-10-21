@@ -170,15 +170,23 @@ function SwallowEnd() {
 # Sends everything to a logfile
 function Swallow() {
 
-  local MSG RET TSSTART TSEND DELTAT FATAL OP
+  local MSG ERRMSG RET TSSTART TSEND DELTAT FATAL OP
 
-  # Abort on errors?
-  if [ "$1" == "-f" ]; then
-    FATAL=1
+  # Options given?
+  FATAL=0
+  ERRMSG=''
+  while [[ "${1:0:1}" == '-' ]] ; do
+    case "$1" in
+      -f|--fatal)
+        FATAL=1
+      ;;
+      --error-msg)
+        ERRMSG="$2"
+        shift
+      ;;
+    esac
     shift
-  else
-    FATAL=0
-  fi
+  done
 
   OP="$1"
   shift
@@ -192,8 +200,15 @@ function Swallow() {
   TSEND=$(date +%s)
   SwallowEnd "$OP" $FATAL $RET $TSSTART $TSEND "$@"
 
-  if [ $RET != 0 ] && [ $FATAL == 1 ]; then
-    LastLogLines -e "$OP"
+  if [[ $RET != 0 ]] && [[ $FATAL == 1 ]]; then
+    if [[ "$ERRMSG" != '' ]] ; then
+      # Produce a custom error message instead of log output
+      echo
+      echo -e "\033[31m${ERRMSG}\033[m"
+      echo
+    else
+      LastLogLines -e "$OP"
+    fi
     exit 1
   fi
 
