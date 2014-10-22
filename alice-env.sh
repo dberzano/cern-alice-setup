@@ -466,7 +466,7 @@ TRIAD[1]='v5-34-18 v1-15a master'
 # You can add more triads
 #TRIAD[4]='...'
 
-# Default triad for automatic installation 
+# Default triad (selected when running "source alice-env.sh -n")
 export N_TRIAD=1
 _EoF_
 
