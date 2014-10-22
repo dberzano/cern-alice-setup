@@ -23,6 +23,8 @@ export BUILDOPT_CPATH=''
 export ALIEN_INSTALL_TYPE=''
 export FASTJET_PATCH_HEADERS=0
 export DOWNLOAD_MODE=''
+export MIN_ROOT_VER_NUM=''
+export MIN_ROOT_VER_STR='all'
 
 #
 # Functions
@@ -357,6 +359,11 @@ function ModuleRoot() {
 
   Banner "Installing ROOT..."
   Swallow -f "Sourcing envvars" SourceEnvVars
+
+  Swallow --fatal \
+    --error-msg "ROOT $ROOT_VER is not supported on your platform: use at least $MIN_ROOT_VER_STR." \
+    "Ensuring ROOT $ROOT_VER is OK for your platform" \
+    [ $( ConvertVersionStringToNumber "$ROOT_VER" ) -ge $MIN_ROOT_VER_NUM ]
 
   if [ ! -d "$ROOTSYS" ]; then
     Swallow -f "Creating ROOT directory" mkdir -p "$ROOTSYS"
@@ -1051,12 +1058,12 @@ function Help() {
     echo -e "${M}You have selected the \"triad\" ${A}#${ALI_N_TRIAD}${M}:${Z}"
     echo
     echo -e "  ${M}AliEn:   ${A}always the latest version${Z}"
-    echo -e "  ${M}ROOT:    ${A}$ROOT_STR${Z}"
+    echo -e "  ${M}ROOT:    ${A}$ROOT_STR${M} (minimum supported version: ${A}${MIN_ROOT_VER_STR}/${MIN_ROOT_VER_NUM}${M})${Z}"
     echo -e "  ${M}Geant3:  ${A}$G3_STR${Z}"
     echo -e "  ${M}FastJet: ${A}$FASTJET_STR${Z}"
     echo -e "  ${M}AliRoot: ${A}$ALICE_STR${Z}"
     echo
-    echo -e "${M}Compiler: ${A}$BUILD_MODE_STR${Z}"
+    echo -e "${M}Compiler: ${A}$BUILD_MODE_STR${M} (supported: ${A}${SUPPORTED_BUILD_MODES}${M})${Z}"
   fi
   echo ""
 
@@ -1088,14 +1095,20 @@ function DetectOsBuildOpts() {
     FASTJET_PATCH_HEADERS=1
 
     OsVer=`uname -r | cut -d. -f1`
-    if [ "$OsVer" -ge 11 ]; then
+    if [[ "$OsVer" -ge 11 ]] ; then
       # 11 = Lion (10.7)
       SUPPORTED_BUILD_MODES='clang custom-gcc'
     fi
-    if [ "$OsVer" -ge 12 ]; then
+    if [[ "$OsVer" -ge 12 ]] ; then
       # 12 = Mountain Lion (10.8)
       BUILDOPT_CPATH='/usr/X11/include'  # XQuartz
       ALIEN_INSTALL_TYPE='compile'
+      MIN_ROOT_VER_STR='v5-34-18'
+    fi
+    if [[ "$OsVer" -ge 13 ]] ; then
+      # 13 = Mavericks (10.9)
+      SUPPORTED_BUILD_MODES='clang'
+      MIN_ROOT_VER_STR='v5-34-22'
     fi
   elif [ "$KernelName" == 'Linux' ]; then
     ALIEN_INSTALL_TYPE='compile'
@@ -1109,9 +1122,32 @@ function DetectOsBuildOpts() {
     fi
   fi
 
+  MIN_ROOT_VER_NUM=$( ConvertVersionStringToNumber "$MIN_ROOT_VER_STR" )
   BUILD_MODE=`echo $SUPPORTED_BUILD_MODES | awk '{print $1}'`
 
 }
+
+# Convert a version string to a number, e.g.:
+#   "v5-34-15" -> 5034015
+# Special version "all" means "there is no minimum version" and it is converted to 0:
+#   "all" -> 0
+# If a string cannot be converted, it will return a "large" numebr:
+#   "v5-34-00-patches" -> 999999999
+# This function is used to check the minimum version of a software.
+function ConvertVersionStringToNumber() (
+  VerStr="$1"
+  if [[ "$VerStr" == 'all' ]] ; then
+    echo 0
+  elif [[ "$VerStr" =~ ^v?([0-9]{1,3})[-.]([0-9]{1,3})[-.]([0-9]{1,3})$ ]] ; then
+    Maj=${BASH_REMATCH[1]}
+    Min=${BASH_REMATCH[2]}
+    Pat=${BASH_REMATCH[3]}
+    echo $(( Maj*1000000 + Min*1000 + Pat ))
+  else
+    echo 999999999
+  fi
+  return 0
+)
 
 # Main function
 function Main() {
