@@ -85,6 +85,7 @@ function AliMenu() {
 # the dollar sign; subsequent arguments are the files to search for
 function AliRemovePaths() {
 
+  local RetainPaths="/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/usr/local/sbin:$HOME/bin"
   local VARNAME=$1
   shift
   local DIRS=`eval echo \\$$VARNAME`
@@ -93,23 +94,35 @@ function AliRemovePaths() {
   local D F KEEPDIR
   IFS=:
 
-  for D in $DIRS
-  do
+  for D in $DIRS ; do
+
     KEEPDIR=1
-    if [ -d "$D" ]; then
-      for F in $@
-      do
-        if [ -e "$D/$F" ]; then
+    D=$( cd "$D" 2> /dev/null ; pwd )
+    if [[ -d "$D" ]] ; then
+
+      # condemn directory if one of the given files is there
+      for F in $@ ; do
+        if [[ -e "$D/$F" ]]; then
           KEEPDIR=0
           break
         fi
       done
+
+      # retain directory if it is in RetainPaths (may revert)
+      for K in $RetainPaths ; do
+        if [[ "$D" == "$( cd "$K" 2> /dev/null ; pwd )" ]] ; then
+          KEEPDIR=1
+          break
+        fi
+      done
+
     else
       KEEPDIR=0
     fi
-    if [ $KEEPDIR == 1 ]; then
-      [ "$NEWDIRS" == "" ] && NEWDIRS="$D" || NEWDIRS="$NEWDIRS:$D"
+    if [[ $KEEPDIR == 1 ]]; then
+      [[ "$NEWDIRS" == "" ]] && NEWDIRS="$D" || NEWDIRS="${NEWDIRS}:${D}"
     fi
+
   done
 
   IFS="$OIFS"
