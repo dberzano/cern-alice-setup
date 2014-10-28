@@ -109,6 +109,32 @@ function cleanall() (
 
 )
 
+# list all files ever written in all remote branches, also the ones not
+# currently present in the working directory, also the ones that have
+# been deleted
+function lsallfiles() (
+
+  # list what changed in revision <rev> (wrt/the previous)
+  #   git diff-tree --no-commit-id --name-only -r <rev>
+  # if run on every commit, it will produce eventually the full list
+  # of files ever written! note that this is much faster than using
+  # git ls-files
+
+  # list all commits for a branch (no need to check it out)
+  #   git rev-list <branch>
+
+  # list all commits in all remote branches
+  #   git rev-list --remotes
+
+  fatal cd "$GitRootSplit"
+
+  # list all commits in all remote branches
+  git rev-list --remotes | while read commit ; do
+    git diff-tree --no-commit-id --name-only -r $commit
+  done | sort -u
+
+)
+
 # the main function
 function main() (
 
@@ -126,6 +152,9 @@ function main() (
       ;;
       cleanall)
         do_cleanall=1
+      ;;
+      lsallfiles)
+        do_lsallfiles=1
       ;;
       *)
         prc red "not understood: $1"
@@ -149,6 +178,7 @@ function main() (
   [[ $do_listbr == 1 ]] && listbr
   [[ $do_cleanall == 1 ]] && cleanall
   [[ $do_dirlist == 1 ]] && dirlist
+  [[ $do_lsallfiles == 1 ]] && lsallfiles
 
 )
 
