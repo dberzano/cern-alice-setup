@@ -64,7 +64,7 @@ function listbr() (
     --format 'echo %(refname)' \
     refs/remotes/origin/ | \
     while read Line ; do
-      if [[ $(eval "$Line") =~ ^refs/remotes/[^/]/(.*)$ ]] ; then
+      if [[ $(eval "$Line") =~ /([^/]*)$ ]] ; then
         pr ${BASH_REMATCH[1]}
       else
         prc red "should not happen, aborting: $Line"
