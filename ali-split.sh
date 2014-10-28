@@ -34,7 +34,7 @@ function fatal() {
   local rv=$?
   if [[ $rv != 0 ]] ; then
     prc red "this should not happen, aborting:"
-    prc red "  $@ --> returned $rv"
+    prc red "  $* --> returned $rv"
     exit 10
   fi
 }
@@ -74,6 +74,41 @@ function listbr() (
 
 )
 
+# cleans all: reverts all to a pristine state (just cloned)
+function cleanall() (
+
+  fatal cd "$ALICE_ROOT"
+  prc yellow "cleaning all"
+
+  # move to detached
+  fatal git clean -f -d
+  fatal git reset --hard HEAD
+  fatal git checkout $(git rev-parse HEAD)
+
+  # iterates over local branches (refs/heads/)
+  git for-each-ref --shell \
+    --format 'echo %(refname)' \
+    refs/heads/ | \
+    while read Line ; do
+      if [[ $(eval "$Line") =~ /([^/]*)$ ]] ; then
+        fatal git branch -D "${BASH_REMATCH[1]}"
+      else
+        prc red "should not happen, aborting: $Line"
+        exit 10
+      fi
+    done
+
+  # move to master
+  fatal git checkout master
+  fatal git clean -f -d
+  fatal git reset --hard HEAD
+  fatal git remote update --prune
+  fatal git pull
+
+  prc green "repository restored to a pristine and updated state: now it looks like a fresh clone :-)"
+
+)
+
 # the main function
 function main() (
 
@@ -92,6 +127,9 @@ function main() (
       updbr)
         do_updbr=1
       ;;
+      cleanall)
+        do_cleanall=1
+      ;;
       *)
         prc red "not understood: $1"
         return 1
@@ -103,6 +141,7 @@ function main() (
   # process actions in right order
   [[ $do_updbr == 1 ]] && updbr
   [[ $do_listbr == 1 ]] && listbr
+  [[ $do_cleanall == 1 ]] && cleanall
 
 )
 
