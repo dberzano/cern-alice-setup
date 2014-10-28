@@ -135,6 +135,17 @@ function lsallfiles() (
 
 )
 
+# nice time formatting
+function nicetime() (
+  t=$1
+  hr=$(( t / 3600 ))
+  t=$(( t % 3600 ))
+  mn=$(( t / 60 ))
+  t=$(( t % 60 ))
+  sc=$t
+  echo "${hr}h ${mn}m ${sc}s"
+)
+
 # the main function
 function main() (
 
@@ -173,12 +184,17 @@ function main() (
   export GitRootSplit
   prc yellow "working on Git source on: $GitRootSplit"
 
-  # process actions in right order
+  # process actions in right order, and time them
+  ts_start=$( date --utc +%s )
   [[ $do_updbr == 1 ]] && updbr
   [[ $do_listbr == 1 ]] && listbr
   [[ $do_cleanall == 1 ]] && cleanall
   [[ $do_dirlist == 1 ]] && dirlist
   [[ $do_lsallfiles == 1 ]] && lsallfiles
+  ts_end=$( date --utc +%s )
+  ts_delta=$(( ts_end - ts_start ))
+
+  prc magenta "time taken by all operations: $( nicetime $ts_delta )"
 
 )
 
