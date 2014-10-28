@@ -1058,7 +1058,7 @@ function Help() {
     echo -e "${M}You have selected the \"triad\" ${A}#${ALI_N_TRIAD}${M}:${Z}"
     echo
     echo -e "  ${M}AliEn:   ${A}always the latest version${Z}"
-    echo -e "  ${M}ROOT:    ${A}$ROOT_STR${M} (minimum supported version: ${A}${MIN_ROOT_VER_STR}/${MIN_ROOT_VER_NUM}${M})${Z}"
+    echo -e "  ${M}ROOT:    ${A}$ROOT_STR${M} (minimum supported version: ${A}${MIN_ROOT_VER_STR}${M})${Z}"
     echo -e "  ${M}Geant3:  ${A}$G3_STR${Z}"
     echo -e "  ${M}FastJet: ${A}$FASTJET_STR${Z}"
     echo -e "  ${M}AliRoot: ${A}$ALICE_STR${Z}"
