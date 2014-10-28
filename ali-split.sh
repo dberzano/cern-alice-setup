@@ -127,10 +127,27 @@ function lsallfiles() (
   #   git rev-list --remotes
 
   fatal cd "$GitRootSplit"
+  regexp="$1"
+  invert_regexp="$2"
+  only_root_dir="$3"
 
-  # list all commits in all remote branches
+  [[ $invert_regexp == 1 ]] && invert_regexp='-v'
+
   git rev-list --remotes | while read commit ; do
-    git diff-tree --no-commit-id --name-only -r $commit
+    git diff-tree --no-commit-id --name-only -r $commit | \
+
+      if [[ "$regexp" != '' ]] ; then
+        grep $invert_regexp -E "$regexp"
+      else
+        cat
+      fi | \
+
+      if [[ $only_root_dir == 1 ]] ; then
+        grep -oE '^([^/]*)/'
+      else
+        cat
+      fi
+
   done | sort -u
 
 )
@@ -154,6 +171,16 @@ function main() (
       --source)
         GitRootSplit="$2"
         shift
+      ;;
+      --regexp)
+        RegExp="$2"
+        shift
+      ;;
+      --invert-match)
+        RegExpInvert=1
+      ;;
+      --only-root-dir)
+        OnlyRootDir=1
       ;;
       listbr)
         do_listbr=1
@@ -190,7 +217,7 @@ function main() (
   [[ $do_listbr == 1 ]] && listbr
   [[ $do_cleanall == 1 ]] && cleanall
   [[ $do_dirlist == 1 ]] && dirlist
-  [[ $do_lsallfiles == 1 ]] && lsallfiles
+  [[ $do_lsallfiles == 1 ]] && lsallfiles "$RegExp" "$RegExpInvert" "$OnlyRootDir"
   ts_end=$( date --utc +%s )
   ts_delta=$(( ts_end - ts_start ))
 
