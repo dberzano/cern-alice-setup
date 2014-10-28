@@ -41,7 +41,7 @@ function fatal() {
 
 # update remote branches
 function updbr() (
-  fatal cd "$ALICE_ROOT"
+  fatal cd "$GitRootSplit"
   prc yellow 'updating list of remote branches'
   fatal git remote update --prune
 )
@@ -52,7 +52,7 @@ function listbr() (
   # the git plumbing interface (to be used in scripts):
   # https://www.kernel.org/pub/software/scm/git/docs/git.html#_low_level_commands_plumbing
 
-  fatal cd "$ALICE_ROOT"
+  fatal cd "$GitRootSplit"
 
   prc yellow "listing all available remote branches"
 
@@ -77,7 +77,7 @@ function listbr() (
 # cleans all: reverts all to a pristine state (just cloned)
 function cleanall() (
 
-  fatal cd "$ALICE_ROOT"
+  fatal cd "$GitRootSplit"
   prc yellow "cleaning all"
 
   # move to detached
@@ -112,15 +112,12 @@ function cleanall() (
 # the main function
 function main() (
 
-  if [[ ! -d "$ALICE_ROOT/.git" ]] ; then
-    prc red 'set the $ALICE_ROOT var to the original AliRoot source dir'
-    return 1
-  fi
-
-  prc yellow "working on AliRoot source on: $ALICE_ROOT"
-
   while [[ $# -gt 0 ]] ; do
     case "$1" in
+      --source)
+        GitRootSplit="$2"
+        shift
+      ;;
       listbr)
         do_listbr=1
       ;;
@@ -138,10 +135,20 @@ function main() (
     shift
   done
 
+  GitRootSplit=$( cd "$GitRootSplit" ; pwd )
+  if [[ ! -d "$GitRootSplit/.git" ]] ; then
+    prc red 'set the $GitRootSplit var to the original Git source dir'
+    return 1
+  fi
+
+  export GitRootSplit
+  prc yellow "working on Git source on: $GitRootSplit"
+
   # process actions in right order
   [[ $do_updbr == 1 ]] && updbr
   [[ $do_listbr == 1 ]] && listbr
   [[ $do_cleanall == 1 ]] && cleanall
+  [[ $do_dirlist == 1 ]] && dirlist
 
 )
 
