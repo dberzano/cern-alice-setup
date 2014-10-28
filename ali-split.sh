@@ -7,7 +7,7 @@
 #
 
 
-# a print function with colors
+# a print function with colors, on stderr
 function prc() (
   declare -A color
   color=(
@@ -20,7 +20,7 @@ function prc() (
   )
   selcol=${color[$1]:=${color[hi]}}
   nocol="\033[m"
-  echo -e "${selcol}$2${nocol}"
+  echo -e "${selcol}$2${nocol}" >&2
 )
 
 # a print function
