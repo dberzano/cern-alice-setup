@@ -1138,7 +1138,7 @@ function ConvertVersionStringToNumber() (
   VerStr="$1"
   if [[ "$VerStr" == 'all' ]] ; then
     echo 0
-  elif [[ "$VerStr" =~ ^v?([0-9]{1,3})[-.]([0-9]{1,3})[-.]([0-9]{1,3})$ ]] ; then
+  elif [[ "$VerStr" =~ ^v?0*([0-9]{1,3})[-.]0*([0-9]{1,3})[-.]0*([0-9]{1,3})$ ]] ; then
     Maj=${BASH_REMATCH[1]}
     Min=${BASH_REMATCH[2]}
     Pat=${BASH_REMATCH[3]}
