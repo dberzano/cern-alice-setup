@@ -99,10 +99,10 @@ function cleanall() (
     done
 
   # move to master
+  fatal git remote update --prune
   fatal git checkout master
   fatal git clean -f -d
   fatal git reset --hard HEAD
-  fatal git remote update --prune
   fatal git pull
 
   prc green "repository restored to a pristine and updated state: now it looks like a fresh clone :-)"
