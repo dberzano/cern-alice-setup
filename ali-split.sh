@@ -133,6 +133,7 @@ function lsallfiles() (
   invert_regexp="$2"
   only_root_dir="$3"
   ofile="$4"
+  istmpfile="$5"
 
   prc yellow 'listing all files ever written to Git history in all branches'
   if [[ $regexp != '' ]] ; then
@@ -140,7 +141,7 @@ function lsallfiles() (
     [[ ${invert_regexp} == 1 ]] && prc magenta 'inverting regexp match'
     [[ ${only_root_dir} == 1 ]] && prc magenta 'printing only list of dirs under root'
   fi
-  [[ $ofile != '' ]] && prc magenta "writing results on stdout and on file: $ofile"
+  [[ $ofile != '' && $istmpfile != 1 ]] && prc magenta "writing results on stdout and on file: $ofile"
 
   fatal cd "$GitRootSplit"
 
@@ -231,7 +232,10 @@ function main() (
     return 1
   fi
 
-  if [[ ${File} != '' && ${File:0:1} != '/' ]] ; then
+  if [[ ${File} == '' ]] ; then
+    File=$( mktemp /tmp/ali-split-list-XXXXX )
+    TempFile=1
+  elif [[ ${File:0:1} != '/' ]] ; then
     File="${PWD}/${File}"
   fi
 
@@ -243,9 +247,11 @@ function main() (
   [[ $do_cleanall == 1 ]] && cleanall
   [[ $do_updbr == 1 ]] && updbr
   [[ $do_lsbr == 1 ]] && lsbr
-  [[ $do_lsallfiles == 1 ]] && lsallfiles "$RegExp" "$RegExpInvert" "$OnlyRootDir" "$File"
+  [[ $do_lsallfiles == 1 ]] && lsallfiles "$RegExp" "$RegExpInvert" "$OnlyRootDir" "$File" "$TempFile"
   ts_end=$( date --utc +%s )
   ts_delta=$(( ts_end - ts_start ))
+
+  [[ ${TempFile} == 1 ]] && rm -f "${TempFile}"
 
   prc magenta "time taken by all operations: $( nicetime $ts_delta )"
 
