@@ -126,10 +126,18 @@ function lsallfiles() (
   # list all commits in all remote branches
   #   git rev-list --remotes
 
-  fatal cd "$GitRootSplit"
   regexp="$1"
   invert_regexp="$2"
   only_root_dir="$3"
+
+  prc yellow 'listing all files ever written to Git history in all branches'
+  if [[ $regexp != '' ]] ; then
+    prc magenta "showing only entries matching extended regexp: $regexp"
+    [[ ${invert_regexp} == 1 ]] && prc magenta 'inverting regexp match'
+    [[ ${only_root_dir} == 1 ]] && prc magenta 'printing only list of dirs under root'
+  fi
+
+  fatal cd "$GitRootSplit"
 
   [[ $invert_regexp == 1 ]] && invert_regexp='-v'
 
