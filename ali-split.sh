@@ -47,7 +47,7 @@ function updbr() (
 )
 
 # list remote branches
-function listbr() (
+function lsbr() (
 
   # the git plumbing interface (to be used in scripts):
   # https://www.kernel.org/pub/software/scm/git/docs/git.html#_low_level_commands_plumbing
@@ -190,8 +190,8 @@ function main() (
       --only-root-dir)
         OnlyRootDir=1
       ;;
-      listbr)
-        do_listbr=1
+      lsbr)
+        do_lsbr=1
       ;;
       updbr)
         do_updbr=1
@@ -221,10 +221,9 @@ function main() (
 
   # process actions in right order, and time them
   ts_start=$( date --utc +%s )
-  [[ $do_updbr == 1 ]] && updbr
-  [[ $do_listbr == 1 ]] && listbr
   [[ $do_cleanall == 1 ]] && cleanall
-  [[ $do_dirlist == 1 ]] && dirlist
+  [[ $do_updbr == 1 ]] && updbr
+  [[ $do_lsbr == 1 ]] && lsbr
   [[ $do_lsallfiles == 1 ]] && lsallfiles "$RegExp" "$RegExpInvert" "$OnlyRootDir"
   ts_end=$( date --utc +%s )
   ts_delta=$(( ts_end - ts_start ))
@@ -235,3 +234,4 @@ function main() (
 
 # entry point
 main "$@"
+exit $?
