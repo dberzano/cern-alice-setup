@@ -85,13 +85,16 @@ function cleanall() (
   fatal git reset --hard HEAD
   fatal git checkout $(git rev-parse HEAD)
 
-  # iterates over local branches (refs/heads/)
+  # iterates over local branches (refs/heads/) and "original" backups
+  # (refs/original/)
   git for-each-ref --shell \
     --format 'echo %(refname)' \
-    refs/heads/ | \
+    refs/heads/ refs/original/ | \
     while read Line ; do
       if [[ $(eval "$Line") =~ /([^/]*)$ ]] ; then
-        fatal git branch -D "${BASH_REMATCH[1]}"
+        rmwell() ( git branch -D $(eval "$Line") || git update-ref -d "$(eval "$Line")" || false )
+        fatal rmwell
+        unset rmwell
       else
         prc red "should not happen, aborting: $Line"
         exit 10
