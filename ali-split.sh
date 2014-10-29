@@ -129,6 +129,7 @@ function lsallfiles() (
   regexp="$1"
   invert_regexp="$2"
   only_root_dir="$3"
+  ofile="$4"
 
   prc yellow 'listing all files ever written to Git history in all branches'
   if [[ $regexp != '' ]] ; then
@@ -136,6 +137,7 @@ function lsallfiles() (
     [[ ${invert_regexp} == 1 ]] && prc magenta 'inverting regexp match'
     [[ ${only_root_dir} == 1 ]] && prc magenta 'printing only list of dirs under root'
   fi
+  [[ $ofile != '' ]] && prc magenta "writing results on stdout and on file: $ofile"
 
   fatal cd "$GitRootSplit"
 
@@ -156,7 +158,13 @@ function lsallfiles() (
         cat
       fi
 
-  done | sort -u
+  done | sort -u | \
+
+    if [[ $ofile != '' ]] ; then
+      tee "$ofile"
+    else
+      cat
+    fi
 
 )
 
@@ -182,6 +190,10 @@ function main() (
       ;;
       --regexp)
         RegExp="$2"
+        shift
+      ;;
+      --file)
+        File="$2"
         shift
       ;;
       --invert-match)
@@ -216,6 +228,10 @@ function main() (
     return 1
   fi
 
+  if [[ ${File} != '' && ${File:0:1} != '/' ]] ; then
+    File="${PWD}/${File}"
+  fi
+
   export GitRootSplit
   prc yellow "working on Git source on: $GitRootSplit"
 
@@ -224,7 +240,7 @@ function main() (
   [[ $do_cleanall == 1 ]] && cleanall
   [[ $do_updbr == 1 ]] && updbr
   [[ $do_lsbr == 1 ]] && lsbr
-  [[ $do_lsallfiles == 1 ]] && lsallfiles "$RegExp" "$RegExpInvert" "$OnlyRootDir"
+  [[ $do_lsallfiles == 1 ]] && lsallfiles "$RegExp" "$RegExpInvert" "$OnlyRootDir" "$File"
   ts_end=$( date --utc +%s )
   ts_delta=$(( ts_end - ts_start ))
 
