@@ -172,6 +172,46 @@ function lsallfiles() (
 
 )
 
+# rewrite history by removing files forever
+function rewritehist() (
+
+  prc yellow 'rewriting Git history by removing files forever'
+
+  fatal cd "$GitRootSplit"
+
+  ifile="$1"
+
+  prc magenta "removing the following files (args passed as-is to 'git rm'):"
+  ifile_tmp=$(mktemp /tmp/ali-split-list-XXXXX)
+  fatal cp "$ifile" "$ifile_tmp"
+  while read line ; do
+    pr "$line"
+  done < <(fatal cat "$ifile_tmp")
+
+  # have a look at http://git-scm.com/docs/git-filter-branch
+  # --index-filter: applies the command to every commit
+  # --tag-name-filter cat: applies a "dummy" filter to tags: this is
+  #   needed because we want to keep the same tag names on one side,
+  #   but we want them to point to the *refactored* commits as well:
+  #   if we do not provide any --tag-name-filter, tags will be left
+  #   there, pointing to commits that do not exist anymore
+  # the final --all is the option passed to 'git rev-list' to retrieve
+  # the list of all commits to mangle. in our case, if local==remote,
+  # we might as well pass --remotes
+  # the complicated index-filter string is derived from here:
+  # http://stackoverflow.com/questions/11393817/bash-read-lines-in-file-into-an-array
+  # note: empty commits are removed by --prune-empty, but empty merge
+  # commits will not!
+  fatal git filter-branch \
+    --force \
+    --index-filter '( echo ; IFS=$'\''\n\r'\'' GLOBIGNORE="*" ary=($(cat '${ifile_tmp}')) ; git rm -r -f --cached --ignore-unmatch "${ary[@]}" )' \
+    --prune-empty \
+    --tag-name-filter cat -- --all
+
+  rm -f ${ifile_tmp}
+
+)
+
 # nice time formatting
 function nicetime() (
   t=$1
@@ -215,6 +255,9 @@ function main() (
       cleanall)
         do_cleanall=1
       ;;
+      rewritehist)
+        do_rewritehist=1
+      ;;
       lsallfiles)
         do_lsallfiles=1
       ;;
@@ -248,6 +291,7 @@ function main() (
   [[ $do_updbr == 1 ]] && updbr
   [[ $do_lsbr == 1 ]] && lsbr
   [[ $do_lsallfiles == 1 ]] && lsallfiles "$RegExp" "$RegExpInvert" "$OnlyRootDir" "$File" "$TempFile"
+  [[ $do_rewritehist == 1 ]] && rewritehist "$File"
   ts_end=$( date --utc +%s )
   ts_delta=$(( ts_end - ts_start ))
 
