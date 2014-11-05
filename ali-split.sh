@@ -180,6 +180,10 @@ function rewritehist() (
   fatal cd "$GitRootSplit"
 
   ifile="$1"
+  if [[ ! -s $ifile ]] ; then
+    prc red 'input list is empty, aborting'
+    return 1
+  fi
 
   prc magenta "removing the following files (args passed as-is to 'git rm'):"
   ifile_tmp=$(mktemp /tmp/ali-split-list-XXXXX)
