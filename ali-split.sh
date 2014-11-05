@@ -205,6 +205,29 @@ function rewritehist() (
     pr "$line"
   done < <(fatal cat "$ifile_tmp")
 
+  remote="$2"
+
+  # creates one local branch per remote branch: remote branches are
+  # taken from the specified remote.
+  # note that it does not checkout the branches (i.e. it does not
+  # change the current working directory.
+  # in order for it to work, we are moving to a "detached head" state
+  # and it is better to call this command after "cleanall".
+  prc magenta "checking out all branches from remote \"${remote}\""
+  fatal git checkout "refs/remotes/${remote}/HEAD"  # detached head
+  git for-each-ref --shell --format 'echo %(refname)' "refs/remotes/${remote}" | while read RefBranch ; do
+    RefBranch=$(eval "$RefBranch")
+    if [[ $RefBranch =~ /([^/]*)$ ]] ; then
+      ShortBranch=${BASH_REMATCH[1]}
+    else
+      prc red "malformed refname: $RefBranch - this should not happen, aborting!"
+      exit 10
+    fi
+    [[ $ShortBranch == 'HEAD' ]] && continue
+    prc yellow "branch: $RefBranch -> $ShortBranch"
+    fatal git branch --force --track "$ShortBranch" "$RefBranch"
+  done
+
   # have a look at http://git-scm.com/docs/git-filter-branch
   # --index-filter: applies the command to every commit
   # --tag-name-filter cat: applies a "dummy" filter to tags: this is
@@ -219,11 +242,16 @@ function rewritehist() (
   # http://stackoverflow.com/questions/11393817/bash-read-lines-in-file-into-an-array
   # note: empty commits are removed by --prune-empty, but empty merge
   # commits will not!
+
+  # check the affected branches with:
+  # git rev-list $( git for-each-ref --format '%(refname)' refs/heads )
+
+  # run while keeping your fingers crossed
   fatal git filter-branch \
     --force \
     --index-filter '( echo ; IFS=$'\''\n\r'\'' GLOBIGNORE="*" ary=($(cat '${ifile_tmp}')) ; git rm -r -f --cached --ignore-unmatch "${ary[@]}" )' \
     --prune-empty \
-    --tag-name-filter cat -- --all
+    --tag-name-filter cat -- $( git for-each-ref --format '%(refname)' refs/heads )
 
   rm -f ${ifile_tmp}
 
@@ -320,7 +348,7 @@ function main() (
   [[ $do_updbr == 1 ]] && updbr
   [[ $do_lsbr == 1 ]] && lsbr "$Remote"
   [[ $do_lsallfiles == 1 ]] && lsallfiles "$RegExp" "$RegExpInvert" "$OnlyRootDir" "$File" "$TempFile"
-  [[ $do_rewritehist == 1 ]] && rewritehist "$File"
+  [[ $do_rewritehist == 1 ]] && rewritehist "$File" "$Remote"
   [[ $do_gc == 1 ]] && gc
   ts_end=$( date --utc +%s )
   ts_delta=$(( ts_end - ts_start ))
