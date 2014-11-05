@@ -53,16 +53,16 @@ function lsbr() (
   # https://www.kernel.org/pub/software/scm/git/docs/git.html#_low_level_commands_plumbing
 
   fatal cd "$GitRootSplit"
+  remote="$1"
 
-  prc yellow "listing all available remote branches"
+  prc yellow "listing all available remote branches from remote \"$remote\""
 
   # produce lines to be either piped in shell, or eval'd
   # the %(var) is correctly escaped
   # this one produces one line per *remote* branch.
-  # assumption: our remote is called "origin"
   git for-each-ref --shell \
     --format 'echo %(refname)' \
-    refs/remotes/origin/ | \
+    "refs/remotes/${remote}/" | \
     while read Line ; do
       if [[ $(eval "$Line") =~ /([^/]*)$ ]] ; then
         pr ${BASH_REMATCH[1]}
@@ -244,6 +244,10 @@ function main() (
         File="$2"
         shift
       ;;
+      --remote)
+        Remote="$2"
+        shift
+      ;;
       --invert-match)
         RegExpInvert=1
       ;;
@@ -286,6 +290,11 @@ function main() (
     File="${PWD}/${File}"
   fi
 
+  if [[ ${Remote} == '' ]] ; then
+    prc yellow "no remote set: defaulting to \"origin\""
+    Remote='origin'
+  fi
+
   export GitRootSplit
   prc yellow "working on Git source on: $GitRootSplit"
 
@@ -293,7 +302,7 @@ function main() (
   ts_start=$( date --utc +%s )
   [[ $do_cleanall == 1 ]] && cleanall
   [[ $do_updbr == 1 ]] && updbr
-  [[ $do_lsbr == 1 ]] && lsbr
+  [[ $do_lsbr == 1 ]] && lsbr "$Remote"
   [[ $do_lsallfiles == 1 ]] && lsallfiles "$RegExp" "$RegExpInvert" "$OnlyRootDir" "$File" "$TempFile"
   [[ $do_rewritehist == 1 ]] && rewritehist "$File"
   ts_end=$( date --utc +%s )
