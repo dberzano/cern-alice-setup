@@ -82,33 +82,26 @@ function cleanall() (
 
   # move to detached
   fatal git clean -f -d
-  fatal git reset --hard HEAD
+  fatal git reset --hard remotes/origin/HEAD
   fatal git checkout $(git rev-parse HEAD)
 
-  # iterates over local branches (refs/heads/) and "original" backups
-  # (refs/original/)
+  # iterates over all refs and deletes them all
+  # note: we will restore them with "remote update"
   git for-each-ref --shell \
-    --format 'echo %(refname)' \
-    refs/heads/ refs/original/ | \
-    while read Line ; do
-      if [[ $(eval "$Line") =~ /([^/]*)$ ]] ; then
-        rmwell() ( git branch -D $(eval "$Line") || git update-ref -d "$(eval "$Line")" || false )
-        fatal rmwell
-        unset rmwell
-      else
-        prc red "should not happen, aborting: $Line"
-        exit 10
-      fi
+    --format 'fatal git update-ref -d %(refname)' | \
+    while read Cmd ; do
+      eval "$Cmd"
     done
 
   # move to master
   fatal git remote update --prune
   fatal git checkout master
   fatal git clean -f -d
-  fatal git reset --hard HEAD
+  fatal git reset --hard remotes/origin/HEAD
   fatal git pull
 
   prc green "repository restored to a pristine and updated state: now it looks like a fresh clone :-)"
+  prc blue "tip: use \"gc\" to get rid of dangling commits"
 
 )
 
