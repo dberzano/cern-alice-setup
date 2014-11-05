@@ -105,6 +105,26 @@ function cleanall() (
 
 )
 
+# garbage collection
+function gc() (
+  fatal cd "$GitRootSplit"
+
+  prc magenta "fsck results before garbage collection"
+  fatal git fsck
+
+  # http://stackoverflow.com/questions/1904860/how-to-remove-unreferenced-blobs-from-my-git-repo
+  fatal git \
+    -c gc.reflogExpire=0 \
+    -c gc.reflogExpireUnreachable=0 \
+    -c gc.rerereresolved=0 \
+    -c gc.rerereunresolved=0 \
+    -c gc.pruneExpire=now \
+    gc --prune=now --aggressive
+
+  prc magenta "fsck results after garbage collection"
+  fatal git fsck
+)
+
 # list all files ever written in all remote branches, also the ones not
 # currently present in the working directory, also the ones that have
 # been deleted
@@ -262,6 +282,9 @@ function main() (
       lsallfiles)
         do_lsallfiles=1
       ;;
+      gc)
+        do_gc=1
+      ;;
       *)
         prc red "not understood: $1"
         return 1
@@ -298,6 +321,7 @@ function main() (
   [[ $do_lsbr == 1 ]] && lsbr "$Remote"
   [[ $do_lsallfiles == 1 ]] && lsallfiles "$RegExp" "$RegExpInvert" "$OnlyRootDir" "$File" "$TempFile"
   [[ $do_rewritehist == 1 ]] && rewritehist "$File"
+  [[ $do_gc == 1 ]] && gc
   ts_end=$( date --utc +%s )
   ts_delta=$(( ts_end - ts_start ))
 
