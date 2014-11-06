@@ -257,6 +257,58 @@ function rewritehist() (
 
 )
 
+# delete all remote references (branches and tags)
+# this command is obviously very dangerous and has an interactive
+# confirmation prompt
+function delremoterefs() (
+
+  fatal cd "$GitRootSplit"
+
+  remote="$1"
+
+  # ask for confirmation
+  # right_answer='yes, I intend to proceed!'
+  # prc red "you are about to do something catastrophic:"
+  # prc red " - delete all remote branches from the remote named \"${Remote}\""
+  # prc red " - delete all tags from the remote named \"${Remote}\""
+  # prc red "you must confirm this operation by typing: \"${right_answer}\""
+  # read -p ':> ' given_answer
+  # fatal [ "$given_answer" == "$right_answer" ]
+
+  # where does HEAD point to?
+  ref_head=$( git ls-remote "${remote}" HEAD | awk '{ print $1 }' )
+  if [[ ! $ref_head =~ ^([a-fA-F0-9]+)$ ]] ; then
+    prc red "cannot get HEAD from \"${remote}\": this should not happen, aborting!"
+    exit 10
+  fi
+
+  prc magenta "deleting remote tags and branches from \"${remote}\""
+  while read RemoteRef ; do
+    if [[ $RemoteRef =~ ^([a-fA-F0-9]*).+(refs/[^/]+/.+)$ ]] ; then
+
+      ref_hash="${BASH_REMATCH[1]}"
+      ref_name="${BASH_REMATCH[2]}"
+
+      # skip annotated tags: they are automatically deleted
+      l=$(( ${#ref_name} - 3 ))
+      [[ ${ref_name:$l} == '^{}' ]] && continue
+
+      # skip current HEAD
+      if [[ $ref_hash == $ref_head ]] ; then
+        prc magenta "not deleting from \"${remote}\" reference \"${ref_name}\": it is the current HEAD"
+        continue
+      fi
+
+      prc blue "deleting from \"${remote}\" reference \"${ref_name}\"..."
+      fatal git push "${remote}" :"${ref_name}"
+    else
+      prc red "malformed refname for tag: $ref_name - this should not happen, aborting!"
+      exit 10
+    fi
+  done < <( git ls-remote --heads --tags "${remote}" )
+
+)
+
 # nice time formatting
 function nicetime() (
   t=$1
@@ -310,6 +362,9 @@ function main() (
       lsallfiles)
         do_lsallfiles=1
       ;;
+      delremoterefs)
+        do_delremoterefs=1
+      ;;
       gc)
         do_gc=1
       ;;
@@ -350,6 +405,7 @@ function main() (
   [[ $do_lsallfiles == 1 ]] && lsallfiles "$RegExp" "$RegExpInvert" "$OnlyRootDir" "$File" "$TempFile"
   [[ $do_rewritehist == 1 ]] && rewritehist "$File" "$Remote"
   [[ $do_gc == 1 ]] && gc
+  [[ $do_delremoterefs == 1 ]] && delremoterefs "$Remote"
   ts_end=$( date --utc +%s )
   ts_delta=$(( ts_end - ts_start ))
 
