@@ -87,11 +87,9 @@ function cleanall() (
 
   # iterates over all refs and deletes them all
   # note: we will restore them with "remote update"
-  git for-each-ref --shell \
-    --format 'fatal git update-ref -d %(refname)' | \
-    while read Cmd ; do
-      eval "$Cmd"
-    done
+  while read Cmd ; do
+    eval "$Cmd"
+  done < <( git for-each-ref --shell --format 'fatal git update-ref -d %(refname)' )
 
   # move to master
   fatal git remote update --prune
