@@ -1,9 +1,10 @@
 #!/bin/bash
 
 #
-# ali-split.sh -- by Dario Berzano & Alina Grigoras
+# git-split-tools.sh -- by Dario Berzano & Alina Grigoras
 #
-# tools to split the AliRoot Git repository in two
+# A set of utilities to help removing permanently files from a Git
+# repository.
 #
 
 
