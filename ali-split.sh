@@ -331,8 +331,8 @@ function forcepushall() (
       ref_name="${BASH_REMATCH[2]}"
       ref_short="${BASH_REMATCH[3]}"
 
-      prc blue "force pushing \"${ref_short}\" to remote \"${remote}\"..."
-      fatal git push -f "${remote}" "${ref_short}:${ref_short}"
+      prc blue "force pushing branch \"${ref_short}\" (${ref_name}) and its tags to remote \"${remote}\"..."
+      fatal git push -f --follow-tags "${remote}" "${ref_name}:${ref_short}"
 
     else
       prc red "malformed local refname: $ref_name - this should not happen, aborting!"
@@ -340,10 +340,6 @@ function forcepushall() (
     fi
 
   done < <( git show-ref --heads )
-
-  # push all tags as well
-  prc blue "force pushing all tags to remote \"${remote}\""
-  fatal git push "${remote}" -f --tags
 
 )
 
