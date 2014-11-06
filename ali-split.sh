@@ -263,17 +263,16 @@ function rewritehist() (
 function delremoterefs() (
 
   fatal cd "$GitRootSplit"
-
   remote="$1"
 
   # ask for confirmation
-  # right_answer='yes, I intend to proceed!'
-  # prc red "you are about to do something catastrophic:"
-  # prc red " - delete all remote branches from the remote named \"${Remote}\""
-  # prc red " - delete all tags from the remote named \"${Remote}\""
-  # prc red "you must confirm this operation by typing: \"${right_answer}\""
-  # read -p ':> ' given_answer
-  # fatal [ "$given_answer" == "$right_answer" ]
+  right_answer='yes, I intend to proceed!'
+  prc red "you are about to do something potentially catastrophic:"
+  prc red " - delete all remote branches from the remote named \"${remote}\""
+  prc red " - delete all tags from the remote named \"${remote}\""
+  prc red "you must confirm this operation by typing: \"${right_answer}\""
+  read -p ':> ' given_answer
+  fatal [ "$given_answer" == "$right_answer" ]
 
   # where does HEAD point to?
   ref_head=$( git ls-remote "${remote}" HEAD | awk '{ print $1 }' )
@@ -302,7 +301,7 @@ function delremoterefs() (
       prc blue "deleting from \"${remote}\" reference \"${ref_name}\"..."
       fatal git push "${remote}" :"${ref_name}"
     else
-      prc red "malformed refname for tag: $ref_name - this should not happen, aborting!"
+      prc red "malformed remote refname: $ref_name - this should not happen, aborting!"
       exit 10
     fi
   done < <( git ls-remote --heads --tags "${remote}" )
