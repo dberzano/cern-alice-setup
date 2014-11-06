@@ -308,6 +308,45 @@ function delremoterefs() (
 
 )
 
+# force push all branches and tags
+function forcepushall() (
+
+  fatal cd "$GitRootSplit"
+  remote="$1"
+
+  # ask for confirmation
+  right_answer='yes, I intend to proceed!'
+  prc red "you are about to do something potentially catastrophic:"
+  prc red " - force pushing all local branches to the remote \"${remote}\""
+  prc red " - force pushing all tags to the remote \"${remote}\""
+  prc red "you must confirm this operation by typing: \"${right_answer}\""
+  read -p ':> ' given_answer
+  fatal [ "$given_answer" == "$right_answer" ]
+
+  while read local_ref ; do
+
+    if [[ $local_ref =~ ^([a-fA-F0-9]*).+(refs/[^/]+/(.+))$ ]] ; then
+
+      ref_hash="${BASH_REMATCH[1]}"
+      ref_name="${BASH_REMATCH[2]}"
+      ref_short="${BASH_REMATCH[3]}"
+
+      prc blue "force pushing \"${ref_short}\" to remote \"${remote}\"..."
+      fatal git push -f "${remote}" "${ref_short}:${ref_short}"
+
+    else
+      prc red "malformed local refname: $ref_name - this should not happen, aborting!"
+      exit 10
+    fi
+
+  done < <( git show-ref --heads )
+
+  # push all tags as well
+  prc blue "force pushing all tags to remote \"${remote}\""
+  fatal git push "${remote}" -f --tags
+
+)
+
 # nice time formatting
 function nicetime() (
   t=$1
@@ -364,6 +403,9 @@ function main() (
       delremoterefs)
         do_delremoterefs=1
       ;;
+      forcepushall)
+        do_forcepushall=1
+      ;;
       gc)
         do_gc=1
       ;;
@@ -405,6 +447,7 @@ function main() (
   [[ $do_rewritehist == 1 ]] && rewritehist "$File" "$Remote"
   [[ $do_gc == 1 ]] && gc
   [[ $do_delremoterefs == 1 ]] && delremoterefs "$Remote"
+  [[ $do_forcepushall == 1 ]] && forcepushall "$Remote"
   ts_end=$( date --utc +%s )
   ts_delta=$(( ts_end - ts_start ))
 
