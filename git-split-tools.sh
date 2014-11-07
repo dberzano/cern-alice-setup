@@ -112,6 +112,7 @@ function gc() (
   fatal git fsck
 
   # http://stackoverflow.com/questions/1904860/how-to-remove-unreferenced-blobs-from-my-git-repo
+  prc magenta "garbage collecting"
   fatal git \
     -c gc.reflogExpire=0 \
     -c gc.reflogExpireUnreachable=0 \
