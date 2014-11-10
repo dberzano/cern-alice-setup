@@ -414,7 +414,7 @@ function main() (
   done
 
   GitRootSplit=$( cd "$GitRootSplit" ; pwd )
-  if [[ ! -d "$GitRootSplit/.git" ]] ; then
+  if [[ ! -d "${GitRootSplit}/.git" && ! -f "${GitRootSplit}/HEAD" ]] ; then
     prc red 'set the $GitRootSplit var to the original Git source dir'
     return 1
   fi
