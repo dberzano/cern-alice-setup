@@ -1108,6 +1108,9 @@ function DetectOsBuildOpts() {
     if [[ "$OsVer" -ge 13 ]] ; then
       # 13 = Mavericks (10.9)
       SUPPORTED_BUILD_MODES='clang'
+    fi
+    if [[ "$OsVer" -ge 14 ]] ; then
+      # 14 = Yosemite (10.10)
       MIN_ROOT_VER_STR='v5-34-22'
     fi
   elif [ "$KernelName" == 'Linux' ]; then
