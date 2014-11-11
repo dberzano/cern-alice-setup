@@ -215,7 +215,7 @@ function rewritehist() (
   # and it is better to call this command after "cleanall".
   prc magenta "checking out all branches from remote \"${remote}\""
   fatal git checkout "refs/remotes/${remote}/HEAD"  # detached head
-  git for-each-ref --shell --format 'echo %(refname)' "refs/remotes/${remote}" | while read RefBranch ; do
+  while read RefBranch ; do
     RefBranch=$(eval "$RefBranch")
     if [[ $RefBranch =~ /([^/]*)$ ]] ; then
       ShortBranch=${BASH_REMATCH[1]}
@@ -226,7 +226,7 @@ function rewritehist() (
     [[ $ShortBranch == 'HEAD' ]] && continue
     prc yellow "branch: $RefBranch -> $ShortBranch"
     fatal git branch --force --track "$ShortBranch" "$RefBranch"
-  done
+  done < <( git for-each-ref --shell --format 'echo %(refname)' "refs/remotes/${remote}" )
 
   # have a look at http://git-scm.com/docs/git-filter-branch
   # --index-filter: applies the command to every commit
