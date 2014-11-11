@@ -363,6 +363,65 @@ function listauth() (
 
 )
 
+# rewrite authors according to a mapfile
+function rewriteauth() (
+
+  fatal cd "$GitRootSplit"
+  infile="$1"
+  verbose="$2"
+
+  # maps email to author and email
+  export mapfile="$infile"
+  export verbose
+  function _git_auth_map() {
+
+    chcomm=' '
+    chauth=' '
+
+    # author
+    raw=$( grep "^${GIT_AUTHOR_EMAIL};" "$mapfile" 2> /dev/null | head -n1 | cut -d\; -f2,3 )
+    name=${raw%;*}
+    email=${raw##*;}
+    if [[ $raw != '' && $name != '' && $email != '' ]] ; then
+      chauth='*'
+      #echo -e "\n\nauthor is changing! $GIT_AUTHOR_NAME <$GIT_AUTHOR_EMAIL> --> $name <$email>"
+      export GIT_AUTHOR_NAME=$name
+      export GIT_AUTHOR_EMAIL=$email
+    fi
+
+    # committer
+    if [[ $GIT_AUTHOR_EMAIL != $GIT_COMMITTER_EMAIL ]] ; then
+      raw=$( grep "^${GIT_COMMITTER_EMAIL};" "$mapfile" 2> /dev/null | head -n1 | cut -d\; -f2,3 )
+    fi
+    name=${raw%;*}
+    email=${raw##*;}
+    if [[ $raw != '' && $name != '' && $email != '' ]] ; then
+      chcomm='*'
+      #echo -e "committer is changing! $GIT_COMMITTER_NAME <$GIT_COMMITTER_EMAIL> --> $name <$email>\n\n"
+      export GIT_COMMITTER_NAME=$name
+      export GIT_COMMITTER_EMAIL=$email
+    fi
+
+    # messages
+    if [[ $verbose == 1 ]] ; then
+      echo
+      echo "author${chauth}: $GIT_AUTHOR_NAME <$GIT_AUTHOR_EMAIL> / committer${chcomm}: $GIT_COMMITTER_NAME <$GIT_COMMITTER_EMAIL>"
+    fi
+
+  }
+  export -f _git_auth_map
+
+  # want to test on a bunch of commits?
+  # --all --> 59820a28155e835bb38f0823ab966c33074fb29a..HEAD (from 598... to HEAD)
+  fatal git filter-branch \
+    --force \
+    --env-filter '_git_auth_map' \
+    --tag-name-filter cat -- --all
+
+  unset _git_auth_map mapfile verbose
+
+)
+
 # nice time formatting
 function nicetime() (
   t=$1
@@ -401,6 +460,9 @@ function main() (
       --only-root-dir)
         OnlyRootDir=1
       ;;
+      --verbose)
+        Verbose=1
+      ;;
       lsbr)
         do_lsbr=1
       ;;
@@ -412,6 +474,9 @@ function main() (
       ;;
       rewritehist)
         do_rewritehist=1
+      ;;
+      rewriteauth)
+        do_rewriteauth=1
       ;;
       lsallfiles)
         do_lsallfiles=1
@@ -465,6 +530,7 @@ function main() (
   [[ $do_listauth == 1 ]] && listauth "$File"
   [[ $do_lsallfiles == 1 ]] && lsallfiles "$RegExp" "$RegExpInvert" "$OnlyRootDir" "$File" "$TempFile"
   [[ $do_rewritehist == 1 ]] && rewritehist "$File" "$Remote"
+  [[ $do_rewriteauth == 1 ]] && rewriteauth "$File" "$Verbose"
   [[ $do_gc == 1 ]] && gc
   [[ $do_delremoterefs == 1 ]] && delremoterefs "$Remote"
   [[ $do_forcepushall == 1 ]] && forcepushall "$Remote"
