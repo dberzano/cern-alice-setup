@@ -343,6 +343,26 @@ function forcepushall() (
 
 )
 
+# list all committers and authors along with their emails and a count
+function listauth() (
+
+  fatal cd "$GitRootSplit"
+  ofile="$1"
+
+  prc magenta "writing list to ${ofile}"
+
+  # %an --> GIT_AUTHOR_NAME
+  # %ae --> GIT_AUTHOR_EMAIL
+  # %cn --> GIT_COMMITTER_NAME
+  # %ce --> GIT_COMMITTER_EMAIL
+  while read commit ; do
+    git log -1 --no-walk --format="tformat:%cn;%ce%n%an;%ae" $commit
+  done < <( git rev-list --all ) | sort | uniq -c | sed -e 's/^\s*\([0-9]\+\) /\1;/' | tee -a "${ofile}"
+
+  prc magenta "list written to ${ofile}"
+
+)
+
 # nice time formatting
 function nicetime() (
   t=$1
@@ -399,6 +419,9 @@ function main() (
       delremoterefs)
         do_delremoterefs=1
       ;;
+      listauth)
+        do_listauth=1
+      ;;
       forcepushall)
         do_forcepushall=1
       ;;
@@ -439,6 +462,7 @@ function main() (
   [[ $do_cleanall == 1 ]] && cleanall
   [[ $do_updbr == 1 ]] && updbr
   [[ $do_lsbr == 1 ]] && lsbr "$Remote"
+  [[ $do_listauth == 1 ]] && listauth "$File"
   [[ $do_lsallfiles == 1 ]] && lsallfiles "$RegExp" "$RegExpInvert" "$OnlyRootDir" "$File" "$TempFile"
   [[ $do_rewritehist == 1 ]] && rewritehist "$File" "$Remote"
   [[ $do_gc == 1 ]] && gc
