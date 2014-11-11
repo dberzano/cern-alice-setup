@@ -104,25 +104,29 @@ function cleanall() (
 
 )
 
-# garbage collection
-function gc() (
+# slim a repository
+function slimrepo() (
+
   fatal cd "$GitRootSplit"
 
-  prc magenta "fsck results before garbage collection"
-  fatal git fsck
+  # ask for confirmation
+  right_answer='yes, I intend to proceed!'
+  prc red "you are about to do something potentially catastrophic:"
+  prc red " - all backups Git has made (refs/original) will be deleted"
+  prc red " - all remote refs will be deleted (though locally only)"
+  prc red "you must confirm this operation by typing: \"${right_answer}\""
+  read -p ':> ' given_answer
+  fatal [ "$given_answer" == "$right_answer" ]
 
-  # http://stackoverflow.com/questions/1904860/how-to-remove-unreferenced-blobs-from-my-git-repo
-  prc magenta "garbage collecting"
-  fatal git \
-    -c gc.reflogExpire=0 \
-    -c gc.reflogExpireUnreachable=0 \
-    -c gc.rerereresolved=0 \
-    -c gc.rerereunresolved=0 \
-    -c gc.pruneExpire=now \
-    gc --prune=now --aggressive
+  prc magenta 'removing backups and all remotes'
+  fatal git for-each-ref --format="%(refname)" refs/original/ refs/remotes | xargs -n 1 git update-ref -d
 
-  prc magenta "fsck results after garbage collection"
-  fatal git fsck
+  prc magenta 'expiring all dangling refs'
+  fatal git reflog expire --expire=now --all
+
+  prc magenta 'garbage collecting (might take a while)'
+  fatal git gc --prune=now
+
 )
 
 # list all files ever written in all remote branches, also the ones not
@@ -490,8 +494,8 @@ function main() (
       forcepushall)
         do_forcepushall=1
       ;;
-      gc)
-        do_gc=1
+      slimrepo)
+        do_slimrepo=1
       ;;
       *)
         prc red "not understood: $1"
@@ -531,7 +535,7 @@ function main() (
   [[ $do_lsallfiles == 1 ]] && lsallfiles "$RegExp" "$RegExpInvert" "$OnlyRootDir" "$File" "$TempFile"
   [[ $do_rewritehist == 1 ]] && rewritehist "$File" "$Remote"
   [[ $do_rewriteauth == 1 ]] && rewriteauth "$File" "$Verbose"
-  [[ $do_gc == 1 ]] && gc
+  [[ $do_slimrepo == 1 ]] && slimrepo
   [[ $do_delremoterefs == 1 ]] && delremoterefs "$Remote"
   [[ $do_forcepushall == 1 ]] && forcepushall "$Remote"
   ts_end=$( date --utc +%s )
