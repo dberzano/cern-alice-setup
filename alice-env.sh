@@ -385,23 +385,19 @@ function AliPrintVars() {
 }
 
 # Separates version from directory, if triad is expressed in the form
-# directory(version). If no (version) is expressed, dir is set to version for
+# directory(version). If no (version) is provided, dir is set to version for
 # backwards compatiblity
 function ParseVerDir() {
-
-  local VERDIR="$1"
-  local DIR_VAR="$2"
-  local VER_VAR="$3"
-
-  # Perl script to separate dirname/version
-  local PERL='/^([^()]+)\((.+)\)$/ and '
-  PERL="$PERL"' print "'$DIR_VAR'=$1 ; '$VER_VAR'=$2" or '
-  PERL="$PERL"' print "'$DIR_VAR'='$VERDIR' ; '$VER_VAR'='$VERDIR'"'
-
-  # Perl
-  eval "unset $DIR_VAR $VER_VAR"
-  eval `echo "$VERDIR" | perl -ne "$PERL"`
-
+  local verAndDir="$1"
+  local dirVar="$2"
+  local verVar="$3"
+  local cmd=''
+  if [[ $verAndDir =~ ^([^\(]+)\((.+)\)$ ]] ; then
+    cmd="$dirVar='${BASH_REMATCH[1]}' ; $verVar='${BASH_REMATCH[2]}'"
+  else
+    cmd="$dirVar='$verAndDir' ; $verVar='$verAndDir'"
+  fi
+  eval "$cmd"
 }
 
 # Echoes a triad in a proper way, supporting the format directory(version) and
