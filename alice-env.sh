@@ -139,7 +139,7 @@ function AliRemovePaths() {
   for D in $DIRS ; do
 
     KEEPDIR=1
-    D=$( cd "$D" 2> /dev/null ; pwd )
+    D=$( cd "$D" 2> /dev/null && pwd || echo "$D" )
     if [[ -d "$D" ]] ; then
 
       # condemn directory if one of the given files is there
