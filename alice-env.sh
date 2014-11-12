@@ -39,46 +39,87 @@
 #                                                                                                  #
 ####################################################################################################
 
+# colors
+Cm="\033[35m"
+Cy="\033[33m"
+Cc="\033[36m"
+Cb="\033[34m"
+Cg="\033[32m"
+Cr="\033[31m"
+Cz="\033[m"
+
 #
 # Functions
 #
 
-# Shows the user a list of configured AliRoot triads. The chosen triad number is
-# saved in the external variable N_TRIAD. A N_TRIAD of 0 means to clean up the
-# environment
+# interactively pick the ALICE software tuple: returns nothing, result is a number stored in the
+# nAliTuple variable
 function AliMenu() {
 
-  local C R M
+  local raw idx
 
-  M="Please select an AliRoot triad in the form \033[35mROOT / Geant3 /"
-  M="$M AliRoot [/ FastJet]\033[m.\n"
-  M="${M}You can also source with \033[33m-n\033[m"
-  M="$M to skip this menu, or with \033[33m-c\033[m to clean the environment):"
+  # header
+  echo
+  echo -e "${Cm}Select an ALICE software tuple from below.${Cz}"
+  echo
+  echo -e "${Cm}Note: ${Cc}you might as well source this script with \"-n <n_tuple>\" for a"
+  echo -e "      non-interactive selection or with \"-c\" to clean the envrionment.${Cz}"
+  echo
 
-  echo -e "\n$M\n"
-  for ((C=1; $C<=${#TRIAD[@]}; C++)); do
-    echo -e "  \033[36m($C)\033[m "$(NiceTriad ${TRIAD[$C]})
-  done
-  echo "";
-  echo -e "  \033[36m(0)\033[m \033[33mClear environment\033[m"
-  while [ 1 ]; do
-    echo ""
-    echo -n "Your choice: "
-    read -n1 N_TRIAD
-    echo ""
-    expr "$N_TRIAD" + 0 > /dev/null 2>&1
-    R=$?
-    if [ "$N_TRIAD" != "" ]; then
-      if [ $R -eq 0 ] || [ $R -eq 1 ]; then
-        if [ "$N_TRIAD" -ge 0 ] && [ "$N_TRIAD" -lt $C ]; then
-          break
+  # list of tuples
+  for (( idx=1 ; idx<=${#AliTuple[@]} ; idx++ )) ; do
+    printf " ${Cc}% 2d.${Cz}" $idx
+    for sec in root geant3 aliroot aliphysics fastjet fjcontrib ; do
+      raw=$( AliTupleSection "${AliTuple[$idx]}" $sec )
+      if [[ $? == 0 ]] ; then
+        ParseVerDir "$raw" d v
+        if [[ $v == $raw ]] ; then
+          # single entry
+          echo -ne " ${sec}:${Cm}${raw}${Cz}"
+        else
+          # version != subdir
+          echo -ne " ${sec}:${Cm}${d}${Cz}(${Cc}${v}${Cz})"
         fi
+        unset v d
       fi
-    fi
-    echo "Invalid choice."
+    done
+    echo
   done
+
+  # option to clean
+  echo
+  echo -e " ${Cc} 0.${Cz} Clean environment"
+
+  # prompt
+  while [[ 1 ]] ; do
+    echo
+    echo -ne 'Your choice (type a number and press ENTER): '
+    read nAliTuple
+    if [[ ! $nAliTuple =~ ^[[:digit:]]+$ ]] ; then
+      echo -e "${Cr}Not a number${Cz}"
+    elif [[ $nAliTuple -gt ${#AliTuple[@]} ]] ; then
+      echo -e "${Cr}Out of range${Cz}"
+    else
+      break
+    fi
+  done
+
+  # "return" variable
+  export nAliTuple
+  return 0
 
 }
+
+# extracts the specified section from the given tuple
+function AliTupleSection() (
+  local tuple="$1"
+  local secname="$2"
+  if [[ $tuple =~ (^|[[:blank:]]+)${secname}=([^[:blank:]]+) ]] ; then
+    echo "${BASH_REMATCH[2]}"
+    return 0
+  fi
+  return 1
+)
 
 # Removes directories from the specified PATH-like variable that contain the
 # given files. Variable is the first argument and it is passed by name, without
@@ -400,24 +441,6 @@ function ParseVerDir() {
   eval "$cmd"
 }
 
-# Echoes a triad in a proper way, supporting the format directory(version) and
-# also the plain old format where dir==ver for backwards compatiblity
-function NiceTriad() {
-  export D V
-  local C=0
-  for T in $@ ; do
-    ParseVerDir $T D V
-    if [ "$D" != "$V" ]; then
-      echo -n "\033[35m$D\033[m ($V)"
-    else
-      echo -n "\033[35m$D\033[m"
-    fi
-    let C++
-    [ $C != $# ] && echo -n ' / '
-  done
-  unset D V
-}
-
 # Tries to source the first configuration file found. Returns nonzero on error
 function AliConf() {
 
@@ -492,8 +515,9 @@ _EoF_
     fi
   fi
 
-  if [[ ${#TRIAD[@]} == 0 ]] ; then
-    echo -e "\033[33mNo \"triads\" found in config file $ALI_Conf, aborting.\033[m"
+  if [[ ${#AliTuple[@]} == 0 ]] ; then
+    echo -e "\033[33mNo ALICE software tuples found in config file $ALI_Conf, aborting.\033[m"
+    echo ${AliTuple[@]}
     return 2
   fi
 
