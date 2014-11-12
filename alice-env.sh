@@ -144,7 +144,7 @@ function AliRemovePaths() {
 
       # condemn directory if one of the given files is there
       for F in $@ ; do
-        if [[ -e "$D/$F" ]]; then
+        if [[ -e "$D/$F" ]] ; then
           KEEPDIR=0
           break
         fi
@@ -161,7 +161,7 @@ function AliRemovePaths() {
     else
       KEEPDIR=0
     fi
-    if [[ $KEEPDIR == 1 ]]; then
+    if [[ $KEEPDIR == 1 ]] ; then
       [[ "$NEWDIRS" == "" ]] && NEWDIRS="$D" || NEWDIRS="${NEWDIRS}:${D}"
     fi
 
@@ -179,7 +179,7 @@ function AliCleanPathList() {
   local VARNAME="$1"
   local STR=`eval echo \\$$VARNAME`
   local PREV_STR
-  while [ "$PREV_STR" != "$STR" ]; do
+  while [[ "$PREV_STR" != "$STR" ]] ; do
     PREV_STR="$STR"
     STR=`echo "$STR" | sed s/::/:/g`
   done
@@ -409,24 +409,12 @@ function AliPrintVars() {
     WHERE_IS_G3="$NOTFOUND"
   fi
 
-  # # detect AliRoot source location
-  # if [ -r "$ALICE_ROOT/CMakeLists.txt" ] || [ -r "$ALICE_ROOT/Makefile" ]; then
-  #   WHERE_IS_ALISRC="$ALICE_ROOT"
-  # else
-  #   WHERE_IS_ALISRC="$NOTFOUND"
-  # fi
-
-  # # Detect AliRoot build/install location
-  # if [ -r "$ALICE_BUILD/bin/tgt_$ALICE_TARGET/aliroot" ]; then
-  #   WHERE_IS_ALIINST="$ALICE_BUILD"
-  #   # Try to fetch svn revision number
-  #   ALIREV=$(cat "$ALICE_BUILD/include/ARVersion.h" 2>/dev/null |
-  #     perl -ne 'if (/ALIROOT_SVN_REVISION\s+([0-9]+)/) { print "$1"; }')
-  #   [ "$ALIREV" != "" ] && \
-  #     WHERE_IS_ALIINST="$WHERE_IS_ALIINST \033[33m(rev. $ALIREV)\033[m"
-  # else
-  #   WHERE_IS_ALIINST="$NOTFOUND"
-  # fi
+  # detect AliRoot location
+  if [[ -x "$ALICE_BUILD/bin/tgt_$ALICE_TARGET/aliroot" ]] ; then
+    WHERE_IS_ALIROOT=$( cd "$ALICE_BUILD/.." && pwd || dirname "$ALICE_BUILD" )
+  else
+    WHERE_IS_ALIROOT="$NOTFOUND"
+  fi
 
   # detect ROOT location
   WHERE_IS_ROOT="$NOTFOUND"
@@ -450,8 +438,8 @@ function AliPrintVars() {
   if [[ "$FASTJET" != '' ]] ; then
     echo -e "  ${Cc}FastJet${Cz}     $WHERE_IS_FASTJET"
   fi
-  echo -e "  ${Cc}AliRoot${Cz}     $WHERE_IS_ALISRC"
-  echo -e "  ${Cc}AliPhysics${Cz}  $WHERE_IS_ALISRC"
+  echo -e "  ${Cc}AliRoot${Cz}     $WHERE_IS_ALIROOT"
+  #echo -e "  ${Cc}AliPhysics${Cz}  $WHERE_IS_ALIPHYSICS"
   echo
 
 }
@@ -471,7 +459,7 @@ function AliParseVerDir() {
   eval "$cmd"
 }
 
-# Tries to source the first configuration file found. Returns nonzero on error
+# tries to source the first configuration file found: returns nonzero on error
 function AliConf() {
 
   local OPT_QUIET="$1"
@@ -563,12 +551,12 @@ _EoF_
   return 0
 }
 
-# Updates this very file, if necessary. Return codes:
+# updates this very file, if necessary; return codes:
 #   0: nothing done
 #   42: updated and changed, must re-source
 #   1-9: no update, not an error
 #   10-20: no update, an error occurred
-# If you want to force-update:
+# if you want to force-update:
 #   AliUpdate 2
 function AliUpdate() {
 
@@ -634,7 +622,7 @@ function AliMain() {
   done
 
   # always non-interactive and do not update when cleaning environment
-  if [[ "$OPT_CLEANENV" == 1 ]]; then
+  if [[ "$OPT_CLEANENV" == 1 ]] ; then
     OPT_NONINTERACTIVE=1
     OPT_DONTUPDATE=1
     nAliTuple=0
@@ -660,7 +648,7 @@ function AliMain() {
     DoUpdate=1
   fi
 
-  if [[ $DoUpdate -gt 0 ]]; then
+  if [[ $DoUpdate -gt 0 ]] ; then
     AliUpdate $DoUpdate
     ALI_rv=$?
     if [[ $ALI_rv == 42 ]] ; then
@@ -691,7 +679,7 @@ function AliMain() {
   # cleans up the environment from previous varaiables
   AliCleanEnv
 
-  if [[ "$OPT_CLEANENV" != 1 ]]; then
+  if [[ "$OPT_CLEANENV" != 1 ]] ; then
 
     # number of parallel workers (on variable MJ)
     AliSetParallelMake
@@ -705,7 +693,7 @@ function AliMain() {
   else
     # Those variables are not cleaned by AliCleanEnv
     AliCleanEnv --extra
-    if [[ "$OPT_QUIET" != 1 ]]; then
+    if [[ "$OPT_QUIET" != 1 ]] ; then
       echo -e "\033[33mALICE environment variables purged\033[m"
     fi
   fi
