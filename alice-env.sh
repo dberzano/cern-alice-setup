@@ -170,6 +170,7 @@ function AliRemovePaths() {
   IFS="$OIFS"
 
   eval export $VARNAME="$NEWDIRS"
+  AliCleanPathList $VARNAME
 
 }
 
@@ -184,7 +185,11 @@ function AliCleanPathList() {
   done
   STR=${STR#:}
   STR=${STR%:}
-  eval export $VARNAME=\"$STR\"
+  if [[ $STR == '' ]] ; then
+    unset $VARNAME
+  else
+    eval export $VARNAME=\"$STR\"
+  fi
 }
 
 # cleans up the environment from previously set (DY)LD_LIBRARY_PATH and PATH variables
