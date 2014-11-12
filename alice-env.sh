@@ -46,7 +46,9 @@ Cc="\033[36m"
 Cb="\033[34m"
 Cg="\033[32m"
 Cr="\033[31m"
+Cw="\033[37m"
 Cz="\033[m"
+Br="\033[41m"
 
 #
 # Functions
@@ -215,6 +217,10 @@ function AliSetParallelMake() {
 # Exports variables needed to run AliRoot, based on the selected triad
 function AliExportVars() {
 
+  local tuple="$1"
+  local sec vsubdir vver
+  local varmap=( root:ROOT_ geant3:G3_ aliroot:ALICE_ aliphysics:ALIPHYSICS_ )
+
   #
   # AliEn
   #
@@ -223,7 +229,7 @@ function AliExportVars() {
   export X509_CERT_DIR="$ALIEN_DIR/globus/share/certificates"
 
   # AliEn source installation uses a different destination directory
-  [ -d "$X509_CERT_DIR" ] || X509_CERT_DIR="$ALIEN_DIR/api/share/certificates"
+  [[ -d "$X509_CERT_DIR" ]] || X509_CERT_DIR="$ALIEN_DIR/api/share/certificates"
 
   export GSHELL_ROOT="$ALIEN_DIR/api"
   export PATH="$PATH:$GSHELL_ROOT/bin"
@@ -231,92 +237,114 @@ function AliExportVars() {
   export DYLD_LIBRARY_PATH="$DYLD_LIBRARY_PATH:$GSHELL_ROOT/lib"
 
   #
-  # ROOT
+  # Other modules
   #
 
-  export ROOTSYS="$ALICE_PREFIX/root/$ROOT_SUBDIR"
-  export PATH="$ROOTSYS/bin:$PATH"
-  export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$ROOTSYS/lib"
-  export ROOT_VER
-  if [ -e "$ROOTSYS/lib/ROOT.py" ]; then
-    # PyROOT support
-    export PYTHONPATH="$ROOTSYS/lib:$PYTHONPATH"
-  fi
+  for sec in root geant3 aliroot aliphysics fastjet fjcontrib ; do
+    case $sec in
+      root)       vsubdir='ROOT_SUBDIR'       ; vver='ROOT_VER'       ;;
+      geant3)     vsubdir='G3_SUBDIR'         ; vver='G3_VER'         ;;
+      aliroot)    vsubdir='ALICE_SUBDIR'      ; vver='ALICE_VER'      ;;
+      aliphysics) vsubdir='ALIPHYSICS_SUBDIR' ; vver='ALIPHYSICS_VER' ;;
+      fastjet)    vsubdir='FASTJET_SUBDIR'    ; vver='FASTJET_VER'    ;;
+      fjcontrib)  vsubdir='FJCONTRIB_SUBDIR'  ; vver='FJCONTRIB_VER'  ;;
+    esac
 
-  #
-  # AliRoot
-  #
-
-  export ALICE="$ALICE_PREFIX"
-  export ALICE_VER
-
-  # Let's detect AliRoot CMake builds
-  if [ ! -e "$ALICE_PREFIX/aliroot/$ALICE_SUBDIR/Makefile" ]; then
-    export ALICE_ROOT="$ALICE_PREFIX/aliroot/$ALICE_SUBDIR/src"
-    export ALICE_BUILD="$ALICE_PREFIX/aliroot/$ALICE_SUBDIR/build"
-  else
-    export ALICE_ROOT="$ALICE_PREFIX/aliroot/$ALICE_SUBDIR"
-    export ALICE_BUILD="$ALICE_ROOT"
-  fi
-
-  export ALICE_TARGET=`root-config --arch 2> /dev/null`
-  export PATH="$PATH:${ALICE_BUILD}/bin/tgt_${ALICE_TARGET}"
-  export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:${ALICE_BUILD}/lib/tgt_${ALICE_TARGET}"
-  export DYLD_LIBRARY_PATH="$DYLD_LIBRARY_PATH:${ALICE_BUILD}/lib/tgt_${ALICE_TARGET}"
-
-  #
-  # Geant 3
-  #
-
-  export GEANT3DIR="$ALICE_PREFIX/geant3/$G3_SUBDIR"
-  export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$GEANT3DIR/lib/tgt_${ALICE_TARGET}"
-  export G3_VER
-
-  #
-  # FastJet
-  #
-
-  if [ "$FASTJET_VER" != '' ] ; then
-
-    # Export FastJet variables only if we mean to have FastJet
-
-    # Do we have contrib?
-    FJCONTRIB_VER=${FASTJET_VER##*_}
-    if [ "$FJCONTRIB_VER" != "$FASTJET_VER" ] && [ "$FJCONTRIB_VER" != '' ] ; then
-      export FJCONTRIB_VER
-      export FASTJET_VER="${FASTJET_VER%_*}"
+    raw=$( AliTupleSection "$tuple" $sec )
+    if [[ $? == 0 ]] ; then
+      ParseVerDir "$raw" $vsubdir $vver
+      export $vsubdir
+      export $vver
+      unset vsubdir vver
     fi
 
-    export FASTJET="$ALICE_PREFIX/fastjet/$FASTJET_SUBDIR"
-    export FASTJET_VER
-    if [ -d "$FASTJET/bin" ] && [ -d "$FASTJET/lib" ] ; then
-      export PATH="$PATH:$FASTJET/bin"
-      export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$FASTJET/lib"
-    fi
-  else
-    unset FASTJET_VER FASTJET_SUBDIR
-  fi
+    case $sec in
 
-  #
-  # Git prompt
-  #
+      root)
+        export ROOTSYS="$ALICE_PREFIX/root/$ROOT_SUBDIR"
+        export PATH="$ROOTSYS/bin:$PATH"
+        export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$ROOTSYS/lib"
+        export ROOT_VER
+        if [[ -e "$ROOTSYS/lib/ROOT.py" ]] ; then
+          # PyROOT support
+          export PYTHONPATH="$ROOTSYS/lib:$PYTHONPATH"
+        fi
+      ;;
 
+      geant3)
+        export GEANT3DIR="$ALICE_PREFIX/geant3/$G3_SUBDIR"
+        export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$GEANT3DIR/lib/tgt_${ALICE_TARGET}"
+      ;;
+
+      aliroot)
+        export ALICE="$ALICE_PREFIX"
+        export ALICE_VER
+
+        # Let's detect AliRoot CMake builds
+        if [ ! -e "$ALICE_PREFIX/aliroot/$ALICE_SUBDIR/Makefile" ]; then
+          export ALICE_ROOT="$ALICE_PREFIX/aliroot/$ALICE_SUBDIR/src"
+          export ALICE_BUILD="$ALICE_PREFIX/aliroot/$ALICE_SUBDIR/build"
+        else
+          export ALICE_ROOT="$ALICE_PREFIX/aliroot/$ALICE_SUBDIR"
+          export ALICE_BUILD="$ALICE_ROOT"
+        fi
+
+        export ALICE_TARGET=`root-config --arch 2> /dev/null`
+        export PATH="$PATH:${ALICE_BUILD}/bin/tgt_${ALICE_TARGET}"
+        export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:${ALICE_BUILD}/lib/tgt_${ALICE_TARGET}"
+        export DYLD_LIBRARY_PATH="$DYLD_LIBRARY_PATH:${ALICE_BUILD}/lib/tgt_${ALICE_TARGET}"
+      ;;
+
+      aliphysics)
+      ;;
+
+      fastjet)
+        if [[ $FASTJET_VER != '' ]] ; then
+
+          # Export FastJet variables only if we mean to have FastJet
+
+          # Do we have contrib?
+          FJCONTRIB_VER=${FASTJET_VER##*_}
+          if [ "$FJCONTRIB_VER" != "$FASTJET_VER" ] && [ "$FJCONTRIB_VER" != '' ] ; then
+            export FJCONTRIB_VER
+            export FASTJET_VER="${FASTJET_VER%_*}"
+          fi
+
+          export FASTJET="$ALICE_PREFIX/fastjet/$FASTJET_SUBDIR"
+          export FASTJET_VER
+          if [ -d "$FASTJET/bin" ] && [ -d "$FASTJET/lib" ] ; then
+            export PATH="$PATH:$FASTJET/bin"
+            export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$FASTJET/lib"
+          fi
+        else
+          unset FASTJET_VER FASTJET_SUBDIR
+        fi
+      ;;
+
+      fjcontrib)
+        if [[ $FASTJET_VER == '' || $FJCONTRIB_VER == '' ]] ; then
+          unset FJCONTRIB_VER
+        fi
+        unset FJCONTRIB_SUBDIR
+      ;;
+
+    esac
+  done
+
+  # optional git prompt
   if [[ "$ALICE_ENV_DONT_CHANGE_PS1" != 1 ]] ; then
     export ALIPS1="$PS1"
     export PS1='`AliPrompt`'"$PS1"
   fi
 
-  #
-  # For the automatic installer
-  #
-
-  export ALI_N_TRIAD="$N_TRIAD"
+  # exported for the automatic installer
+  export ALI_nAliTuple="$nAliTuple"
   export ALI_EnvScript
   export ALI_Conf
 
 }
 
-# Prompt with current Git revision
+# prompt with current Git revision
 function AliPrompt() {
   local REF=`git rev-parse --abbrev-ref HEAD 2> /dev/null`
   local COL_GIT="\033[35mgit:\033[m"
@@ -328,101 +356,91 @@ function AliPrompt() {
   echo '[AliEnv] '
 }
 
-# Prints out the ALICE paths. In AliRoot, the SVN revision number is also echoed
+# prints out ALICE paths
 function AliPrintVars() {
 
   local WHERE_IS_G3 WHERE_IS_ALIROOT WHERE_IS_ROOT WHERE_IS_ALIEN \
     WHERE_IS_ALISRC WHERE_IS_ALIINST WHERE_IS_FASTJET ALIREV MSG LEN I
-  local NOTFOUND='\033[31m<not found>\033[m'
+  local NOTFOUND="${Cr}<not found>${Cz}"
 
-  # Check if Globus certificate is expiring soon
+  # check if Globus certificate is expiring soon
   local CERT="$HOME/.globus/usercert.pem"
   which openssl > /dev/null 2>&1
-  if [ $? == 0 ]; then
-    if [ -r "$CERT" ]; then
+  if [[ $? == 0 ]] ; then
+    if [[ -r "$CERT" ]] ; then
       openssl x509 -in "$CERT" -noout -checkend 0 > /dev/null 2>&1
-      if [ $? == 1 ]; then
-        MSG="Your certificate has expired"
+      if [[ $? == 1 ]] ; then
+        MSG='Your certificate has expired'
       else
         openssl x509 -in "$CERT" -noout -checkend 604800 > /dev/null 2>&1
-        if [ $? == 1 ]; then
-          MSG="Your certificate is going to expire in less than one week"
+        if [[ $? == 1 ]] ; then
+          MSG='Your certificate is going to expire in less than one week'
         fi
       fi
     else
-      MSG="Can't find certificate $CERT"
+      MSG="Cannot find certificate file $CERT"
     fi
   fi
-
-  # Print a message if an error checking the certificate has occured
-  if [ "$MSG" != "" ]; then
-    echo -e "\n\033[41m\033[37m!!! ${MSG} !!!\033[m"
+  if [[ "$MSG" != "" ]] ; then
+    echo
+    echo -e "${Br}${Cw}!!! ${MSG} !!!${Cz}"
   fi
 
-  # Detect Geant3 installation path
-  if [ -x "$GEANT3DIR/lib/tgt_$ALICE_TARGET/libgeant321.so" ]; then
+  # detect Geant3 installation path
+  if [[ -x "$GEANT3DIR/lib/tgt_$ALICE_TARGET/libgeant321.so" ]] ; then
     WHERE_IS_G3="$GEANT3DIR"
   else
     WHERE_IS_G3="$NOTFOUND"
   fi
 
-  # Detect AliRoot source location
-  if [ -r "$ALICE_ROOT/CMakeLists.txt" ] || [ -r "$ALICE_ROOT/Makefile" ]; then
-    WHERE_IS_ALISRC="$ALICE_ROOT"
-  else
-    WHERE_IS_ALISRC="$NOTFOUND"
-  fi
+  # # detect AliRoot source location
+  # if [ -r "$ALICE_ROOT/CMakeLists.txt" ] || [ -r "$ALICE_ROOT/Makefile" ]; then
+  #   WHERE_IS_ALISRC="$ALICE_ROOT"
+  # else
+  #   WHERE_IS_ALISRC="$NOTFOUND"
+  # fi
 
-  # Detect AliRoot build/install location
-  if [ -r "$ALICE_BUILD/bin/tgt_$ALICE_TARGET/aliroot" ]; then
-    WHERE_IS_ALIINST="$ALICE_BUILD"
-    # Try to fetch svn revision number
-    ALIREV=$(cat "$ALICE_BUILD/include/ARVersion.h" 2>/dev/null |
-      perl -ne 'if (/ALIROOT_SVN_REVISION\s+([0-9]+)/) { print "$1"; }')
-    [ "$ALIREV" != "" ] && \
-      WHERE_IS_ALIINST="$WHERE_IS_ALIINST \033[33m(rev. $ALIREV)\033[m"
-  else
-    WHERE_IS_ALIINST="$NOTFOUND"
-  fi
+  # # Detect AliRoot build/install location
+  # if [ -r "$ALICE_BUILD/bin/tgt_$ALICE_TARGET/aliroot" ]; then
+  #   WHERE_IS_ALIINST="$ALICE_BUILD"
+  #   # Try to fetch svn revision number
+  #   ALIREV=$(cat "$ALICE_BUILD/include/ARVersion.h" 2>/dev/null |
+  #     perl -ne 'if (/ALIROOT_SVN_REVISION\s+([0-9]+)/) { print "$1"; }')
+  #   [ "$ALIREV" != "" ] && \
+  #     WHERE_IS_ALIINST="$WHERE_IS_ALIINST \033[33m(rev. $ALIREV)\033[m"
+  # else
+  #   WHERE_IS_ALIINST="$NOTFOUND"
+  # fi
 
-  # Detect ROOT location
-  if [ -x "$ROOTSYS/bin/root.exe" ]; then
-    WHERE_IS_ROOT="$ROOTSYS"
-  else
-    WHERE_IS_ROOT="$NOTFOUND"
-  fi
+  # detect ROOT location
+  WHERE_IS_ROOT="$NOTFOUND"
+  [[ -x "$ROOTSYS/bin/root.exe" ]] && WHERE_IS_ROOT="$ROOTSYS"
 
-  # Detect AliEn location
-  if [ -x "$GSHELL_ROOT/bin/aliensh" ]; then
-    WHERE_IS_ALIEN="$GSHELL_ROOT"
-  else
-    WHERE_IS_ALIEN="$NOTFOUND"
-  fi
+  # detect AliEn location
+  WHERE_IS_ALIEN="$NOTFOUND"
+  [[ -x "$GSHELL_ROOT/bin/aliensh" ]] && WHERE_IS_ALIEN="$GSHELL_ROOT"
 
-  # Detect FastJet location
-  if [ -e "$FASTJET/lib/libfastjet.so" ] || \
-    [ -e "$FASTJET/lib/libfastjet.dylib" ]; then
+  # detect FastJet location
+  if [[ -e "$FASTJET/lib/libfastjet.so" || -e "$FASTJET/lib/libfastjet.dylib" ]] ; then
     WHERE_IS_FASTJET="$FASTJET"
   else
     WHERE_IS_FASTJET="$NOTFOUND"
   fi
 
-  echo ""
-  echo -e "  \033[36mAliEn\033[m            $WHERE_IS_ALIEN"
-  echo -e "  \033[36mROOT\033[m             $WHERE_IS_ROOT"
-  echo -e "  \033[36mGeant3\033[m           $WHERE_IS_G3"
-  if [ "$FASTJET" != '' ] ; then
-    echo -e "  \033[36mFastJet\033[m          $WHERE_IS_FASTJET"
+  echo
+  echo -e "  ${Cc}AliEn${Cz}            $WHERE_IS_ALIEN"
+  echo -e "  ${Cc}ROOT${Cz}             $WHERE_IS_ROOT"
+  echo -e "  ${Cc}Geant3${Cz}           $WHERE_IS_G3"
+  if [[ "$FASTJET" != '' ]] ; then
+    echo -e "  ${Cc}FastJet${Cz}          $WHERE_IS_FASTJET"
   fi
-  echo -e "  \033[36mAliRoot source\033[m   $WHERE_IS_ALISRC"
-  echo -e "  \033[36mAliRoot build\033[m    $WHERE_IS_ALIINST"
-  echo ""
+  echo -e "  ${Cc}AliRoot core${Cz}   $WHERE_IS_ALISRC"
+  echo
 
 }
 
-# Separates version from directory, if triad is expressed in the form
-# directory(version). If no (version) is provided, dir is set to version for
-# backwards compatiblity
+# separates version from directory, if tuple component is expressed in the form directory(version);
+# if no (version) is provided, dir and version are set to the same value
 function ParseVerDir() {
   local verAndDir="$1"
   local dirVar="$2"
@@ -569,7 +587,7 @@ function AliUpdate() {
   return 0  # noop
 }
 
-# Main function: takes parameters from the command line
+# main function: takes parameters from the command line
 function AliMain() {
 
   local C T R
@@ -578,120 +596,94 @@ function AliMain() {
   local OPT_CLEANENV=0
   local OPT_DONTUPDATE=0
   local OPT_FORCEUPDATE=0
-  local OPT_INSTALL=0
   local ARGS=("$@")
 
-  # Parse command line options
-  while [ $# -gt 0 ]; do
+  # parse command line options
+  while [[ $# -gt 0 ]] ; do
     case "$1" in
-      "-a") OPT_INSTALL=1 ; shift ; break ;;
-      "-q") OPT_QUIET=1 ;;
-      "-v") OPT_QUIET=0 ;;
-      "-n")
+      -q) OPT_QUIET=1 ;;
+      -v) OPT_QUIET=0 ;;
+      -n)
         OPT_NONINTERACTIVE=1
-        N_TRIAD=$(( $2 ))
-        [[ $N_TRIAD == 0 ]] && unset N_TRIAD
+        nAliTuple=$(( $2 ))
+        [[ $nAliTuple == 0 ]] && unset nAliTuple
       ;;
-      "-i") OPT_NONINTERACTIVE=0 ;;
-      "-c") OPT_CLEANENV=1; ;;
-      "-k") OPT_DONTUPDATE=1 ;;
-      "-u") OPT_FORCEUPDATE=1 ;;
+      -i) OPT_NONINTERACTIVE=0 ;;
+      -c) OPT_CLEANENV=1; ;;
+      -k) OPT_DONTUPDATE=1 ;;
+      -u) OPT_FORCEUPDATE=1 ;;
     esac
     shift
   done
 
-  # Just invoke auto-installer?
-  if [ "$OPT_INSTALL" == 1 ] ; then
-    exec bash <( curl -fsSL http://cern.ch/go/NcS7 ) "$@"
-  fi
-
-  # Always non-interactive+do not update when cleaning environment
-  if [ "$OPT_CLEANENV" == 1 ]; then
+  # always non-interactive and do not update when cleaning environment
+  if [[ "$OPT_CLEANENV" == 1 ]]; then
     OPT_NONINTERACTIVE=1
     OPT_DONTUPDATE=1
-    N_TRIAD=0
+    nAliTuple=0
   fi
 
-  # Try to load configuration
+  # attempt to load configuration
   AliConf "$OPT_QUIET"
   R=$?
-  if [ $R != 0 ] ; then
+  if [[ $R != 0 ]] ; then
     AliCleanEnv
     return $R
   fi
 
-  # Update
+  # update
   local DoUpdate
-  if [ "$OPT_DONTUPDATE" == 1 ] ; then
+  if [[ "$OPT_DONTUPDATE" == 1 ]] ; then
     DoUpdate=0  # -k
-  elif [ "$OPT_FORCEUPDATE" == 1 ] ; then
+  elif [[ "$OPT_FORCEUPDATE" == 1 ]] ; then
     DoUpdate=2  # -u
-  elif [ "$ALICE_ENV_DONT_UPDATE" == 1 ] ; then
+  elif [[ "$ALICE_ENV_DONT_UPDATE" == 1 ]] ; then
     DoUpdate=0
   else
     DoUpdate=1
   fi
 
-  if [ $DoUpdate -gt 0 ]; then
+  if [[ $DoUpdate -gt 0 ]]; then
     AliUpdate $DoUpdate
     ALI_rv=$?
-    if [ $ALI_rv == 42 ] ; then
-      # Script changed: re-source
-      [ "$OPT_QUIET" != 1 ] && echo -e "\n\033[32mEnvironment script automatically updated to the latest version: reloading\033[m"
+    if [[ $ALI_rv == 42 ]] ; then
+      # script changed: re-source
+      [[ "$OPT_QUIET" != 1 ]] && echo -e "\n${Cg}Environment script automatically updated to the latest version: reloading${Cz}"
       source "$ALI_EnvScript" "${ARGS[@]}" -k
       return $?
-    elif [ $ALI_rv -ge 10 ] ; then
-      [ "$OPT_QUIET" != 1 ] && echo -e "Warning: automatic updater returned $ALI_rv"
+    elif [[ $ALI_rv -ge 10 ]] ; then
+      [[ "$OPT_QUIET" != 1 ]] && echo -e "${Cy}Warning:${Cz} automatic updater returned $ALI_rv"
     fi
   fi
 
-  # Print menu if non-interactive
-  [ "$OPT_NONINTERACTIVE" != 1 ] && AliMenu
+  # print menu if non-interactive
+  [[ "$OPT_NONINTERACTIVE" != 1 ]] && AliMenu
 
   unset ROOT_VER G3_VER ALICE_VER FASTJET_VER FJCONTRIB_VER
-  if [[ $N_TRIAD -gt ${#TRIAD[@]} || $N_TRIAD -lt 0 ]] ; then
-    echo ''
-    echo -e "\033[31mInvalid triad: \033[35m$N_TRIAD\033[m"
-    echo -e "\033[31mCheck the value of \033[35mN_TRIAD\033[31m in \033[35m$ALI_Conf\033[31m, or provide a correct value with -n <n_triad>\033[m"
+
+  if [[ ! $nAliTuple =~ ^[[:digit:]]+$ || $nAliTuple -gt ${#AliTuple[@]} ]] ; then
+    echo
+    echo -e "${Cr}Invalid triad: ${Cb}${nAliTuple}${Cz}"
+    echo -e "${Cr}Check the value of ${Cb}N_TRIAD${Cr} in ${Cb}${ALI_Conf}${Cr}, or provide a correct value with \"-n <n_triad>\"${Cz}"
     OPT_CLEANENV=1
-  elif [[ $N_TRIAD != 0 ]] ; then
-    C=0
-    for T in ${TRIAD[$N_TRIAD]}
-    do
-      case $C in
-        0) ROOT_VER=$T ;;
-        1) G3_VER=$T ;;
-        2) ALICE_VER=$T ;;
-        3) FASTJET_VER=$T ;;
-      esac
-      let C++
-    done
-
-    # Separates directory name from version (backwards compatible)
-
-    ParseVerDir "$ROOT_VER"    'ROOT_SUBDIR'    'ROOT_VER'
-    ParseVerDir "$G3_VER"      'G3_SUBDIR'      'G3_VER'
-    ParseVerDir "$ALICE_VER"   'ALICE_SUBDIR'   'ALICE_VER'
-    ParseVerDir "$FASTJET_VER" 'FASTJET_SUBDIR' 'FASTJET_VER'
-
-  else
-    # N_TRIAD=0 means "clean environment"
+  elif [[ $nAliTuple == 0 ]] ; then
+    # same as above but with no output
     OPT_CLEANENV=1
   fi
 
-  # Cleans up the environment from previous varaiables
+  # cleans up the environment from previous varaiables
   AliCleanEnv
 
-  if [ "$OPT_CLEANENV" != 1 ]; then
+  if [[ "$OPT_CLEANENV" != 1 ]]; then
 
-    # Number of parallel workers (on variable MJ)
+    # number of parallel workers (on variable MJ)
     AliSetParallelMake
 
-    # Export all the needed variables
-    AliExportVars
+    # export all the needed variables
+    AliExportVars "${AliTuple[$nAliTuple]}"
 
-    # Prints out settings, if requested
-    [ "$OPT_QUIET" != 1 ] && AliPrintVars
+    # prints out settings, if requested
+    [[ "$OPT_QUIET" != 1 ]] && AliPrintVars
 
   else
     # Those variables are not cleaned by AliCleanEnv
