@@ -7,37 +7,37 @@
 #   ROOT
 #   Geant 3
 #   AliRoot
+#   AliPhysics
 #
 # It optionally supports:
 #
 #   FastJet
 #   FastJet Contrib
 #
-# This script is tested to work under Ubuntu and OS X. For more information on
-# compatibility and build instructions, please consult:
+# This script is tested to work under Ubuntu, OS X and Fedora. For more information on compatibility
+# and build instructions, please consult:
 #
 #   https://dberzano.github.io/alice/install-aliroot/
 #
 
-################################################################################
-#                                                                              #
-#                      * * * DON'T TOUCH THIS FILE! * * *                      #
-#                                                                              #
-# Configuration variables are found in a separate file, in the same directory  #
-# of this script:                                                              #
-#                                                                              #
-#   alice-env.conf                                                             #
-#                                                                              #
-# Or if you prefer, you can create a hidden file in your home:                 #
-#                                                                              #
-#   ~/.alice-env.conf                                                          #
-#                                                                              #
-# If none of the configuration files is found, a default alice-env.conf is     #
-# created in the same directory of this script.                                #
-#                                                                              #
-# This script gets updated automatically, so any change you make will be lost. #
-#                                                                              #
-################################################################################
+####################################################################################################
+#                                                                                                  #
+#                                * * * DON'T TOUCH THIS FILE! * * *                                #
+#                                                                                                  #
+# Configuration variables are found in a separate file, in the same directory of this script:      #
+#                                                                                                  #
+#   alice-env.conf                                                                                 #
+#                                                                                                  #
+# Or if you prefer, you can create a hidden file in your home:                                     #
+#                                                                                                  #
+#   ~/.alice-env.conf                                                                              #
+#                                                                                                  #
+# If none of the configuration files is found, a default alice-env.conf is created in the same     #
+# directory where this script is stored.                                                           #
+#                                                                                                  #
+# This script gets updated automatically, so any change you make will be lost.                     #
+#                                                                                                  #
+####################################################################################################
 
 #
 # Functions
