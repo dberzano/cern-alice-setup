@@ -194,20 +194,47 @@ function AliCleanPathList() {
 
 # cleans up the environment from previously set (DY)LD_LIBRARY_PATH and PATH variables
 function AliCleanEnv() {
-  AliRemovePaths PATH alien_cp aliroot root fastjet-config
-  AliRemovePaths LD_LIBRARY_PATH libCint.so libSTEER.so libXrdSec.so libgeant321.so libgapiUI.so \
-    libfastjet.so libfastjet.dylib
-  AliRemovePaths DYLD_LIBRARY_PATH libCint.so libSTEER.so libXrdSec.so libgeant321.so libgapiUI.so \
-    libfastjet.so libfastjet.dylib
-  AliRemovePaths PYTHONPATH ROOT.py 
 
-  # restore prompt
-  [[ "$ALIPS1" != '' ]] && export PS1="$ALIPS1"
-  unset ALIPS1
+  if [[ $1 == '--extra' ]] ; then
 
-  # unset other environment variables and aliases
-  unset MJ ALIEN_DIR GSHELL_ROOT ROOTSYS ALICE ALICE_ROOT ALICE_BUILD ALICE_TARGET GEANT3DIR \
-    X509_CERT_DIR ALICE FASTJET ALICE_ENV_UPDATE_URL ALICE_ENV_DONT_UPDATE
+    unset ALICE_PREFIX \
+      ROOT_VER ROOT_SUBDIR \
+      G3_VER G3_SUBDIR \
+      ALICE_VER ALICE_SUBDIR \
+      ALIPHYSICS_VER ALIPHYSICS_SUBDIR \
+      FASTJET_VER FASTJET_SUBDIR FJCONTRIB_VER \
+      alien_API_USER AliPrompt \
+      ALI_N_TRIAD ALI_EnvScript ALI_Conf \
+      ALICE_ENV_DONT_CHANGE_PS1
+
+  elif [[ $1 == '--final' ]] ; then
+
+    # clean tuples
+    unset AliTuple nAliTuple
+
+    # cleanup of functions (also cleans up self!)
+    unset AliCleanEnv AliCleanPathList AliExportVars AliMain AliMenu AliPrintVars \
+      AliRemovePaths AliSetParallelMake AliConf AliUpdate AliTupleSection AliParseVerDir
+
+  else
+
+    # standard cleanup
+    AliRemovePaths PATH alien_cp aliroot root fastjet-config
+    AliRemovePaths LD_LIBRARY_PATH libCint.so libSTEER.so libXrdSec.so libgeant321.so \
+       libgapiUI.so libfastjet.so libfastjet.dylib
+    AliRemovePaths DYLD_LIBRARY_PATH libCint.so libSTEER.so libXrdSec.so libgeant321.so \
+       libgapiUI.so libfastjet.so libfastjet.dylib
+    AliRemovePaths PYTHONPATH ROOT.py
+
+    # restore prompt
+    [[ "$ALIPS1" != '' ]] && export PS1="$ALIPS1"
+    unset ALIPS1
+
+    # unset other environment variables and aliases
+    unset MJ ALIEN_DIR GSHELL_ROOT ROOTSYS ALICE ALICE_ROOT ALICE_BUILD ALICE_TARGET GEANT3DIR \
+      X509_CERT_DIR ALICE FASTJET ALICE_ENV_UPDATE_URL ALICE_ENV_DONT_UPDATE
+
+  fi
 }
 
 # sets the number of parallel workers for make to the number of cores plus one to variable MJ
@@ -460,7 +487,7 @@ function AliConf() {
 
   local OPT_QUIET="$1"
   local ALI_ConfFound ALI_ConfFiles
-  local N_TRIAD_BEFORE="$N_TRIAD"
+  local nAliTuple_Before="$nAliTuple"
 
   # Normalize path to this script
   ALI_EnvScript="${BASH_SOURCE}"
@@ -688,15 +715,8 @@ function AliMain() {
 
   else
     # Those variables are not cleaned by AliCleanEnv
-    unset ALICE_PREFIX \
-      ROOT_VER ROOT_SUBDIR \
-      G3_VER G3_SUBDIR \
-      ALICE_VER ALICE_SUBDIR \
-      FASTJET_VER FASTJET_SUBDIR FJCONTRIB_VER \
-      alien_API_USER AliPrompt \
-      ALI_N_TRIAD ALI_EnvScript ALI_Conf \
-      ALICE_ENV_DONT_CHANGE_PS1
-    if [ "$OPT_QUIET" != 1 ]; then
+    AliCleanEnv --extra
+    if [[ "$OPT_QUIET" != 1 ]]; then
       echo -e "\033[33mALICE environment variables purged\033[m"
     fi
   fi
@@ -705,6 +725,7 @@ function AliMain() {
   AliCleanPathList LD_LIBRARY_PATH
   AliCleanPathList DYLD_LIBRARY_PATH
   AliCleanPathList PATH
+  AliCleanPathList PYTHONPATH
 
 }
 
@@ -714,7 +735,5 @@ function AliMain() {
 
 AliMain "$@"
 ALI_rv=$?
-unset N_TRIAD TRIAD
-unset AliCleanEnv AliCleanPathList AliExportVars AliMain AliMenu AliPrintVars \
-  AliRemovePaths AliSetParallelMake AliConf AliUpdate
+AliCleanEnv --final
 return $ALI_rv
