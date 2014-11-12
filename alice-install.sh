@@ -671,8 +671,6 @@ function ModuleAliRoot() {
     # script git-new-workdir[1]
     # [1] http://nuclearsquid.com/writings/git-new-workdir/
 
-    Swallow -f "Checking for git-new-workdir script in \$PATH" which git-new-workdir
-
     # Shallow copy with git-new-workdir
     if [ ! -d "$ALICE_ROOT/.git" ] ; then
       rmdir "$ALICE_ROOT" > /dev/null 2>&1  # works if dir is empty
@@ -878,10 +876,12 @@ function Dl() {
 # Check prerequisites
 function ModuleCheckPrereq() {
 
-  Banner "Checking prerequisites..."
-  Swallow -f "Checking if on a 64 bit machine" [ `uname -m` == 'x86_64' ]
+  Banner 'Checking prerequisites...'
+  Swallow -f 'Checking if on a 64 bit machine' [ `uname -m` == 'x86_64' ]
+  Swallow -f --error-msg 'Command "git-new-workdir" cannot be found in your $PATH. Follow the instructions on the web to install it.' \
+    'Checking for git-new-workdir script in $PATH' which git-new-workdir
   Swallow --fatal --error-msg 'You must source the alice-env.sh script and pick the triad you desire to build first!' \
-    "Checking if ALICE environment works" SourceEnvVars
+    'Checking if ALICE environment works' SourceEnvVars
 
 }
 
