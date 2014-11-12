@@ -307,11 +307,12 @@ function AliExportVars() {
         export ALICE="$ALICE_PREFIX"
         export ALICE_VER
 
-        # Let's detect AliRoot CMake builds
-        if [ ! -e "$ALICE_PREFIX/aliroot/$ALICE_SUBDIR/Makefile" ]; then
+        if [[ ! -e "$ALICE_PREFIX/aliroot/$ALICE_SUBDIR/Makefile" ]] ; then
+          # AliRoot with CMake
           export ALICE_ROOT="$ALICE_PREFIX/aliroot/$ALICE_SUBDIR/src"
           export ALICE_BUILD="$ALICE_PREFIX/aliroot/$ALICE_SUBDIR/build"
         else
+          # legacy AliRoot
           export ALICE_ROOT="$ALICE_PREFIX/aliroot/$ALICE_SUBDIR"
           export ALICE_BUILD="$ALICE_ROOT"
         fi
@@ -327,16 +328,6 @@ function AliExportVars() {
 
       fastjet)
         if [[ $FASTJET_VER != '' ]] ; then
-
-          # Export FastJet variables only if we mean to have FastJet
-
-          # Do we have contrib?
-          FJCONTRIB_VER=${FASTJET_VER##*_}
-          if [ "$FJCONTRIB_VER" != "$FASTJET_VER" ] && [ "$FJCONTRIB_VER" != '' ] ; then
-            export FJCONTRIB_VER
-            export FASTJET_VER="${FASTJET_VER%_*}"
-          fi
-
           export FASTJET="$ALICE_PREFIX/fastjet/$FASTJET_SUBDIR"
           export FASTJET_VER
           if [ -d "$FASTJET/bin" ] && [ -d "$FASTJET/lib" ] ; then
@@ -349,9 +340,7 @@ function AliExportVars() {
       ;;
 
       fjcontrib)
-        if [[ $FASTJET_VER == '' || $FJCONTRIB_VER == '' ]] ; then
-          unset FJCONTRIB_VER
-        fi
+        [[ $FASTJET_VER == '' || $FJCONTRIB_VER == '' ]] && unset FJCONTRIB_VER
         unset FJCONTRIB_SUBDIR
       ;;
 
