@@ -74,7 +74,7 @@ function AliMenu() {
     for sec in root geant3 aliroot aliphysics fastjet fjcontrib ; do
       raw=$( AliTupleSection "${AliTuple[$idx]}" $sec )
       if [[ $? == 0 ]] ; then
-        ParseVerDir "$raw" d v
+        AliParseVerDir "$raw" d v
         if [[ $v == $raw ]] ; then
           # single entry
           echo -ne " ${sec}:${Cm}${raw}${Cz}"
@@ -214,34 +214,16 @@ function AliSetParallelMake() {
   export MJ
 }
 
-# Exports variables needed to run AliRoot, based on the selected triad
+# set environment according to the provided tuple (only argument)
 function AliExportVars() {
 
   local tuple="$1"
-  local sec vsubdir vver
-  local varmap=( root:ROOT_ geant3:G3_ aliroot:ALICE_ aliphysics:ALIPHYSICS_ )
+  local sec vsubdir vver skip
 
-  #
-  # AliEn
-  #
-
-  export ALIEN_DIR="$ALICE_PREFIX/alien"
-  export X509_CERT_DIR="$ALIEN_DIR/globus/share/certificates"
-
-  # AliEn source installation uses a different destination directory
-  [[ -d "$X509_CERT_DIR" ]] || X509_CERT_DIR="$ALIEN_DIR/api/share/certificates"
-
-  export GSHELL_ROOT="$ALIEN_DIR/api"
-  export PATH="$PATH:$GSHELL_ROOT/bin"
-  export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$GSHELL_ROOT/lib"
-  export DYLD_LIBRARY_PATH="$DYLD_LIBRARY_PATH:$GSHELL_ROOT/lib"
-
-  #
-  # Other modules
-  #
-
-  for sec in root geant3 aliroot aliphysics fastjet fjcontrib ; do
+  for sec in alien root geant3 aliroot aliphysics fastjet fjcontrib ; do
+    skip=0
     case $sec in
+      alien) skip=1 ;;
       root)       vsubdir='ROOT_SUBDIR'       ; vver='ROOT_VER'       ;;
       geant3)     vsubdir='G3_SUBDIR'         ; vver='G3_VER'         ;;
       aliroot)    vsubdir='ALICE_SUBDIR'      ; vver='ALICE_VER'      ;;
@@ -251,14 +233,27 @@ function AliExportVars() {
     esac
 
     raw=$( AliTupleSection "$tuple" $sec )
-    if [[ $? == 0 ]] ; then
-      ParseVerDir "$raw" $vsubdir $vver
+    if [[ $? == 0 && $skip != 1 ]] ; then
+      AliParseVerDir "$raw" $vsubdir $vver
       export $vsubdir
       export $vver
       unset vsubdir vver
     fi
 
     case $sec in
+
+      alien)
+        export ALIEN_DIR="$ALICE_PREFIX/alien"
+        export X509_CERT_DIR="$ALIEN_DIR/globus/share/certificates"
+
+        # AliEn source installation uses a different destination directory
+        [[ -d "$X509_CERT_DIR" ]] || X509_CERT_DIR="$ALIEN_DIR/api/share/certificates"
+
+        export GSHELL_ROOT="$ALIEN_DIR/api"
+        export PATH="$PATH:$GSHELL_ROOT/bin"
+        export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$GSHELL_ROOT/lib"
+        export DYLD_LIBRARY_PATH="$DYLD_LIBRARY_PATH:$GSHELL_ROOT/lib"
+      ;;
 
       root)
         export ROOTSYS="$ALICE_PREFIX/root/$ROOT_SUBDIR"
@@ -428,20 +423,21 @@ function AliPrintVars() {
   fi
 
   echo
-  echo -e "  ${Cc}AliEn${Cz}            $WHERE_IS_ALIEN"
-  echo -e "  ${Cc}ROOT${Cz}             $WHERE_IS_ROOT"
-  echo -e "  ${Cc}Geant3${Cz}           $WHERE_IS_G3"
+  echo -e "  ${Cc}AliEn${Cz}       $WHERE_IS_ALIEN"
+  echo -e "  ${Cc}ROOT${Cz}        $WHERE_IS_ROOT"
+  echo -e "  ${Cc}Geant3${Cz}      $WHERE_IS_G3"
   if [[ "$FASTJET" != '' ]] ; then
-    echo -e "  ${Cc}FastJet${Cz}          $WHERE_IS_FASTJET"
+    echo -e "  ${Cc}FastJet${Cz}     $WHERE_IS_FASTJET"
   fi
-  echo -e "  ${Cc}AliRoot core${Cz}   $WHERE_IS_ALISRC"
+  echo -e "  ${Cc}AliRoot${Cz}     $WHERE_IS_ALISRC"
+  echo -e "  ${Cc}AliPhysics${Cz}  $WHERE_IS_ALISRC"
   echo
 
 }
 
 # separates version from directory, if tuple component is expressed in the form directory(version);
 # if no (version) is provided, dir and version are set to the same value
-function ParseVerDir() {
+function AliParseVerDir() {
   local verAndDir="$1"
   local dirVar="$2"
   local verVar="$3"
@@ -510,7 +506,7 @@ AliTuple[1]='root=v5-34-18 geant3=v1-15a aliroot=master aliphysics=master'
 # You can add more tuples
 #AliTuple[4]='...'
 
-# Default triad (selected when running "source alice-env.sh -n")
+# Default software tuple (selected when running "source alice-env.sh -n")
 export nAliTuple=1
 _EoF_
 
@@ -533,12 +529,12 @@ _EoF_
     return 2
   fi
 
-  # If a triad was set before loading env, restore it
-  [[ "$N_TRIAD_BEFORE" != '' ]] && export N_TRIAD="$N_TRIAD_BEFORE"
+  # if a tuple was set before loading env, restore it
+  [[ "$nAliTuple_Before" != '' ]] && export nAliTuple="$nAliTuple_Before"
 
   # Auto-detect the ALICE_PREFIX
   export ALICE_PREFIX="${ALI_EnvScript%/*}"
-  if [ "$OPT_QUIET" != 1 ] ; then
+  if [[ "$OPT_QUIET" != 1 ]] ; then
     echo -e "\nUsing config file \033[36m$ALI_Conf\033[m"
     echo -e "ALICE software directory is \033[36m${ALICE_PREFIX}\033[m"
   fi
