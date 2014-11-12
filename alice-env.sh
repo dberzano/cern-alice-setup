@@ -121,9 +121,8 @@ function AliTupleSection() (
   return 1
 )
 
-# Removes directories from the specified PATH-like variable that contain the
-# given files. Variable is the first argument and it is passed by name, without
-# the dollar sign; subsequent arguments are the files to search for
+# removes from a $PATH-like variable all the paths containing at least one of the specified files:
+# variable name is the first argument, and file names are the remaining arguments
 function AliRemovePaths() {
 
   local RetainPaths="/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/usr/local/sbin:$HOME/bin"
@@ -172,8 +171,7 @@ function AliRemovePaths() {
 
 }
 
-# Cleans leading, trailing and double colons from the variable whose name is
-# passed as the only argument of the string
+# cleans leading, trailing and double colons from the variable whose name is passed as the only arg
 function AliCleanPathList() {
   local VARNAME="$1"
   local STR=`eval echo \\$$VARNAME`
@@ -187,32 +185,29 @@ function AliCleanPathList() {
   eval export $VARNAME=\"$STR\"
 }
 
-# Cleans up the environment from previously set (DY)LD_LIBRARY_PATH and PATH
-# variables
+# cleans up the environment from previously set (DY)LD_LIBRARY_PATH and PATH variables
 function AliCleanEnv() {
   AliRemovePaths PATH alien_cp aliroot root fastjet-config
-  AliRemovePaths LD_LIBRARY_PATH libCint.so libSTEER.so libXrdSec.so \
-    libgeant321.so libgapiUI.so libfastjet.so libfastjet.dylib
-  AliRemovePaths DYLD_LIBRARY_PATH libCint.so libSTEER.so libXrdSec.so \
-    libgeant321.so libgapiUI.so libfastjet.so libfastjet.dylib
+  AliRemovePaths LD_LIBRARY_PATH libCint.so libSTEER.so libXrdSec.so libgeant321.so libgapiUI.so \
+    libfastjet.so libfastjet.dylib
+  AliRemovePaths DYLD_LIBRARY_PATH libCint.so libSTEER.so libXrdSec.so libgeant321.so libgapiUI.so \
+    libfastjet.so libfastjet.dylib
   AliRemovePaths PYTHONPATH ROOT.py 
 
-  # Restore prompt
+  # restore prompt
   [[ "$ALIPS1" != '' ]] && export PS1="$ALIPS1"
   unset ALIPS1
 
-  # Unset other environment variables and aliases
-  unset MJ ALIEN_DIR GSHELL_ROOT ROOTSYS ALICE ALICE_ROOT ALICE_BUILD \
-    ALICE_TARGET GEANT3DIR X509_CERT_DIR ALICE FASTJET \
-    ALICE_ENV_UPDATE_URL ALICE_ENV_DONT_UPDATE
+  # unset other environment variables and aliases
+  unset MJ ALIEN_DIR GSHELL_ROOT ROOTSYS ALICE ALICE_ROOT ALICE_BUILD ALICE_TARGET GEANT3DIR \
+    X509_CERT_DIR ALICE FASTJET ALICE_ENV_UPDATE_URL ALICE_ENV_DONT_UPDATE
 }
 
-# Sets the number of parallel workers for make to the number of cores plus one
-# in external variable MJ
+# sets the number of parallel workers for make to the number of cores plus one to variable MJ
 function AliSetParallelMake() {
   MJ=`grep -c bogomips /proc/cpuinfo 2> /dev/null`
-  [ "$?" != 0 ] && MJ=`sysctl hw.ncpu | cut -b10 2> /dev/null`
-  # If MJ is NaN, "let" treats it as "0": always fallback to 1 core
+  [[ "$?" != 0 ]] && MJ=`sysctl hw.ncpu | cut -b10 2> /dev/null`
+  # if MJ is NaN, "let" treats it as "0", i.e.: always fallback to 1 core
   let MJ++
   export MJ
 }
@@ -477,29 +472,28 @@ function AliConf() {
 # Automatically created by alice-env.sh on $( LANG=C date )
 
 #
-# Triads: they start from 1 (not 0) and must be consecutive
+# Software tuples: they start from 1 (not 0) and must be consecutive.
 #
 # Format:
-#   TRIAD[n]='ROOT Geant3 AliRoot [FastJet[_FJContrib]]'
+#   AliTuple[n]='root=<rootver> geant3=<geant3ver> aliroot=<alirootver> aliphysics=<aliphysicsver> fastjet=<fjver> fjcontrib=<fjcontribver>'
 #
-# FastJet is optional. FJ Contrib is optional with FastJet 2 and mandatory with
-# FastJet 3.
+# Note: FastJet and FJContrib are optional.
 #
 
 # No FastJet
-TRIAD[1]='v5-34-18 v1-15a master'
+AliTuple[1]='root=v5-34-18 geant3=v1-15a aliroot=master aliphysics=master'
 
 # FastJet 2
-#TRIAD[2]='v5-34-18 v1-15a master 2.4.5'
+#AliTuple[2]='root=v5-34-18 geant3=v1-15a aliroot=master aliphysics=master fastjet=2.4.5'
 
 # FastJet 3
-#TRIAD[3]='v5-34-18 v1-15a master 3.0.6_1.012'
+#AliTuple[3]='root=v5-34-18 geant3=v1-15a aliroot=master aliphysics=master fastjet=3.0.6 fjcontrib=1.012'
 
-# You can add more triads
-#TRIAD[4]='...'
+# You can add more tuples
+#AliTuple[4]='...'
 
 # Default triad (selected when running "source alice-env.sh -n")
-export N_TRIAD=1
+export nAliTuple=1
 _EoF_
 
     if [ $? != 0 ] ; then
