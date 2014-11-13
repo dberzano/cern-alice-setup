@@ -783,7 +783,7 @@ function ModuleCleanAliEn() {
   local AliEnDir
   Banner "Cleaning AliEn..."
   Swallow -f "Sourcing envvars" SourceEnvVars
-  find "$ALICE_PREFIX" -name 'alien.v*' -and -type d -maxdepth 1 | \
+  find "$ALICE_PREFIX" -maxdepth 1 -name 'alien.v*' -and -type d | \
   while read AliEnDir ; do
     AliEnVer=`basename "$AliEnDir"`
     AliEnVer=${AliEnVer:6}
