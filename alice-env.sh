@@ -197,14 +197,14 @@ function AliCleanEnv() {
 
   if [[ $1 == '--extra' ]] ; then
 
-    unset ALICE_PREFIX \
+    unset ALI_nAliTuple ALI_EnvScript ALI_Conf \
+      ALICE_PREFIX \
       ROOT_VER ROOT_SUBDIR \
       G3_VER G3_SUBDIR \
       ALICE_VER ALICE_SUBDIR \
       ALIPHYSICS_VER ALIPHYSICS_SUBDIR \
       FASTJET_VER FASTJET_SUBDIR FJCONTRIB_VER \
       alien_API_USER AliPrompt \
-      ALI_N_TRIAD ALI_EnvScript ALI_Conf \
       ALICE_ENV_DONT_CHANGE_PS1
 
   elif [[ $1 == '--final' ]] ; then
