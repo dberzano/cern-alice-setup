@@ -690,6 +690,9 @@ function ModuleAliRoot() {
     # Assemble cmake command
     if [ ! -e "Makefile" ]; then
 
+      # Build with FastJet?
+      local FastJetFlag="-DFASTJET=$FASTJET"
+
       if [ "$BUILDOPT_LDFLAGS" != '' ]; then
 
         # Special configuration for latest Ubuntu/Linux Mint
@@ -701,7 +704,8 @@ function ModuleAliRoot() {
             -DCMAKE_MODULE_LINKER_FLAGS="$BUILDOPT_LDFLAGS" \
             -DCMAKE_SHARED_LINKER_FLAGS="$BUILDOPT_LDFLAGS" \
             -DCMAKE_EXE_LINKER_FLAGS="$BUILDOPT_LDFLAGS" \
-            -DROOTSYS="$ROOTSYS"
+            -DROOTSYS="$ROOTSYS" \
+            $FastJetFlag
 
       else
 
@@ -711,7 +715,8 @@ function ModuleAliRoot() {
             -DCMAKE_C_COMPILER=`root-config --cc` \
             -DCMAKE_CXX_COMPILER=`root-config --cxx` \
             -DCMAKE_Fortran_COMPILER=`root-config --f77` \
-            -DROOTSYS="$ROOTSYS"
+            -DROOTSYS="$ROOTSYS" \
+            $FastJetFlag
 
       fi
 
