@@ -11,7 +11,7 @@
 # Variables
 #
 
-export SWALLOW_LOG="/tmp/alice-autobuild-$USER"
+export SWALLOW_LOG="/tmp/alice-autobuild-$USER-$$"
 export ERR="$SWALLOW_LOG.err"
 export OUT="$SWALLOW_LOG.out"
 export NCORES=0
