@@ -589,7 +589,6 @@ function ModuleFastJet() {
     export CXXFLAGS="$BUILDOPT_LDFLAGS -lgmp"
     SwallowProgress -f --pattern "Configuring FastJet" \
       ./configure --enable-cgal --prefix=$FASTJET
-    unset CXXFLAGS CXX
 
     SwallowProgress -f --pattern "Building FastJet" make -j$MJ install
 
@@ -603,11 +602,13 @@ function ModuleFastJet() {
       Swallow -f "Moving into FastJet contrib build directory" \
         cd "$FASTJET/src/fjcontrib-$FJCONTRIB_VER"
 
-      SwallowProgress -f --pattern "Configuring FastJet contrib" ./configure
+      SwallowProgress -f --pattern "Configuring FastJet contrib" ./configure CXX="$CXX" CXXFLAGS="$CXXFLAGS"
       SwallowProgress -f --pattern "Building FastJet contrib" make -j$MJ install
       SwallowProgress -f --pattern "Building FastJet contrib shared library" make -j$MJ fragile-shared-install
 
     fi
+
+    unset CXXFLAGS CXX
 
   fi
 
