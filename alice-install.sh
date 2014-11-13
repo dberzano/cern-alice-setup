@@ -404,11 +404,18 @@ function ModuleRoot() {
     case "$BUILD_MODE" in
 
       gcc)
-        ConfigOpts="--with-f77=gfortran $ConfigOpts"
+        ConfigOpts="--with-f77=$( which gfortran ) \
+          --with-cc=$( which gcc ) \
+          --with-cxx=$( which g++ ) \
+          --with-ld=$( which g++ ) $ConfigOpts"
       ;;
 
       clang)
-        ConfigOpts="--with-clang --with-f77=gfortran $ConfigOpts"
+        ConfigOpts="--with-clang \
+          --with-f77=$( which gfortran ) \
+          --with-cc=$( which clang ) \
+          --with-cxx=$( which clang++ ) \
+          --with-ld=$( which clang++ ) $ConfigOpts"
       ;;
 
       custom-gcc)
