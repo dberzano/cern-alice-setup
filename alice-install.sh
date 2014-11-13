@@ -244,36 +244,6 @@ function Banner() {
   echo -e '\033[33m'"$1"'\033[m'
 }
 
-# Tries different SVN servers before giving up on error. Arguments:
-#  - $1: pipe-separated list of servers with protocol, i.e.:
-#        "https://root.cern.ch|http://root.cern.ch|svn://root.cern.ch"
-#  - $@: svn command: @SERVER@ will be substituted with proto://server
-function MultiSvn() {
-  local SvnServers OldIFS Srv Arg NewArg SvnCmd
-  SvnServers="$1"
-  shift
-  OldIFS="$IFS"
-  IFS='|'
-  for Srv in $SvnServers ; do
-    IFS="$OldIFS"
-
-    # Substitute @SERVER@ in command
-    SvnCmd=( svn )
-    for Arg in $@ ; do
-      NewArg=`echo "$Arg" | sed -e "s#@SERVER@#$Srv#g"`
-      SvnCmd[${#SvnCmd[@]}]="$NewArg"
-    done
-
-    echo "--> Trying SVN command: ${SvnCmd[@]}"
-    ${SvnCmd[@]} && return 0  # IFS is the right one
-    echo "--> SVN command failed: ${SvnCmd[@]}"
-
-    IFS='|'
-  done
-  IFS="$OldIFS"
-  return 1
-}
-
 # Prepares information for bug report
 function PrepareBugReport() {
 
@@ -353,9 +323,6 @@ function ShowBugReportInfo() {
 
 # Module to fetch and compile ROOT
 function ModuleRoot() {
-
-  local SVN_LIST='https://root.cern.ch|http://root.cern.ch'
-  local SVN_ROOT='/svn/root'
 
   Banner "Installing ROOT..."
   Swallow -f "Sourcing envvars" SourceEnvVars
@@ -473,9 +440,6 @@ function ModuleRoot() {
 
 # Module to fetch and compile Geant3
 function ModuleGeant3() {
-
-  local SVN_LIST='https://root.cern.ch|http://root.cern.ch'
-  local SVN_G3="/svn/geant3/"
 
   Banner "Installing Geant3..."
   Swallow -f "Sourcing envvars" SourceEnvVars
