@@ -574,10 +574,22 @@ function ModuleFastJet() {
     Swallow -f "Moving into FastJet build directory" \
       cd "$FASTJET/src/fastjet-$FASTJET_VER"
 
+    case "$BUILD_MODE" in
+      gcc)
+        export CXX=$( which g++ )
+      ;;
+      clang)
+        export CXX=$( which clang++ )
+      ;;
+      custom-gcc)
+        export CXX=$CUSTOM_GCC_PATH/bin/g++
+      ;;
+    esac
+
     export CXXFLAGS="$BUILDOPT_LDFLAGS -lgmp"
     SwallowProgress -f --pattern "Configuring FastJet" \
       ./configure --enable-cgal --prefix=$FASTJET
-    unset CXXFLAGS
+    unset CXXFLAGS CXX
 
     SwallowProgress -f --pattern "Building FastJet" make -j$MJ install
 
