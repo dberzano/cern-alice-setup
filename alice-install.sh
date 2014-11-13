@@ -1052,32 +1052,32 @@ function DetectOsBuildOpts() {
   local OsName
   local OsVer
 
-  if [ "$KernelName" == 'Darwin' ]; then
+  if [[ $KernelName == 'Darwin' ]] ; then
     ALIEN_INSTALL_TYPE='user'
 
     # Needed for including <cstdlib>: fixes fabs errors with libc++
     FASTJET_PATCH_HEADERS=1
 
     OsVer=`uname -r | cut -d. -f1`
-    if [[ "$OsVer" -ge 11 ]] ; then
+    if [[ $OsVer -ge 11 ]] ; then
       # 11 = Lion (10.7)
       SUPPORTED_BUILD_MODES='clang custom-gcc'
     fi
-    if [[ "$OsVer" -ge 12 ]] ; then
+    if [[ $OsVer -ge 12 ]] ; then
       # 12 = Mountain Lion (10.8)
       BUILDOPT_CPATH='/usr/X11/include'  # XQuartz
       ALIEN_INSTALL_TYPE='compile'
       MIN_ROOT_VER_STR='v5-34-18'
     fi
-    if [[ "$OsVer" -ge 13 ]] ; then
+    if [[ $OsVer -ge 13 ]] ; then
       # 13 = Mavericks (10.9)
       SUPPORTED_BUILD_MODES='clang'
     fi
-    if [[ "$OsVer" -ge 14 ]] ; then
+    if [[ $OsVer -ge 14 ]] ; then
       # 14 = Yosemite (10.10)
       MIN_ROOT_VER_STR='v5-34-22'
     fi
-  elif [ "$KernelName" == 'Linux' ]; then
+  elif [[ $KernelName == 'Linux' ]] ; then
     ALIEN_INSTALL_TYPE='compile'
     SUPPORTED_BUILD_MODES='gcc custom-gcc'
     OsName=`source $VerFile > /dev/null 2>&1 ; echo $DISTRIB_ID`
