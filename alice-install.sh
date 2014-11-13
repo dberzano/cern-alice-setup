@@ -1079,7 +1079,7 @@ function DetectOsBuildOpts() {
     fi
   elif [[ $KernelName == 'Linux' ]] ; then
     ALIEN_INSTALL_TYPE='compile'
-    SUPPORTED_BUILD_MODES='gcc custom-gcc'
+    SUPPORTED_BUILD_MODES='gcc custom-gcc clang'
     OsName=`source $VerFile > /dev/null 2>&1 ; echo $DISTRIB_ID`
     OsVer=`source $VerFile > /dev/null 2>&1 ; echo $DISTRIB_RELEASE | tr -d .`
     if [ "$OsName" == 'Ubuntu' ] && [ "$OsVer" -ge 1110 ]; then
