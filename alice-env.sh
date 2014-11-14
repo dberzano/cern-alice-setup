@@ -500,8 +500,9 @@ function AliConf() {
 #
 # Software tuples: they start from 1 (not 0) and must be consecutive.
 #
-# Format:
-#   AliTuple[n]='root=<rootver> geant3=<geant3ver> aliroot=<alirootver> aliphysics=<aliphysicsver> fastjet=<fjver> fjcontrib=<fjcontribver>'
+# Format (you can also type it on a single long line):
+#   AliTuple[n]='root=<rootver> geant3=<geant3ver> aliroot=<alirootver> \\
+#                aliphysics=<aliphysicsver> fastjet=<fjver> fjcontrib=<fjcontribver>'
 #
 # Note: FastJet and FJContrib are optional.
 #
@@ -513,7 +514,8 @@ AliTuple[1]='root=v5-34-18 geant3=v1-15a aliroot=master aliphysics=master'
 #AliTuple[2]='root=v5-34-18 geant3=v1-15a aliroot=master aliphysics=master fastjet=2.4.5'
 
 # FastJet 3
-#AliTuple[3]='root=v5-34-18 geant3=v1-15a aliroot=master aliphysics=master fastjet=3.0.6 fjcontrib=1.012'
+#AliTuple[3]='root=v5-34-18 geant3=v1-15a aliroot=master aliphysics=master \\
+#             fastjet=3.0.6 fjcontrib=1.012'
 
 # You can add more tuples
 #AliTuple[4]='...'
@@ -563,7 +565,8 @@ _EoF_
 #   AliUpdate 2
 function AliUpdate() {
 
-  local UpdUrl=${ALICE_ENV_UPDATE_URL:-https://raw.githubusercontent.com/dberzano/cern-alice-setup/master/alice-env.sh}
+  local DefUpdUrl='https://raw.githubusercontent.com/dberzano/cern-alice-setup/master/alice-env.sh'
+  local UpdUrl=${ALICE_ENV_UPDATE_URL:-${DefUpdUrl}}
   local UpdStatus="${ALICE_PREFIX}/.alice-env.updated"
   local UpdTmp="${ALICE_PREFIX}/.alice-env.sh.new"
   local UpdBackup="${ALICE_PREFIX}/.alice-env.sh.old"
@@ -656,7 +659,9 @@ function AliMain() {
     ALI_rv=$?
     if [[ $ALI_rv == 42 ]] ; then
       # script changed: re-source
-      [[ "$OPT_QUIET" != 1 ]] && echo -e "\n${Cg}Environment script automatically updated to the latest version: reloading${Cz}"
+      if [[ "$OPT_QUIET" != 1 ]] ; then
+        echo -e "\n${Cg}Environment script has been updated to the latest version: reloading${Cz}"
+      fi
       source "$ALI_EnvScript" "${ARGS[@]}" -k
       return $?
     elif [[ $ALI_rv -ge 10 ]] ; then
@@ -672,7 +677,8 @@ function AliMain() {
   if [[ ! $nAliTuple =~ ^[[:digit:]]+$ || $nAliTuple -gt ${#AliTuple[@]} ]] ; then
     echo
     echo -e "${Cr}Invalid tuple: ${Cb}${nAliTuple}${Cz}"
-    echo -e "${Cr}Check the value of ${Cb}nAliTuple${Cr} in ${Cb}${ALI_Conf}${Cr}, or provide a correct value with \"-n <n_tuple>\"${Cz}"
+    echo -e "${Cr}Check the value of ${Cb}nAliTuple${Cr} in ${Cb}${ALI_Conf}${Cr}," \
+      "or provide a correct value with \"-n <n_tuple>\"${Cz}"
     OPT_CLEANENV=1
   elif [[ $nAliTuple == 0 ]] ; then
     # same as above but with no output
