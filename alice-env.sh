@@ -49,6 +49,7 @@ Cr="\033[31m"
 Cw="\033[37m"
 Cz="\033[m"
 Br="\033[41m"
+By="\033[43m"
 
 #
 # Functions
@@ -210,7 +211,7 @@ function AliCleanEnv() {
   elif [[ $1 == '--final' ]] ; then
 
     # clean color definitions
-    unset Cm Cy Cc Cb Cg Cr Cw Cz Br
+    unset Cm Cy Cc Cb Cg Cr Cw Cz Br By
 
     # clean tuples
     unset AliTuple nAliTuple
@@ -538,8 +539,18 @@ _EoF_
   fi
 
   if [[ ${#AliTuple[@]} == 0 ]] ; then
-    echo -e "${Cy}No ALICE software tuples found in config file $ALI_Conf, aborting.${Cz}"
-    return 2
+    if [[ ${#TRIAD[@]} != 0 ]] ; then
+      # configuration is in the old format: migrate it to the new one
+      AliConfMigrate
+      if [[ $? == 0 ]] ; then
+        return 1  # migration successful
+      else
+        return 3 # migration unsuccessful
+      fi
+    else
+      echo -e "${Cy}No ALICE software tuples found in config file $ALI_Conf, aborting.${Cz}"
+      return 2
+    fi
   fi
 
   # if a tuple was set before loading env, restore it
@@ -553,6 +564,88 @@ _EoF_
   fi
 
   return 0
+}
+
+# migrates old "triads" file to the new format: one day we will remove this function!
+function AliConfMigrate() {
+  local raw
+  local oldIfs="$IFS"
+  IFS=''
+  local pat_comment='^[[:blank:]]*#'
+  local pat_triad='([[:blank:]]*)TRIAD(\[[0-9]+\])=(.*)'
+  local ptriad ptuple pt pcount pfail pfj pfc
+  local ALI_ConfOld=${ALI_Conf}.old_triads
+  local ALI_ConfNew=${ALI_Conf}.new_tuples
+  while read raw ; do
+    if [[ $raw =~ $pat_comment ]] ; then
+      # comments untouched
+      echo "${raw}"
+    elif [[ $raw =~ $pat_triad ]] ; then
+      ptuple="${BASH_REMATCH[1]}AliTuple${BASH_REMATCH[2]}='"
+      eval "ptriad=${BASH_REMATCH[3]}"
+      if [[ $? != 0 ]] ; then
+        pfail=1
+        break
+      fi
+      IFS="$oldIfs"
+      ptriad=$( echo $ptriad )
+      pcount=0
+      for pt in $ptriad ; do
+        let pcount++
+        case $pcount in
+          1)
+            # ROOT
+            ptuple="${ptuple}root=${pt} "
+          ;;
+          2)
+            # Geant3
+            ptuple="${ptuple}geant3=${pt} "
+          ;;
+          3)
+            # AliRoot -> AliRoot + AliPhysics
+            ptuple="${ptuple}aliroot=${pt} aliphysics=${pt} "
+          ;;
+          4)
+            # FastJet
+            pfj=${pt%%_*}
+            pfc=${pt#*_}
+            if [[ $pfj == $pt ]] ; then
+              # no FJContrib
+              ptuple="${ptuple}fastjet=${pt}"
+            else
+              # FastJet + FJContrib
+              ptuple="${ptuple}fastjet=${pfj} fjcontrib=${pfc}"
+            fi
+          ;;
+        esac
+      done
+      IFS=''
+      ptuple="${ptuple}'"
+      echo "${ptuple}"
+    else
+      echo "${raw}"
+    fi
+  done < <( cat "$ALI_Conf" | sed -e 's/^\([^#]*\)N_TRIAD=/\1nAliTuple=/g' ) > "${ALI_ConfNew}"
+  IFS="$oldIfs"
+
+  if [[ $pfail != 1 && -s "$ALI_Conf" && -s "$ALI_ConfNew" && ! -e "$ALI_ConfOld" ]] ; then
+    \mv "${ALI_Conf}" "${ALI_ConfOld}"
+    \mv "${ALI_ConfNew}" "${ALI_Conf}"
+    echo -e "${Cg}Configuration file format has changed!${Cz}"
+    echo -e "${Cg}We have updated ${Cc}${ALI_Conf}${Cg} to the new format automatically.${Cz}"
+    echo
+    echo -e "${Cg}Old file has been kept in ${Cc}${ALI_ConfOld}${Cg}.${Cz}"
+    echo
+    echo -e "${By}${Cb}!!! Important: environment has not been loaded this time !!!${Cz}"
+    echo -e "  ${Cb}-${Cy} open ${Cb}${ALI_Conf}${Cy} and check if everything is OK${Cz}"
+    echo -e "  ${Cb}-${Cy} refer to the ${Cb}installation manual${Cy} to read about the update${Cz}"
+    echo -e "  ${Cb}-${Cy} if something is wrong, restore the backup ${Cb}${ALI_ConfOld}${Cy}" \
+            "and edit it manually${Cz}"
+    echo -e "  ${Cb}-${Cy} re-source ${Cb}${ALI_EnvScript}${Cy} to load the environment${Cz}"
+    return 0
+  fi
+
+  return 1
 }
 
 # updates this very file, if necessary; return codes:
