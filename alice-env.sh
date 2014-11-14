@@ -469,25 +469,25 @@ function AliConf() {
   local ALI_ConfFound ALI_ConfFiles
   local nAliTuple_Before="$nAliTuple"
 
-  # Normalize path to this script
+  # normalize path to this script
   ALI_EnvScript="${BASH_SOURCE}"
-  if [ "${ALI_EnvScript:0:1}" != '/' ] ; then
+  if [[ ${ALI_EnvScript:0:1} != '/' ]] ; then
     ALI_EnvScript="${PWD}/${BASH_SOURCE}"
   fi
   ALI_EnvScript=$( cd "${ALI_EnvScript%/*}" ; pwd )"/${ALI_EnvScript##*/}"
 
-  # Configuration file path: the first file found is loaded
+  # configuration file path: the first file found is loaded
   ALI_ConfFiles=( "${ALI_EnvScript%.*}.conf" "$HOME/.alice-env.conf" )
   for ALI_Conf in "${ALI_ConfFiles[@]}" ; do
-    if [ -r "$ALI_Conf" ] ; then
+    if [[ -r "$ALI_Conf" ]] ; then
       source "$ALI_Conf" > /dev/null 2>&1
       ALI_ConfFound=1
       break
     fi
   done
 
-  if [ "$ALI_ConfFound" != 1 ] ; then
-    # No configuration file found: create a default one
+  if [[ $ALI_ConfFound != 1 ]] ; then
+    # no configuration file found: create a default one
     echo -e "${Cy}No configuration file found.${Cz}"
     echo
 
@@ -524,7 +524,7 @@ AliTuple[1]='root=v5-34-18 geant3=v1-15a aliroot=master aliphysics=master'
 export nAliTuple=1
 _EoF_
 
-    if [ $? != 0 ] ; then
+    if [[ $? != 0 ]] ; then
       echo -e "${Cr}Unable to create default configuration:${Cz}"
       echo -e "  ${Cc}${ALI_Conf}${Cz}" ; echo
       echo -e "${Cr}Check your permissions.${Cz}"
@@ -545,7 +545,7 @@ _EoF_
   # if a tuple was set before loading env, restore it
   [[ "$nAliTuple_Before" != '' ]] && export nAliTuple="$nAliTuple_Before"
 
-  # Auto-detect the ALICE_PREFIX
+  # auto-detect the ALICE_PREFIX
   export ALICE_PREFIX="${ALI_EnvScript%/*}"
   if [[ "$OPT_QUIET" != 1 ]] ; then
     echo -e "\nUsing config file ${Cc}${ALI_Conf}${Cz}"
