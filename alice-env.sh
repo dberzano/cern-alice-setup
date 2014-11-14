@@ -539,7 +539,6 @@ _EoF_
 
   if [[ ${#AliTuple[@]} == 0 ]] ; then
     echo -e "${Cy}No ALICE software tuples found in config file $ALI_Conf, aborting.${Cz}"
-    echo ${AliTuple[@]}
     return 2
   fi
 
