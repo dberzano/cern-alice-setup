@@ -671,8 +671,8 @@ function AliMain() {
 
   if [[ ! $nAliTuple =~ ^[[:digit:]]+$ || $nAliTuple -gt ${#AliTuple[@]} ]] ; then
     echo
-    echo -e "${Cr}Invalid triad: ${Cb}${nAliTuple}${Cz}"
-    echo -e "${Cr}Check the value of ${Cb}N_TRIAD${Cr} in ${Cb}${ALI_Conf}${Cr}, or provide a correct value with \"-n <n_triad>\"${Cz}"
+    echo -e "${Cr}Invalid tuple: ${Cb}${nAliTuple}${Cz}"
+    echo -e "${Cr}Check the value of ${Cb}nAliTuple${Cr} in ${Cb}${ALI_Conf}${Cr}, or provide a correct value with \"-n <n_tuple>\"${Cz}"
     OPT_CLEANENV=1
   elif [[ $nAliTuple == 0 ]] ; then
     # same as above but with no output
