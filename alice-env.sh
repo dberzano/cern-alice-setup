@@ -645,6 +645,11 @@ function AliConfMigrate() {
     return 0
   fi
 
+  \rm -f "${ALI_ConfNew}"
+  echo -e "${Cr}Configuration file format has changed.${Cz}"
+  echo -e "${Cr}However, we could not update ${Cb}${ALI_Conf}${Cr} automatically.${Cz}"
+  echo -e "${Cr}Please refer to the ${Cb}installation manual${Cr} and update it manually.${Cz}"
+
   return 1
 }
 
