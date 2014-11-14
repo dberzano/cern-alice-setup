@@ -209,6 +209,9 @@ function AliCleanEnv() {
 
   elif [[ $1 == '--final' ]] ; then
 
+    # clean color definitions
+    unset Cm Cy Cc Cb Cg Cr Cw Cz Br
+
     # clean tuples
     unset AliTuple nAliTuple
 
@@ -363,11 +366,11 @@ function AliExportVars() {
 # prompt with current Git revision
 function AliPrompt() {
   local REF=`git rev-parse --abbrev-ref HEAD 2> /dev/null`
-  local COL_GIT="\033[35mgit:\033[m"
+  local COL_GIT="${Cm}git:${Cz}"
   if [ "$REF" == 'HEAD' ] ; then
-    echo -e "\n$COL_GIT \033[33myou are not currently on any branch\033[m"
+    echo -e "\n${COL_GIT} ${Cy}you are not currently on any branch${Cz}"
   elif [ "$REF" != '' ] ; then
-    echo -e "\n$COL_GIT \033[33myou are currently on branch \033[36m$REF\033[m"
+    echo -e "\n${COL_GIT} ${Cy}you are currently on branch ${Cc}${REF}${Cz}"
   fi
   echo '[AliEnv] '
 }
@@ -485,7 +488,7 @@ function AliConf() {
 
   if [ "$ALI_ConfFound" != 1 ] ; then
     # No configuration file found: create a default one
-    echo -e "\033[33mNo configuration file found.\033[m"
+    echo -e "${Cy}No configuration file found.${Cz}"
     echo
 
     ALI_Conf="${ALI_ConfFiles[0]}"
@@ -520,20 +523,20 @@ export nAliTuple=1
 _EoF_
 
     if [ $? != 0 ] ; then
-      echo -e "\033[31mUnable to create default configuration:\033[m"
-      echo -e "  \033[36m${ALI_Conf}\033[m" ; echo
-      echo -e "\033[31mCheck your permissions.\033[m"
+      echo -e "${Cr}Unable to create default configuration:${Cz}"
+      echo -e "  ${Cc}${ALI_Conf}${Cz}" ; echo
+      echo -e "${Cr}Check your permissions.${Cz}"
       return 2
     else
       echo "A default one has been created. Find it at:"
-      echo -e "  \033[36m${ALI_Conf}\033[m" ; echo
+      echo -e "  ${Cc}${ALI_Conf}${Cz}" ; echo
       echo "Edit it according to your needs, then source the environment again."
       return 1
     fi
   fi
 
   if [[ ${#AliTuple[@]} == 0 ]] ; then
-    echo -e "\033[33mNo ALICE software tuples found in config file $ALI_Conf, aborting.\033[m"
+    echo -e "${Cy}No ALICE software tuples found in config file $ALI_Conf, aborting.${Cz}"
     echo ${AliTuple[@]}
     return 2
   fi
@@ -544,8 +547,8 @@ _EoF_
   # Auto-detect the ALICE_PREFIX
   export ALICE_PREFIX="${ALI_EnvScript%/*}"
   if [[ "$OPT_QUIET" != 1 ]] ; then
-    echo -e "\nUsing config file \033[36m$ALI_Conf\033[m"
-    echo -e "ALICE software directory is \033[36m${ALICE_PREFIX}\033[m"
+    echo -e "\nUsing config file ${Cc}${ALI_Conf}${Cz}"
+    echo -e "ALICE software directory is ${Cc}${ALICE_PREFIX}${Cz}"
   fi
 
   return 0
@@ -694,7 +697,7 @@ function AliMain() {
     # Those variables are not cleaned by AliCleanEnv
     AliCleanEnv --extra
     if [[ "$OPT_QUIET" != 1 ]] ; then
-      echo -e "\033[33mALICE environment variables purged\033[m"
+      echo -e "${Cy}ALICE environment variables purged${Cz}"
     fi
   fi
 
