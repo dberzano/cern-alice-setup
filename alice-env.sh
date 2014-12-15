@@ -323,16 +323,16 @@ function AliExportVars() {
         fi
 
         export ALICE_TARGET=`root-config --arch 2> /dev/null`
-        if [[ -d "${ALICE_BUILD}/version" ]] ; then
-          # we have used "make install"
-          export PATH="$PATH:${ALICE_INSTALL}/bin"
-          export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:${ALICE_INSTALL}/lib"
-          export DYLD_LIBRARY_PATH="$DYLD_LIBRARY_PATH:${ALICE_INSTALL}/lib"
-        else
+        if [[ -e "${ALICE_BUILD}/Makefile" && ! -d "${ALICE_BUILD}/version" ]] ; then
           # we did not use "make install": use from build dir
           export PATH="$PATH:${ALICE_BUILD}/bin/tgt_${ALICE_TARGET}"
           export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:${ALICE_BUILD}/lib/tgt_${ALICE_TARGET}"
           export DYLD_LIBRARY_PATH="$DYLD_LIBRARY_PATH:${ALICE_BUILD}/lib/tgt_${ALICE_TARGET}"
+        else
+          # we have used "make install"
+          export PATH="$PATH:${ALICE_INSTALL}/bin"
+          export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:${ALICE_INSTALL}/lib"
+          export DYLD_LIBRARY_PATH="$DYLD_LIBRARY_PATH:${ALICE_INSTALL}/lib"
         fi
       ;;
 
