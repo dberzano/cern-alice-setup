@@ -34,7 +34,7 @@ export MIN_ROOT_VER_STR='all'
 function SourceEnvVars() {
   local R
   [[ ! -r "$ALI_EnvScript" ]] && return 100
-  source "$ALI_EnvScript" -n "$ALI_N_TRIAD"
+  source "$ALI_EnvScript" -n "$ALI_nAliTuple"
   R=$?
   [[ $NCORES -gt 0 ]] && MJ=$NCORES
   return $R
@@ -690,6 +690,9 @@ function ModuleAliRoot() {
     # Assemble cmake command
     if [ ! -e "Makefile" ]; then
 
+      # Build with FastJet?
+      local FastJetFlag="-DFASTJET=$FASTJET"
+
       if [ "$BUILDOPT_LDFLAGS" != '' ]; then
 
         # Special configuration for latest Ubuntu/Linux Mint
@@ -700,7 +703,11 @@ function ModuleAliRoot() {
             -DCMAKE_Fortran_COMPILER=`root-config --f77` \
             -DCMAKE_MODULE_LINKER_FLAGS="$BUILDOPT_LDFLAGS" \
             -DCMAKE_SHARED_LINKER_FLAGS="$BUILDOPT_LDFLAGS" \
-            -DCMAKE_EXE_LINKER_FLAGS="$BUILDOPT_LDFLAGS"
+            -DCMAKE_EXE_LINKER_FLAGS="$BUILDOPT_LDFLAGS" \
+            -DCMAKE_INSTALL_PREFIX="$ALICE_INSTALL" \
+            -DALIEN="$ALIEN_DIR" \
+            -DROOTSYS="$ROOTSYS" \
+            $FastJetFlag
 
       else
 
@@ -709,7 +716,11 @@ function ModuleAliRoot() {
           cmake "$ALICE_ROOT" \
             -DCMAKE_C_COMPILER=`root-config --cc` \
             -DCMAKE_CXX_COMPILER=`root-config --cxx` \
-            -DCMAKE_Fortran_COMPILER=`root-config --f77`
+            -DCMAKE_Fortran_COMPILER=`root-config --f77` \
+            -DCMAKE_INSTALL_PREFIX="$ALICE_INSTALL" \
+            -DALIEN="$ALIEN_DIR" \
+            -DROOTSYS="$ROOTSYS" \
+            $FastJetFlag
 
       fi
 
@@ -717,8 +728,14 @@ function ModuleAliRoot() {
 
     SwallowProgress -f --percentage "Building AliRoot" make -j$MJ
 
-    Swallow -f "Symlinking AliRoot include directory" \
-      ln -nfs "$ALICE_BUILD"/include "$ALICE_ROOT"/include
+    if [[ -d "${ALICE_BUILD}/version" ]] ; then
+      # this dir only exists in "modern" AliRoot versions: we can trust install
+      SwallowProgress -f --percentage "Installing AliRoot" make -j$MJ install
+    else
+      # legacy: do not trust "make install"
+      Swallow -f "Symlinking AliRoot include directory" \
+        ln -nfs "$ALICE_BUILD"/include "$ALICE_ROOT"/include
+    fi
 
     Swallow -f "Sourcing envvars" SourceEnvVars
 
@@ -840,8 +857,11 @@ function ModuleCleanFastJet() {
 function ModuleCleanAliRoot() {
   Banner "Cleaning AliRoot..."
   Swallow -f "Sourcing envvars" SourceEnvVars
-  Swallow "Checking if AliRoot is really installed" [ -d "$ALICE_BUILD"/../build ] || return 0
+  Swallow "Checking if AliRoot is really there" [ -d "$ALICE_BUILD"/../build ] || return 0
   Swallow -f "Removing AliRoot build directory" rm -rf "$ALICE_BUILD"/../build
+  if [[ -x "$ALICE_INSTALL/bin/aliroot" ]] ; then
+    Swallow -f "Removing AliRoot install directory" rm -rf "$ALICE_INSTALL"
+  fi
 }
 
 # Download URL $1 to file $2 using wget or curl
@@ -864,7 +884,7 @@ function ModuleCheckPrereq() {
   Swallow -f 'Checking if on a 64 bit machine' [ `uname -m` == 'x86_64' ]
   Swallow -f --error-msg 'Command "git-new-workdir" cannot be found in your $PATH. Follow the instructions on the web to install it.' \
     'Checking for git-new-workdir script in $PATH' which git-new-workdir
-  Swallow --fatal --error-msg 'You must source the alice-env.sh script and pick the triad you desire to build first!' \
+  Swallow --fatal --error-msg 'You must source the alice-env.sh script and pick the tuple you wish to build first!' \
     'Checking if ALICE environment works' SourceEnvVars
 
 }
@@ -998,10 +1018,10 @@ function Help() {
   SourceEnvVars > /dev/null 2>&1
   Rv=$?
   if [[ "$Rv" == 100 ]] ; then
-    echo -e "${R}Please load your alice-env.sh script selecting the triad you wish to install first!${Z}"
+    echo -e "${R}Please load your alice-env.sh script selecting the tuple you wish to install first!${Z}"
     echo -e "${R}Note: you might need to upgrade your alice-env.sh script before!${Z}"
   elif [[ "$Rv" != 0 ]] ; then
-    echo -e "${R}Problem loading ${ALI_EnvScript} with triad ${ALI_N_TRIAD}.${Z}"
+    echo -e "${R}Problem loading ${ALI_EnvScript} with tuple ${ALI_nAliTuple}.${Z}"
   else
 
     local ROOT_STR="$ROOT_VER"
@@ -1039,13 +1059,13 @@ function Help() {
     echo -e "${M}ALICE environment script: ${A}${ALI_EnvScript}${Z}"
     echo -e "${M}Software installation directory: ${A}${ALICE_PREFIX}${Z}"
     echo
-    echo -e "${M}You have selected the \"triad\" ${A}#${ALI_N_TRIAD}${M}:${Z}"
+    echo -e "${M}You have selected tuple ${A}#${ALI_nAliTuple}${M}:${Z}"
     echo
-    echo -e "  ${M}AliEn:   ${A}always the latest version${Z}"
-    echo -e "  ${M}ROOT:    ${A}$ROOT_STR${M} (minimum supported version: ${A}${MIN_ROOT_VER_STR}${M})${Z}"
-    echo -e "  ${M}Geant3:  ${A}$G3_STR${Z}"
-    echo -e "  ${M}FastJet: ${A}$FASTJET_STR${Z}"
-    echo -e "  ${M}AliRoot: ${A}$ALICE_STR${Z}"
+    echo -e "  ${M}AliEn:        ${A}always the latest version${Z}"
+    echo -e "  ${M}ROOT:         ${A}$ROOT_STR${M} (minimum supported version: ${A}${MIN_ROOT_VER_STR}${M})${Z}"
+    echo -e "  ${M}Geant3:       ${A}$G3_STR${Z}"
+    echo -e "  ${M}FastJet:      ${A}$FASTJET_STR${Z}"
+    echo -e "  ${M}AliRoot Core: ${A}$ALICE_STR${Z}"
     echo
     echo -e "${M}Compiler: ${A}$BUILD_MODE_STR${M} (supported: ${A}${SUPPORTED_BUILD_MODES}${M})${Z}"
   fi
