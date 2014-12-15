@@ -235,8 +235,8 @@ function AliCleanEnv() {
     unset ALIPS1
 
     # unset other environment variables and aliases
-    unset MJ ALIEN_DIR GSHELL_ROOT ROOTSYS ALICE ALICE_ROOT ALICE_BUILD ALICE_TARGET GEANT3DIR \
-      X509_CERT_DIR ALICE FASTJET ALICE_ENV_UPDATE_URL ALICE_ENV_DONT_UPDATE
+    unset MJ ALIEN_DIR GSHELL_ROOT ROOTSYS ALICE ALICE_ROOT ALICE_BUILD ALICE_TARGET \
+      ALICE_INSTALL GEANT3DIR X509_CERT_DIR ALICE FASTJET ALICE_ENV_UPDATE_URL ALICE_ENV_DONT_UPDATE
 
   fi
 }
@@ -315,6 +315,7 @@ function AliExportVars() {
           # AliRoot with CMake
           export ALICE_ROOT="$ALICE_PREFIX/aliroot/$ALICE_SUBDIR/src"
           export ALICE_BUILD="$ALICE_PREFIX/aliroot/$ALICE_SUBDIR/build"
+          export ALICE_INSTALL="$ALICE_PREFIX/aliroot/$ALICE_SUBDIR/inst"
         else
           # legacy AliRoot
           export ALICE_ROOT="$ALICE_PREFIX/aliroot/$ALICE_SUBDIR"
@@ -322,9 +323,17 @@ function AliExportVars() {
         fi
 
         export ALICE_TARGET=`root-config --arch 2> /dev/null`
-        export PATH="$PATH:${ALICE_BUILD}/bin/tgt_${ALICE_TARGET}"
-        export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:${ALICE_BUILD}/lib/tgt_${ALICE_TARGET}"
-        export DYLD_LIBRARY_PATH="$DYLD_LIBRARY_PATH:${ALICE_BUILD}/lib/tgt_${ALICE_TARGET}"
+        if [[ -d "${ALICE_BUILD}/version" ]] ; then
+          # we have used "make install"
+          export PATH="$PATH:${ALICE_INSTALL}/bin"
+          export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:${ALICE_INSTALL}/lib"
+          export DYLD_LIBRARY_PATH="$DYLD_LIBRARY_PATH:${ALICE_INSTALL}/lib"
+        else
+          # we did not use "make install": use from build dir
+          export PATH="$PATH:${ALICE_BUILD}/bin/tgt_${ALICE_TARGET}"
+          export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:${ALICE_BUILD}/lib/tgt_${ALICE_TARGET}"
+          export DYLD_LIBRARY_PATH="$DYLD_LIBRARY_PATH:${ALICE_BUILD}/lib/tgt_${ALICE_TARGET}"
+        fi
       ;;
 
       aliphysics)
@@ -413,13 +422,6 @@ function AliPrintVars() {
     WHERE_IS_G3="$NOTFOUND"
   fi
 
-  # detect AliRoot location
-  if [[ -x "$ALICE_BUILD/bin/tgt_$ALICE_TARGET/aliroot" ]] ; then
-    WHERE_IS_ALIROOT=$( cd "$ALICE_BUILD/.." && pwd || dirname "$ALICE_BUILD" )
-  else
-    WHERE_IS_ALIROOT="$NOTFOUND"
-  fi
-
   # detect ROOT location
   WHERE_IS_ROOT="$NOTFOUND"
   [[ -x "$ROOTSYS/bin/root.exe" ]] && WHERE_IS_ROOT="$ROOTSYS"
@@ -435,15 +437,25 @@ function AliPrintVars() {
     WHERE_IS_FASTJET="$NOTFOUND"
   fi
 
-  echo
-  echo -e "  ${Cc}AliEn${Cz}       $WHERE_IS_ALIEN"
-  echo -e "  ${Cc}ROOT${Cz}        $WHERE_IS_ROOT"
-  echo -e "  ${Cc}Geant3${Cz}      $WHERE_IS_G3"
-  if [[ "$FASTJET" != '' ]] ; then
-    echo -e "  ${Cc}FastJet${Cz}     $WHERE_IS_FASTJET"
+  # detect AliRoot Core location
+  if [[ -x "$ALICE_INSTALL/bin/aliroot" ]] ; then
+    # make install
+    WHERE_IS_ALIROOT=$( cd "$ALICE_INSTALL" && pwd || dirname "$ALICE_INSTALL" )
+  elif [[ -x "$ALICE_BUILD/bin/tgt_$ALICE_TARGET/aliroot" ]] ; then
+    # no make install
+    WHERE_IS_ALIROOT=$( cd "$ALICE_BUILD" && pwd || dirname "$ALICE_BUILD" )
+  else
+    WHERE_IS_ALIROOT="$NOTFOUND"
   fi
-  echo -e "  ${Cc}AliRoot${Cz}     $WHERE_IS_ALIROOT"
-  #echo -e "  ${Cc}AliPhysics${Cz}  $WHERE_IS_ALIPHYSICS"
+
+  echo
+  echo -e "  ${Cc}AliEn${Cz}          $WHERE_IS_ALIEN"
+  echo -e "  ${Cc}ROOT${Cz}           $WHERE_IS_ROOT"
+  echo -e "  ${Cc}Geant3${Cz}         $WHERE_IS_G3"
+  if [[ "$FASTJET" != '' ]] ; then
+    echo -e "  ${Cc}FastJet${Cz}        $WHERE_IS_FASTJET"
+  fi
+  echo -e "  ${Cc}AliRoot Core${Cz}   $WHERE_IS_ALIROOT"
   echo
 
 }

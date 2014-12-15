@@ -704,6 +704,8 @@ function ModuleAliRoot() {
             -DCMAKE_MODULE_LINKER_FLAGS="$BUILDOPT_LDFLAGS" \
             -DCMAKE_SHARED_LINKER_FLAGS="$BUILDOPT_LDFLAGS" \
             -DCMAKE_EXE_LINKER_FLAGS="$BUILDOPT_LDFLAGS" \
+            -DCMAKE_INSTALL_PREFIX="$ALICE_INSTALL" \
+            -DALIEN="$ALIEN_DIR" \
             -DROOTSYS="$ROOTSYS" \
             $FastJetFlag
 
@@ -715,6 +717,8 @@ function ModuleAliRoot() {
             -DCMAKE_C_COMPILER=`root-config --cc` \
             -DCMAKE_CXX_COMPILER=`root-config --cxx` \
             -DCMAKE_Fortran_COMPILER=`root-config --f77` \
+            -DCMAKE_INSTALL_PREFIX="$ALICE_INSTALL" \
+            -DALIEN="$ALIEN_DIR" \
             -DROOTSYS="$ROOTSYS" \
             $FastJetFlag
 
@@ -724,8 +728,14 @@ function ModuleAliRoot() {
 
     SwallowProgress -f --percentage "Building AliRoot" make -j$MJ
 
-    Swallow -f "Symlinking AliRoot include directory" \
-      ln -nfs "$ALICE_BUILD"/include "$ALICE_ROOT"/include
+    if [[ -d "${ALICE_BUILD}/version" ]] ; then
+      # this dir only exists in "modern" AliRoot versions: we can trust install
+      SwallowProgress -f --percentage "Installing AliRoot" make -j$MJ install
+    else
+      # legacy: do not trust "make install"
+      Swallow -f "Symlinking AliRoot include directory" \
+        ln -nfs "$ALICE_BUILD"/include "$ALICE_ROOT"/include
+    fi
 
     Swallow -f "Sourcing envvars" SourceEnvVars
 
@@ -847,8 +857,11 @@ function ModuleCleanFastJet() {
 function ModuleCleanAliRoot() {
   Banner "Cleaning AliRoot..."
   Swallow -f "Sourcing envvars" SourceEnvVars
-  Swallow "Checking if AliRoot is really installed" [ -d "$ALICE_BUILD"/../build ] || return 0
+  Swallow "Checking if AliRoot is really there" [ -d "$ALICE_BUILD"/../build ] || return 0
   Swallow -f "Removing AliRoot build directory" rm -rf "$ALICE_BUILD"/../build
+  if [[ -x "$ALICE_INSTALL/bin/aliroot" ]] ; then
+    Swallow -f "Removing AliRoot install directory" rm -rf "$ALICE_INSTALL"
+  fi
 }
 
 # Download URL $1 to file $2 using wget or curl
@@ -1048,11 +1061,11 @@ function Help() {
     echo
     echo -e "${M}You have selected tuple ${A}#${ALI_nAliTuple}${M}:${Z}"
     echo
-    echo -e "  ${M}AliEn:   ${A}always the latest version${Z}"
-    echo -e "  ${M}ROOT:    ${A}$ROOT_STR${M} (minimum supported version: ${A}${MIN_ROOT_VER_STR}${M})${Z}"
-    echo -e "  ${M}Geant3:  ${A}$G3_STR${Z}"
-    echo -e "  ${M}FastJet: ${A}$FASTJET_STR${Z}"
-    echo -e "  ${M}AliRoot: ${A}$ALICE_STR${Z}"
+    echo -e "  ${M}AliEn:        ${A}always the latest version${Z}"
+    echo -e "  ${M}ROOT:         ${A}$ROOT_STR${M} (minimum supported version: ${A}${MIN_ROOT_VER_STR}${M})${Z}"
+    echo -e "  ${M}Geant3:       ${A}$G3_STR${Z}"
+    echo -e "  ${M}FastJet:      ${A}$FASTJET_STR${Z}"
+    echo -e "  ${M}AliRoot Core: ${A}$ALICE_STR${Z}"
     echo
     echo -e "${M}Compiler: ${A}$BUILD_MODE_STR${M} (supported: ${A}${SUPPORTED_BUILD_MODES}${M})${Z}"
   fi
