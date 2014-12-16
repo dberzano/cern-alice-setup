@@ -235,7 +235,7 @@ function AliCleanEnv() {
     unset ALIPS1
 
     # unset other environment variables and aliases
-    unset MJ ALIEN_DIR GSHELL_ROOT ROOTSYS ALICE_ROOT ALICE_BUILD ROOT_ARCH \
+    unset MJ ALIEN_DIR GSHELL_ROOT ROOTSYS ALICE_ROOT ALICE_SOURCE ALICE_BUILD ROOT_ARCH \
       ALICE_INSTALL GEANT3DIR X509_CERT_DIR FASTJET ALICE_ENV_UPDATE_URL ALICE_ENV_DONT_UPDATE
 
   fi
@@ -311,14 +311,13 @@ function AliExportVars() {
       aliroot)
         export ALICE_VER
 
-        export ALICE_ROOT="$ALICE_PREFIX/aliroot/$ALICE_SUBDIR/src"
-        export ALICE_BUILD="$ALICE_PREFIX/aliroot/$ALICE_SUBDIR/build"
-        export ALICE_INSTALL="$ALICE_PREFIX/aliroot/$ALICE_SUBDIR/inst"
+        # this is the only variable truly needed: it is set to the installation directory
+        export ALICE_ROOT="${ALICE_PREFIX}/aliroot/${ALICE_SUBDIR}/inst"
 
         # export paths both for legacy and modern CMake
-        export PATH="${ALICE_INSTALL}/bin:${ALICE_BUILD}/bin/tgt_${ROOT_ARCH}:${PATH}"
-        export LD_LIBRARY_PATH="${ALICE_INSTALL}/lib:${ALICE_BUILD}/lib/tgt_${ROOT_ARCH}:${LD_LIBRARY_PATH}"
-        export DYLD_LIBRARY_PATH="${ALICE_INSTALL}/lib:${ALICE_BUILD}/lib/tgt_${ROOT_ARCH}:${DYLD_LIBRARY_PATH}"
+        export PATH="${ALICE_ROOT}/bin:${ALICE_ROOT}/bin/tgt_${ROOT_ARCH}:${PATH}"
+        export LD_LIBRARY_PATH="${ALICE_ROOT}/lib:${ALICE_ROOT}/lib/tgt_${ROOT_ARCH}:${LD_LIBRARY_PATH}"
+        export DYLD_LIBRARY_PATH="${ALICE_ROOT}/lib:${ALICE_ROOT}/lib/tgt_${ROOT_ARCH}:${DYLD_LIBRARY_PATH}"
       ;;
 
       aliphysics)
@@ -423,12 +422,8 @@ function AliPrintVars() {
   fi
 
   # detect AliRoot Core location
-  if [[ -x "$ALICE_INSTALL/bin/aliroot" ]] ; then
-    # make install
-    WHERE_IS_ALIROOT=$( cd "$ALICE_INSTALL" && pwd || dirname "$ALICE_INSTALL" )
-  elif [[ -x "$ALICE_BUILD/bin/tgt_$ROOT_ARCH/aliroot" ]] ; then
-    # no make install
-    WHERE_IS_ALIROOT=$( cd "$ALICE_BUILD" && pwd || dirname "$ALICE_BUILD" )
+  if [[ -x "${ALICE_ROOT}/bin/aliroot" ||  -x "${ALICE_ROOT}/bin/tgt_${ROOT_ARCH}/aliroot"  ]] ; then
+    WHERE_IS_ALIROOT=$( cd "${ALICE_ROOT}/.." && pwd || dirname "$ALICE_ROOT" )
   else
     WHERE_IS_ALIROOT="$NOTFOUND"
   fi
