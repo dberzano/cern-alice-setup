@@ -736,6 +736,11 @@ function ModuleAliRoot() {
 
     if [[ -d "${AliRootTmp}/version" ]] ; then
       # this dir only exists in "modern" AliRoot versions: we can trust install
+      if [[ -L "${AliRootInst}" ]] ; then
+        SwallowProgress -f --percentage \
+          'Removing legacy symlink to the build directory' \
+          rm -f "${AliRootInst}"
+      fi
       SwallowProgress -f --percentage 'Installing AliRoot' make -j$MJ install
     else
       # legacy: do not trust "make install"
