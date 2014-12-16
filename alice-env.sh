@@ -235,7 +235,7 @@ function AliCleanEnv() {
     unset ALIPS1
 
     # unset other environment variables and aliases
-    unset MJ ALIEN_DIR GSHELL_ROOT ROOTSYS ALICE_ROOT ALICE_BUILD ROOT_ARCH \
+    unset MJ ALIEN_DIR GSHELL_ROOT ROOTSYS ALICE_ROOT ALICE_SOURCE ALICE_BUILD ROOT_ARCH \
       ALICE_INSTALL GEANT3DIR X509_CERT_DIR FASTJET ALICE_ENV_UPDATE_URL ALICE_ENV_DONT_UPDATE
 
   fi
@@ -311,14 +311,17 @@ function AliExportVars() {
       aliroot)
         export ALICE_VER
 
-        export ALICE_ROOT="$ALICE_PREFIX/aliroot/$ALICE_SUBDIR/src"
+        export ALICE_SOURCE="$ALICE_PREFIX/aliroot/$ALICE_SUBDIR/src"
         export ALICE_BUILD="$ALICE_PREFIX/aliroot/$ALICE_SUBDIR/build"
         export ALICE_INSTALL="$ALICE_PREFIX/aliroot/$ALICE_SUBDIR/inst"
 
+        # this is the only variable truly needed: it is set to the installation directory
+        export ALICE_ROOT="$ALICE_INSTALL"
+
         # export paths both for legacy and modern CMake
-        export PATH="${ALICE_INSTALL}/bin:${ALICE_BUILD}/bin/tgt_${ROOT_ARCH}:${PATH}"
-        export LD_LIBRARY_PATH="${ALICE_INSTALL}/lib:${ALICE_BUILD}/lib/tgt_${ROOT_ARCH}:${LD_LIBRARY_PATH}"
-        export DYLD_LIBRARY_PATH="${ALICE_INSTALL}/lib:${ALICE_BUILD}/lib/tgt_${ROOT_ARCH}:${DYLD_LIBRARY_PATH}"
+        export PATH="${ALICE_INSTALL}/bin:${ALICE_INSTALL}/bin/tgt_${ROOT_ARCH}:${PATH}"
+        export LD_LIBRARY_PATH="${ALICE_INSTALL}/lib:${ALICE_INSTALL}/lib/tgt_${ROOT_ARCH}:${LD_LIBRARY_PATH}"
+        export DYLD_LIBRARY_PATH="${ALICE_INSTALL}/lib:${ALICE_INSTALL}/lib/tgt_${ROOT_ARCH}:${DYLD_LIBRARY_PATH}"
       ;;
 
       aliphysics)
