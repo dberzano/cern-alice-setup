@@ -355,9 +355,6 @@ function ModuleRoot() {
     Swallow -f 'Updating list of remote ROOT Git branches' \
       git remote update origin --prune
 
-    if [ "$ROOT_VER" == 'trunk' ] ; then
-      ROOT_VER='master'
-    fi
     Swallow -f "Checking out ROOT $ROOT_VER" git checkout "$ROOT_VER"
 
     if [[ "$(git rev-parse --abbrev-ref HEAD)" != 'HEAD' ]] ; then
@@ -657,9 +654,6 @@ function ModuleAliRoot() {
     SwallowProgress -f --pattern \
       'Updating list of remote AliRoot Git branches' \
       git remote update origin --prune
-
-    # Semantic fix: many people will still call it 'trunk'...
-    [[ "$ALICE_VER" == 'trunk' ]] && ALICE_VER='master'
 
     # Source is ${AliRootSrc} his will be a Git directory on its own that shares
     # the object database, but with its own index. This is possible via the
