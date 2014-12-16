@@ -235,8 +235,8 @@ function AliCleanEnv() {
     unset ALIPS1
 
     # unset other environment variables and aliases
-    unset MJ ALIEN_DIR GSHELL_ROOT ROOTSYS ALICE ALICE_ROOT ALICE_BUILD ROOT_ARCH \
-      ALICE_INSTALL GEANT3DIR X509_CERT_DIR ALICE FASTJET ALICE_ENV_UPDATE_URL ALICE_ENV_DONT_UPDATE
+    unset MJ ALIEN_DIR GSHELL_ROOT ROOTSYS ALICE_ROOT ALICE_BUILD ROOT_ARCH \
+      ALICE_INSTALL GEANT3DIR X509_CERT_DIR FASTJET ALICE_ENV_UPDATE_URL ALICE_ENV_DONT_UPDATE
 
   fi
 }
@@ -309,7 +309,6 @@ function AliExportVars() {
       ;;
 
       aliroot)
-        export ALICE="$ALICE_PREFIX"
         export ALICE_VER
 
         export ALICE_ROOT="$ALICE_PREFIX/aliroot/$ALICE_SUBDIR/src"
