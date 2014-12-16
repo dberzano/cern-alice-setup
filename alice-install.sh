@@ -617,15 +617,24 @@ function ModuleFastJet() {
 # Module to fetch, update and compile AliRoot
 function ModuleAliRoot() {
 
-  Banner "Installing AliRoot..."
-  Swallow -f "Sourcing envvars" SourceEnvVars
+  Banner 'Installing AliRoot Core...'
+  Swallow -f 'Sourcing envvars' SourceEnvVars
 
-  if [ ! -d "$ALICE_BUILD" ]; then
-    Swallow -f "Creating AliRoot build directory" mkdir -p "$ALICE_BUILD"
+  # AliRoot variables: only ${ALICE_ROOT} needed
+  # - ${ALICE_ROOT}: installation directory
+  # - ${ALICE_ROOT}/../build: build directory
+  # - ${ALICE_ROOT}/../src: source directory
+
+  local AliRootBase=$( dirname "${ALICE_ROOT}" )
+  local AliRootInst="$ALICE_ROOT"
+  local AliRootSrc="${AliRootBase}/src"
+  local AliRootTmp="${AliRootBase}/build"
+
+  if [[ ! -d "$AliRootTmp" ]]; then
+    Swallow -f "Creating AliRoot build directory" mkdir -p "$AliRootTmp"
   fi
 
-
-  if [ "$DOWNLOAD_MODE" == '' ] || [ "$DOWNLOAD_MODE" == 'only' ] ; then
+  if [[ "$DOWNLOAD_MODE" == '' || "$DOWNLOAD_MODE" == 'only' ]] ; then
 
     #
     # Download AliRoot from Git
@@ -634,77 +643,79 @@ function ModuleAliRoot() {
     # The directory AliRootGit contains the only Git clone pointing by default
     # to the remote Git reposiory of ALICE. All other Git clones point to this
     # directory instead
-    local AliRootGit="${ALICE_BUILD}/../../git"
+    local AliRootGit="${AliRootBase}/../git"
 
     Swallow -f 'Creating AliRoot Git local directory' mkdir -p "$AliRootGit"
     Swallow -f 'Moving into AliRoot Git local directory' cd "$AliRootGit"
-    if [ ! -e "$AliRootGit/.git" ] ; then
-      SwallowProgress -f --pattern 'Cloning AliRoot Git repository (might take some time)' \
+    if [[ ! -e "$AliRootGit/.git" ]] ; then
+      SwallowProgress -f --pattern \
+        'Cloning AliRoot Git repository (might take some time)' \
         git clone http://git.cern.ch/pub/AliRoot .
     fi
     AliRootGit=$(cd "$AliRootGit";pwd)
 
-    SwallowProgress -f --pattern 'Updating list of remote AliRoot Git branches' \
+    SwallowProgress -f --pattern \
+      'Updating list of remote AliRoot Git branches' \
       git remote update origin --prune
 
     # Semantic fix: many people will still call it 'trunk'...
-    [ "$ALICE_VER" == 'trunk' ] && ALICE_VER='master'
+    [[ "$ALICE_VER" == 'trunk' ]] && ALICE_VER='master'
 
-    # Source is ALICE_ROOT: this will be a Git directory on its own that shares
-    # the object database, but with its own index. This is possible through the
-    # script git-new-workdir[1]
+    # Source is ${AliRootSrc} his will be a Git directory on its own that shares
+    # the object database, but with its own index. This is possible via the
+    # git-new-workdir[1] script
     # [1] http://nuclearsquid.com/writings/git-new-workdir/
 
     # Shallow copy with git-new-workdir
-    if [ ! -d "$ALICE_ROOT/.git" ] ; then
-      rmdir "$ALICE_ROOT" > /dev/null 2>&1  # works if dir is empty
-      SwallowProgress -f --pattern "Creating a local clone for version $ALICE_VER" \
-        git-new-workdir "$AliRootGit" "$ALICE_ROOT" "$ALICE_VER"
+    if [[ ! -d "${AliRootSrc}/.git" ]] ; then
+      rmdir "$AliRootSrc" > /dev/null 2>&1  # works if dir is empty
+      SwallowProgress -f --pattern \
+        "Creating a local clone for version ${ALICE_VER}" \
+        git-new-workdir "$AliRootGit" "$AliRootSrc" "$ALICE_VER"
     fi
 
-    Swallow -f "Moving to local clone" cd "$ALICE_ROOT"
-    Swallow -f "Checking out AliRoot version $ALICE_VER" git checkout "$ALICE_VER"
+    Swallow -f 'Moving to local clone' cd "$AliRootSrc"
+    Swallow -f "Checking out AliRoot version $ALICE_VER" \
+      git checkout "$ALICE_VER"
 
     if [[ "$(git rev-parse --abbrev-ref HEAD)" != 'HEAD' ]] ; then
       # update only if on a branch: errors are fatal
       # if we are working on a clone made with git-new-workdir, changes in the
       # git object database will be propagated to all the sibling clones
-      SwallowProgress -f --pattern "Updating AliRoot $ALICE_VER from Git" git pull --rebase
+      SwallowProgress -f --pattern \
+        "Updating AliRoot $ALICE_VER from Git" git pull --rebase
     fi
-
-    # In the end we still have:
-    #  - source in $ALICE_ROOT
-    #  - build in $ALICE_BUILD
 
   fi # end download
 
-  if [ "$DOWNLOAD_MODE" == '' ] || [ "$DOWNLOAD_MODE" == 'no' ] ; then
+  if [[ "$DOWNLOAD_MODE" == '' || "$DOWNLOAD_MODE" == 'no' ]] ; then
 
     #
     # Build AliRoot
     #
 
-    Swallow -f "Moving into AliRoot build directory" cd "$ALICE_BUILD"
-    Swallow -f "Checking if ROOT has OpenGL enabled" RootHasOpenGl
+    Swallow -f 'Moving into AliRoot build directory' cd "$AliRootTmp"
+    Swallow -f 'Checking if ROOT has OpenGL enabled' RootHasOpenGl
 
     # Assemble cmake command
-    if [ ! -e "Makefile" ]; then
+    if [[ ! -e 'Makefile' ]]; then
 
       # Build with FastJet?
       local FastJetFlag="-DFASTJET=$FASTJET"
 
-      if [ "$BUILDOPT_LDFLAGS" != '' ]; then
+      if [[ "$BUILDOPT_LDFLAGS" != '' ]]; then
 
         # Special configuration for latest Ubuntu/Linux Mint
-        SwallowProgress -f --pattern "Bootstrapping AliRoot build with cmake (using LDFLAGS)" \
-          cmake "$ALICE_ROOT" \
+        SwallowProgress -f --pattern \
+          'Bootstrapping AliRoot build with CMake (using LDFLAGS)' \
+          cmake "$AliRootSrc" \
             -DCMAKE_C_COMPILER=`root-config --cc` \
             -DCMAKE_CXX_COMPILER=`root-config --cxx` \
             -DCMAKE_Fortran_COMPILER=`root-config --f77` \
             -DCMAKE_MODULE_LINKER_FLAGS="$BUILDOPT_LDFLAGS" \
             -DCMAKE_SHARED_LINKER_FLAGS="$BUILDOPT_LDFLAGS" \
             -DCMAKE_EXE_LINKER_FLAGS="$BUILDOPT_LDFLAGS" \
-            -DCMAKE_INSTALL_PREFIX="$ALICE_INSTALL" \
+            -DCMAKE_INSTALL_PREFIX="$AliRootInst" \
             -DALIEN="$ALIEN_DIR" \
             -DROOTSYS="$ROOTSYS" \
             $FastJetFlag
@@ -712,12 +723,13 @@ function ModuleAliRoot() {
       else
 
         # Any other configuration (no linker)
-        SwallowProgress -f --pattern "Bootstrapping AliRoot build with cmake" \
-          cmake "$ALICE_ROOT" \
+        SwallowProgress -f --pattern \
+          'Bootstrapping AliRoot build with CMake' \
+          cmake "$AliRootSrc" \
             -DCMAKE_C_COMPILER=`root-config --cc` \
             -DCMAKE_CXX_COMPILER=`root-config --cxx` \
             -DCMAKE_Fortran_COMPILER=`root-config --f77` \
-            -DCMAKE_INSTALL_PREFIX="$ALICE_INSTALL" \
+            -DCMAKE_INSTALL_PREFIX="$AliRootInst" \
             -DALIEN="$ALIEN_DIR" \
             -DROOTSYS="$ROOTSYS" \
             $FastJetFlag
@@ -726,23 +738,28 @@ function ModuleAliRoot() {
 
     fi
 
-    SwallowProgress -f --percentage "Building AliRoot" make -j$MJ
+    SwallowProgress -f --percentage 'Building AliRoot' make -j$MJ
 
-    if [[ -d "${ALICE_BUILD}/version" ]] ; then
+    if [[ -d "${AliRootTmp}/version" ]] ; then
       # this dir only exists in "modern" AliRoot versions: we can trust install
-      SwallowProgress -f --percentage "Installing AliRoot" make -j$MJ install
+      SwallowProgress -f --percentage 'Installing AliRoot' make -j$MJ install
     else
       # legacy: do not trust "make install"
-      Swallow -f "Symlinking AliRoot include directory" \
-        ln -nfs "$ALICE_BUILD"/include "$ALICE_ROOT"/include
+      Swallow -f 'Legacy: symlinking AliRoot include directory inside source' \
+        ln -nfs "${AliRootTmp}/include" "${AliRootSrc}/include"
+      Swallow -f 'Legacy: removing existing install directory' \
+        rm -rf "${AliRootInst}"
+      Swallow -f 'Legacy: symlinking AliRoot build directory to install' \
+        ln -nfs "$AliRootTmp" "$AliRootInst"
     fi
 
-    Swallow -f "Sourcing envvars" SourceEnvVars
+    Swallow -f 'Sourcing envvars' SourceEnvVars
 
-    if [ "$DISPLAY" != "" ]; then
+    if [[ "$DISPLAY" != '' ]]; then
       # Non-fatal
-      SwallowProgress --pattern "Testing ROOT with AliRoot libraries" \
-        root -l -q "$ALICE_ROOT"/macros/loadlibs.C
+      SwallowProgress --pattern \
+        'Test: trying to load AliRoot libraries from ROOT' \
+        root -l -q "${AliRootSrc}/macros/loadlibs.C"
     fi
 
   fi # end build
@@ -855,13 +872,17 @@ function ModuleCleanFastJet() {
 
 # Clean up AliRoot
 function ModuleCleanAliRoot() {
-  Banner "Cleaning AliRoot..."
-  Swallow -f "Sourcing envvars" SourceEnvVars
-  Swallow "Checking if AliRoot is really there" [ -d "$ALICE_BUILD"/../build ] || return 0
-  Swallow -f "Removing AliRoot build directory" rm -rf "$ALICE_BUILD"/../build
-  if [[ -x "$ALICE_INSTALL/bin/aliroot" ]] ; then
-    Swallow -f "Removing AliRoot install directory" rm -rf "$ALICE_INSTALL"
-  fi
+  Banner 'Cleaning AliRoot...'
+
+  local AliRootBase=$( dirname "${ALICE_ROOT}" )
+  local AliRootInst="$ALICE_ROOT"
+  local AliRootSrc="${AliRootBase}/src"
+  local AliRootTmp="${AliRootBase}/build"
+
+  Swallow -f 'Sourcing envvars' SourceEnvVars
+  Swallow 'Checking if AliRoot is really there' [ -d "$AliRootTmp" ] || return 0
+  Swallow -f 'Removing AliRoot build directory' rm -rf "$AliRootTmp"
+  Swallow -f "Removing AliRoot install directory" rm -rf "$AliRootInst"
 }
 
 # Download URL $1 to file $2 using wget or curl
