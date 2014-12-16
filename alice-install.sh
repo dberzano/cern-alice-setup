@@ -32,9 +32,10 @@ export MIN_ROOT_VER_STR='all'
 
 # Sources environment variables
 function SourceEnvVars() {
-  local R
+  local R UpdateFlag
   [[ ! -r "$ALI_EnvScript" ]] && return 100
-  source "$ALI_EnvScript" -n "$ALI_nAliTuple"
+  [[ "$1" == '-u' ]] && UpdateFlag='-u'
+  source "$ALI_EnvScript" -n "$ALI_nAliTuple" $UpdateFlag
   R=$?
   [[ $NCORES -gt 0 ]] && MJ=$NCORES
   return $R
@@ -909,7 +910,7 @@ function ModuleCheckPrereq() {
   Swallow -f --error-msg 'Command "git-new-workdir" cannot be found in your $PATH. Follow the instructions on the web to install it.' \
     'Checking for git-new-workdir script in $PATH' which git-new-workdir
   Swallow --fatal --error-msg 'You must source the alice-env.sh script and pick the tuple you wish to build first!' \
-    'Checking if ALICE environment works' SourceEnvVars
+    'Checking if ALICE environment works and updating alice-env.sh' SourceEnvVars -u
 
 }
 
