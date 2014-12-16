@@ -235,7 +235,7 @@ function AliCleanEnv() {
     unset ALIPS1
 
     # unset other environment variables and aliases
-    unset MJ ALIEN_DIR GSHELL_ROOT ROOTSYS ALICE ALICE_ROOT ALICE_BUILD ALICE_TARGET \
+    unset MJ ALIEN_DIR GSHELL_ROOT ROOTSYS ALICE ALICE_ROOT ALICE_BUILD ROOT_ARCH \
       ALICE_INSTALL GEANT3DIR X509_CERT_DIR ALICE FASTJET ALICE_ENV_UPDATE_URL ALICE_ENV_DONT_UPDATE
 
   fi
@@ -300,11 +300,12 @@ function AliExportVars() {
           # PyROOT support
           export PYTHONPATH="$ROOTSYS/lib:$PYTHONPATH"
         fi
+        export ROOT_ARCH=`root-config --arch 2> /dev/null`
       ;;
 
       geant3)
         export GEANT3DIR="$ALICE_PREFIX/geant3/$G3_SUBDIR"
-        export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$GEANT3DIR/lib/tgt_${ALICE_TARGET}"
+        export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$GEANT3DIR/lib/tgt_${ROOT_ARCH}"
       ;;
 
       aliroot)
@@ -322,12 +323,11 @@ function AliExportVars() {
           export ALICE_BUILD="$ALICE_ROOT"
         fi
 
-        export ALICE_TARGET=`root-config --arch 2> /dev/null`
         if [[ -e "${ALICE_BUILD}/Makefile" && ! -d "${ALICE_BUILD}/version" ]] ; then
           # we did not use "make install": use from build dir
-          export PATH="$PATH:${ALICE_BUILD}/bin/tgt_${ALICE_TARGET}"
-          export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:${ALICE_BUILD}/lib/tgt_${ALICE_TARGET}"
-          export DYLD_LIBRARY_PATH="$DYLD_LIBRARY_PATH:${ALICE_BUILD}/lib/tgt_${ALICE_TARGET}"
+          export PATH="$PATH:${ALICE_BUILD}/bin/tgt_${ROOT_ARCH}"
+          export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:${ALICE_BUILD}/lib/tgt_${ROOT_ARCH}"
+          export DYLD_LIBRARY_PATH="$DYLD_LIBRARY_PATH:${ALICE_BUILD}/lib/tgt_${ROOT_ARCH}"
         else
           # we have used "make install"
           export PATH="$PATH:${ALICE_INSTALL}/bin"
@@ -416,7 +416,7 @@ function AliPrintVars() {
   fi
 
   # detect Geant3 installation path
-  if [[ -x "$GEANT3DIR/lib/tgt_$ALICE_TARGET/libgeant321.so" ]] ; then
+  if [[ -x "$GEANT3DIR/lib/tgt_$ROOT_ARCH/libgeant321.so" ]] ; then
     WHERE_IS_G3="$GEANT3DIR"
   else
     WHERE_IS_G3="$NOTFOUND"
@@ -441,7 +441,7 @@ function AliPrintVars() {
   if [[ -x "$ALICE_INSTALL/bin/aliroot" ]] ; then
     # make install
     WHERE_IS_ALIROOT=$( cd "$ALICE_INSTALL" && pwd || dirname "$ALICE_INSTALL" )
-  elif [[ -x "$ALICE_BUILD/bin/tgt_$ALICE_TARGET/aliroot" ]] ; then
+  elif [[ -x "$ALICE_BUILD/bin/tgt_$ROOT_ARCH/aliroot" ]] ; then
     # no make install
     WHERE_IS_ALIROOT=$( cd "$ALICE_BUILD" && pwd || dirname "$ALICE_BUILD" )
   else
