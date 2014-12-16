@@ -315,17 +315,10 @@ function AliExportVars() {
         export ALICE_BUILD="$ALICE_PREFIX/aliroot/$ALICE_SUBDIR/build"
         export ALICE_INSTALL="$ALICE_PREFIX/aliroot/$ALICE_SUBDIR/inst"
 
-        if [[ -e "${ALICE_BUILD}/Makefile" && ! -d "${ALICE_BUILD}/version" ]] ; then
-          # we did not use "make install": use from build dir
-          export PATH="$PATH:${ALICE_BUILD}/bin/tgt_${ROOT_ARCH}"
-          export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:${ALICE_BUILD}/lib/tgt_${ROOT_ARCH}"
-          export DYLD_LIBRARY_PATH="$DYLD_LIBRARY_PATH:${ALICE_BUILD}/lib/tgt_${ROOT_ARCH}"
-        else
-          # we have used "make install"
-          export PATH="$PATH:${ALICE_INSTALL}/bin"
-          export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:${ALICE_INSTALL}/lib"
-          export DYLD_LIBRARY_PATH="$DYLD_LIBRARY_PATH:${ALICE_INSTALL}/lib"
-        fi
+        # export paths both for legacy and modern CMake
+        export PATH="${ALICE_INSTALL}/bin:${ALICE_BUILD}/bin/tgt_${ROOT_ARCH}:${PATH}"
+        export LD_LIBRARY_PATH="${ALICE_INSTALL}/lib:${ALICE_BUILD}/lib/tgt_${ROOT_ARCH}:${LD_LIBRARY_PATH}"
+        export DYLD_LIBRARY_PATH="${ALICE_INSTALL}/lib:${ALICE_BUILD}/lib/tgt_${ROOT_ARCH}:${DYLD_LIBRARY_PATH}"
       ;;
 
       aliphysics)
