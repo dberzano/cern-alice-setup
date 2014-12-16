@@ -734,6 +734,12 @@ function ModuleAliRoot() {
 
     SwallowProgress -f --percentage 'Building AliRoot' make -j$MJ
 
+    if [[ -L "${AliRootSrc}/include" ]] ; then
+      SwallowProgress -f --percentage \
+        'Removing legacy symlink to include directory inside source' \
+        rm -f "${AliRootInst}/include"
+    fi
+
     if [[ -d "${AliRootTmp}/version" ]] ; then
       # this dir only exists in "modern" AliRoot versions: we can trust install
       if [[ -L "${AliRootInst}" ]] ; then
@@ -744,8 +750,6 @@ function ModuleAliRoot() {
       SwallowProgress -f --percentage 'Installing AliRoot' make -j$MJ install
     else
       # legacy: do not trust "make install"
-      Swallow -f 'Legacy: symlinking AliRoot include directory inside source' \
-        ln -nfs "${AliRootTmp}/include" "${AliRootSrc}/include"
       Swallow -f 'Legacy: removing existing install directory' \
         rm -rf "${AliRootInst}"
       Swallow -f 'Legacy: symlinking AliRoot build directory to install' \
