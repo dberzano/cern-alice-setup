@@ -749,7 +749,7 @@ function ModuleAliRoot() {
       Swallow -f 'Legacy: removing existing install directory' \
         rm -rf "${AliRootInst}"
       Swallow -f 'Legacy: symlinking AliRoot build directory to install' \
-        ln -nfs "$AliRootTmp" "$AliRootInst"
+        ln -nfs "$(basename "$AliRootTmp")" "$AliRootInst"
     fi
 
     Swallow -f 'Sourcing envvars' SourceEnvVars
