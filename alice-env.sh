@@ -312,16 +312,9 @@ function AliExportVars() {
         export ALICE="$ALICE_PREFIX"
         export ALICE_VER
 
-        if [[ ! -e "$ALICE_PREFIX/aliroot/$ALICE_SUBDIR/Makefile" ]] ; then
-          # AliRoot with CMake
-          export ALICE_ROOT="$ALICE_PREFIX/aliroot/$ALICE_SUBDIR/src"
-          export ALICE_BUILD="$ALICE_PREFIX/aliroot/$ALICE_SUBDIR/build"
-          export ALICE_INSTALL="$ALICE_PREFIX/aliroot/$ALICE_SUBDIR/inst"
-        else
-          # legacy AliRoot
-          export ALICE_ROOT="$ALICE_PREFIX/aliroot/$ALICE_SUBDIR"
-          export ALICE_BUILD="$ALICE_ROOT"
-        fi
+        export ALICE_ROOT="$ALICE_PREFIX/aliroot/$ALICE_SUBDIR/src"
+        export ALICE_BUILD="$ALICE_PREFIX/aliroot/$ALICE_SUBDIR/build"
+        export ALICE_INSTALL="$ALICE_PREFIX/aliroot/$ALICE_SUBDIR/inst"
 
         if [[ -e "${ALICE_BUILD}/Makefile" && ! -d "${ALICE_BUILD}/version" ]] ; then
           # we did not use "make install": use from build dir
