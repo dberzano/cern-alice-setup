@@ -683,7 +683,7 @@ function AliUpdate() {
   UpdLastUtc=$( expr "$UpdLastUtc" + 0 2> /dev/null || echo 0 )
   local UpdNowUtc=$( date -u +%s )
   local UpdDelta=$(( UpdNowUtc - UpdLastUtc ))
-  local UpdDeltaThreshold=21600  # update every 6 hours
+  local UpdDeltaThreshold=5400  # update every 1.5 hours
 
   touch "$UpdTmp" 2> /dev/null || return 15  # cannot write
 
