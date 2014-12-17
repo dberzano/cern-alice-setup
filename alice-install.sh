@@ -495,6 +495,9 @@ function ModuleGeant3() {
 # Module to fetch and compile FastJet
 function ModuleFastJet() {
 
+  local MinFastJetVerStr='v3.0.6'
+  local MinFastJetVerNum=$( ConvertVersionStringToNumber "$MinFastJetVerStr" )
+
   # FastJet versions will be downloaded from tarballs on the official website
   local FASTJET_URL_PATTERN='http://fastjet.fr/repo/fastjet-%s.tar.gz'
   local FASTJET_TARBALL='source.tar.gz'
@@ -507,6 +510,11 @@ function ModuleFastJet() {
   Swallow -f "Sourcing envvars" SourceEnvVars
 
   Swallow "Checking if FastJet support has been requested" [ "$FASTJET_VER" != '' ] || return
+
+  Swallow --fatal \
+    --error-msg "FastJet $FASTJET_VER is not supported: use at least $MinFastJetVerStr." \
+    "Ensuring FastJet $FASTJET_VER is supported" \
+    [ $( ConvertVersionStringToNumber "$FASTJET_VER" ) -ge $MinFastJetVerNum ]
 
   Swallow -f "Creating FastJet directory" mkdir -p "$FASTJET/src"
   Swallow -f "Moving into FastJet source directory" cd "$FASTJET/src"

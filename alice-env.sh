@@ -503,15 +503,12 @@ function AliConf() {
 # No FastJet
 AliTuple[1]='root=v5-34-18 geant3=v1-15a aliroot=master aliphysics=master'
 
-# FastJet 2
-#AliTuple[2]='root=v5-34-18 geant3=v1-15a aliroot=master aliphysics=master fastjet=2.4.5'
-
 # FastJet 3
-#AliTuple[3]='root=v5-34-18 geant3=v1-15a aliroot=master aliphysics=master \\
+#AliTuple[2]='root=v5-34-18 geant3=v1-15a aliroot=master aliphysics=master \\
 #             fastjet=3.0.6 fjcontrib=1.012'
 
 # You can add more tuples
-#AliTuple[4]='...'
+#AliTuple[3]='...'
 
 # Default software tuple (selected when running "source alice-env.sh -n")
 export nAliTuple=1
