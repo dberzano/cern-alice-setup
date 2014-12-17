@@ -516,6 +516,11 @@ function ModuleFastJet() {
     "Ensuring FastJet $FASTJET_VER is supported" \
     [ $( ConvertVersionStringToNumber "$FASTJET_VER" ) -ge $MinFastJetVerNum ]
 
+  Swallow --fatal \
+    --error-msg 'FastJet contrib is mandatory when installing FastJet.' \
+    'Ensuring FastJet contrib is enabled' \
+    [ "$FJCONTRIB_VER" != '' ]
+
   Swallow -f "Creating FastJet directory" mkdir -p "$FASTJET/src"
   Swallow -f "Moving into FastJet source directory" cd "$FASTJET/src"
 
