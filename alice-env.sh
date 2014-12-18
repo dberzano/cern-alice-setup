@@ -703,7 +703,7 @@ function AliMain() {
   local OPT_QUIET=0
   local OPT_NONINTERACTIVE=0
   local OPT_CLEANENV=0
-  local OPT_DONTUPDATE=1
+  local OPT_DONTUPDATE=0
   local OPT_FORCEUPDATE=0
   local OPT_BYNAME=""
   local ARGS=("$@")
