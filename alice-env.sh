@@ -684,6 +684,18 @@ function AliUpdate() {
   return 0  # noop
 }
 
+# find a tuple by (aliroot) name
+function AliTupleFindByAliRootName() {
+
+  nAliTuple="not found"
+  for (( idx=1 ; idx<=${#AliTuple[@]} ; idx++ )) ; do
+     aliroot=$( AliTupleSection "${AliTuple[$idx]}" aliroot)
+     if [[ "$aliroot" == "$1" ]]; then
+     	nAliTuple=$idx
+     fi
+  done
+}
+
 # main function: takes parameters from the command line
 function AliMain() {
 
@@ -691,8 +703,9 @@ function AliMain() {
   local OPT_QUIET=0
   local OPT_NONINTERACTIVE=0
   local OPT_CLEANENV=0
-  local OPT_DONTUPDATE=0
+  local OPT_DONTUPDATE=1
   local OPT_FORCEUPDATE=0
+  local OPT_BYNAME=""
   local ARGS=("$@")
 
   # parse command line options
@@ -709,6 +722,10 @@ function AliMain() {
       -c) OPT_CLEANENV=1; ;;
       -k) OPT_DONTUPDATE=1 ;;
       -u) OPT_FORCEUPDATE=1 ;;
+      -a) 
+      	OPT_NONINTERACTIVE=1
+      	OPT_BYNAME=$2
+      	OPT_QUIET=1 ;;
     esac
     shift
   done
@@ -728,6 +745,11 @@ function AliMain() {
     return $R
   fi
 
+  # if by name requested, do it even before autoupdating
+  if [[ -n "$OPT_BYNAME" ]] ; then
+  	AliTupleFindByAliRootName $OPT_BYNAME
+  fi
+  
   # update
   local DoUpdate
   if [[ "$OPT_DONTUPDATE" == 1 ]] ; then
