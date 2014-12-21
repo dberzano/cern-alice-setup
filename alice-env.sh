@@ -807,5 +807,6 @@ function AliMain() {
 
 AliMain "$@"
 ALI_rv=$?
-AliCleanEnv --final
+# function already purged if arriving from an auto-updated script: silencing harmless errors
+AliCleanEnv --final 2> /dev/null
 return $ALI_rv
