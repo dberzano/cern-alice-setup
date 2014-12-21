@@ -124,6 +124,53 @@ function AliTupleSection() (
   return 1
 )
 
+# finds tuple index by name
+function AliTupleNumberByQuery() (
+  local query="$1"
+  local preferred_ver rawtuple sec tup tuple_matches count_tuple
+
+  count_tuple=0
+  for tup in "${AliTuple[@]}" ; do
+
+    count_tuple=$(( count_tuple + 1 ))
+    tuple_matches=0
+
+    for sec in alien root geant3 aliroot aliphysics fastjet fjcontrib ; do
+
+      preferred_ver=$( AliTupleSection "$query" "$sec" )
+
+      if [[ $preferred_ver != '' ]] ; then
+
+        rawtuple=$( AliTupleSection "$tup" "$sec" )
+        if [[ $rawtuple != '' ]] ; then
+          AliParseVerDir "$rawtuple" swdir swver
+          #echo "tuple has sw=[$sec] dir=[$swdir] ver=[$swver]" >&2
+
+          if [[ $preferred_ver == $swdir ]] ; then
+            tuple_matches=1
+          else
+            tuple_matches=0
+          fi
+
+          unset swdir swver
+        fi
+
+      fi
+
+    done
+
+    if [[ $keep_tuple == 1 ]] ; then
+      # matching tuple found
+      echo $count_tuple
+      return 0
+    fi
+
+  done
+
+  # no matching tuple found: echo nothing
+  return 1
+)
+
 # removes from a $PATH-like variable all the paths containing at least one of the specified files:
 # variable name is the first argument, and file names are the remaining arguments
 function AliRemovePaths() {
@@ -694,6 +741,7 @@ function AliMain() {
   local OPT_DONTUPDATE=0
   local OPT_FORCEUPDATE=0
   local ARGS=("$@")
+  local queryAliTuple
 
   # parse command line options
   while [[ $# -gt 0 ]] ; do
@@ -704,6 +752,11 @@ function AliMain() {
         OPT_NONINTERACTIVE=1
         nAliTuple=$(( $2 ))
         [[ $nAliTuple == 0 ]] && unset nAliTuple
+        shift
+      ;;
+      -m)
+        OPT_NONINTERACTIVE=1
+        queryAliTuple="$2"
         shift
       ;;
       -i) OPT_NONINTERACTIVE=0 ;;
@@ -761,11 +814,20 @@ function AliMain() {
 
   unset ROOT_VER G3_VER ALICE_VER FASTJET_VER FJCONTRIB_VER
 
+  # selection by query (-m <query>) has priority over by number (-n <ntuple>)
+  [[ $queryAliTuple != '' ]] && nAliTuple=$( AliTupleNumberByQuery "$queryAliTuple" )
+
   if [[ ! $nAliTuple =~ ^[[:digit:]]+$ || $nAliTuple -gt ${#AliTuple[@]} ]] ; then
     echo
-    echo -e "${Cr}Invalid tuple: ${Cb}${nAliTuple}${Cz}"
-    echo -e "${Cr}Check the value of ${Cb}nAliTuple${Cr} in ${Cb}${ALI_Conf}${Cr}," \
-      "or provide a correct value with \"-n <n_tuple>\"${Cz}"
+    if [[ $queryAliTuple != '' ]] ; then
+      # selection by query
+      echo -e "${Cr}No tuple matches the given query: ${Cb}${queryAliTuple}${Cz}"
+    else
+      # selection by number
+      echo -e "${Cr}Invalid tuple: ${Cb}${nAliTuple}${Cz}"
+      echo -e "${Cr}Check the value of ${Cb}nAliTuple${Cr} in ${Cb}${ALI_Conf}${Cr}," \
+        "or provide a correct value with \"-n <n_tuple>\"${Cz}"
+    fi
     OPT_CLEANENV=1
   elif [[ $nAliTuple == 0 ]] ; then
     # same as above but with no output
