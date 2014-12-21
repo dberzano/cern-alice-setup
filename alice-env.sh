@@ -159,7 +159,7 @@ function AliTupleNumberByQuery() (
 
     done
 
-    if [[ $keep_tuple == 1 ]] ; then
+    if [[ $tuple_matches == 1 ]] ; then
       # matching tuple found
       echo $count_tuple
       return 0
