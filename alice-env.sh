@@ -704,6 +704,7 @@ function AliMain() {
         OPT_NONINTERACTIVE=1
         nAliTuple=$(( $2 ))
         [[ $nAliTuple == 0 ]] && unset nAliTuple
+        shift
       ;;
       -i) OPT_NONINTERACTIVE=0 ;;
       -c) OPT_CLEANENV=1; ;;
