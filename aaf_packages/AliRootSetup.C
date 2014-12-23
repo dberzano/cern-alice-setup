@@ -1,17 +1,21 @@
 /*
  * SETUP.C -- by Dario Berzano <dario.berzano@cern.ch>
  *
- * Configures environment for a certain AliRoot version.
+ * Configures environment for a certain AliRoot version, on client, master and
+ * slaves.
  *
- * List of variables to support for compatibility:
+ * Usage of PARfiles is *required* with Dynamic Workers, which do not support
+ * the replay of gProof->Exec() statements.
  *
- * ALICE_PROOF_AAF_ALIEN_PACKAGES
+ * List of variables supported for AAF "compatibility":
+ *
  * [X] ALIROOT_EXTRA_INCLUDES
  * [X] ALIROOT_MODE
  * [X] ALIROOT_EXTRA_LIBS
  * [ ] ALIROOT_AAF_BAD_WORKER
  * [ ] ALIROOT_AAF_DEBUG
  * [X] ALIROOT_ENABLE_ALIEN
+ * [ ] ALICE_PROOF_AAF_ALIEN_PACKAGES
  * [ ] ALIROOT_ALIEN_RETRY
  *
  */
@@ -37,17 +41,15 @@ Bool_t SETUP_LoadLibraries(const TString &libs) {
   // if at least one library couldn't load properly. Does not check for double
   // loads (but ROOT does).
 
-  TObjArray *toks = libs.Tokenize(":");
-  TIter it(toks);
-  TObjString *os;
+  TString l;
+  Ssiz_t from;
 
-  while ((os = dynamic_cast<TObjString *>( it.Next() )) != NULL) {
-    TString l = os->String();
+  while ( libs.Tokenize(l, from, ":") ) {
     if (l.IsNull()) continue;
     if (!l.BeginsWith("lib")) l.Prepend("lib");
     if (l.EndsWith(".so")) l.Remove(l.Length()-3, l.Length());
 
-    ::Info(gMessTag.Data(), ">> Loading %s...", l.Data());
+    ::Info(gMessTag.Data(), ">> Loading library %s...", l.Data());
 
     if (gSystem->Load(l.Data()) < 0) {
        ::Error(gMessTag.Data(), "Error loading %s, aborting", l.Data());
@@ -78,7 +80,7 @@ Bool_t SETUP_SetAliRootMode(TString &mode, const TString &extraLibs) {
   }
 
   if (mode == "aliroot") {
-    ::Info(gMessTag.Data(), "Loading libraries for aliroot mode...");
+    ::Info(gMessTag.Data(), "Loading libraries for AliRoot mode...");
     rv = gROOT->Macro(
       gSystem->ExpandPathName("$ALICE_ROOT/macros/loadlibs.C") );
   }
@@ -122,6 +124,30 @@ Bool_t SETUP_SetAliRootMode(TString &mode, const TString &extraLibs) {
   return kTRUE;
 }
 
+//______________________________________________________________________________
+void SETUP_MakePar() {
+
+  TString tmp = gSystem->GetFromPipe("mktemp -d /tmp/AliRoot-MakePar-XXXXX");
+  TString buf;
+  buf.Form("rm -rf AliRoot.par");
+  buf.Form("%s/AliRoot/PROOF-INF", tmp.Data());
+  gSystem->mkdir(buf.Data(), kTRUE);
+  buf.Form("%s/AliRoot/PROOF-INF/SETUP.C", tmp.Data());
+  gSystem->CopyFile("AliRoot_SETUP.C", buf.Data());
+  buf.Form("tar -C %s -cvzf AliRoot.par AliRoot/", tmp.Data());
+  gSystem->Exec(buf.Data());
+  buf.Form("rm -rf %s", tmp.Data());
+  gSystem->Exec(buf.Data());
+  if (gSystem->AccessPathName("AliRoot.par") == kFALSE) {
+    ::Info(gSystem->HostName(), "AliRoot.par created successfully");
+  }
+  else {
+    ::Error(gSystem->HostName(), "Problems creating AliRoot.par");
+  }
+
+}
+
+//______________________________________________________________________________
 Int_t SETUP(TList *inputList = NULL) {
 
   TString aliRootDir;
@@ -209,6 +235,8 @@ Int_t SETUP(TList *inputList = NULL) {
         extraLibs = pair->GetTitle();
       else if ( strcmp(pair->GetName(), "ALIROOT_ENABLE_ALIEN") == 0 )
         enableAliEn = ( *(pair->GetTitle()) != '\0' );
+      else if ( strcmp(pair->GetName(), "ALIROOT_MODE") == 0 )
+        mode = pair->GetTitle();
     }
   }
 
@@ -229,12 +257,9 @@ Int_t SETUP(TList *inputList = NULL) {
   //
 
   {
-    TObjArray *toks = extraIncs.Tokenize(":");
-    TIter it(toks);
-    TObjString *os;
-
-    while ((os = dynamic_cast<TObjString *>( it.Next() )) != NULL) {
-      TString &inc = os->String();
+    TString inc;
+    Ssiz_t from = 0;
+    while ( extraIncs.Tokenize(inc, from, ":") ) {
       if (inc.IsNull()) continue;
       ::Info(gMessTag.Data(), ">> Adding include path %s", inc.Data());
       gSystem->AddIncludePath(
