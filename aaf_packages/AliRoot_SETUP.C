@@ -167,7 +167,7 @@ Int_t SETUP(TList *inputList = NULL) {
       return -1;
     }
 
-    ::Info(gMessTag.Data(), "Enabling AliRoot located at %s",
+    ::Info(gMessTag.Data(), "Enabling local AliRoot located at %s",
       aliRootDir.Data());
 
   }
@@ -180,30 +180,57 @@ Int_t SETUP(TList *inputList = NULL) {
     gMessTag = gSystem->HostName();
 
     // Extract AliRoot version from this package's name
-    TString aliRootVer = gSystem->BaseName(gSystem->pwd());
-    TPMERegexp re("^VO_ALICE@AliRoot::(.*)$");
-    if (re.Match(aliRootVer) != 2) {
-      ::Error(gMessTag.Data(),
-        "Error parsing requested AliRoot version from PARfile name (%s)",
-        aliRootVer.Data());
-      return -1;
-    }
-
-    aliRootVer = re[1].Data();
-    ::Info(gMessTag.Data(), "Enabling AliRoot %s...", aliRootVer.Data());
-
-    // Get ALICE_ROOT from Modules
     TString buf;
-    buf.Form( ". /cvmfs/alice.cern.ch/etc/login.sh && eval `alienv printenv VO_ALICE@AliRoot::%s` && echo \"$ALICE_ROOT\"", aliRootVer.Data() );
-    aliRootDir = gSystem->GetFromPipe( buf.Data() );
+    buf = gSystem->BaseName(gSystem->pwd());
+    TPMERegexp re("^VO_ALICE@AliRoot::(.*)$");
+    if (re.Match(buf) == 2) {
 
-    // Set environment for AliRoot
-    gSystem->Setenv("ALICE_ROOT", aliRootDir.Data());
+      // AliRoot enabled from a metaparfile whose name matches
+      // VO_ALICE@AliRoot::<version>: set up ALICE_ROOT environment variable
+      // accordingly from there.
+      // Note: this is the AAF case.
 
-    // LD_LIBRARY_PATH: current working directory always has precedence
-    gSystem->SetDynamicPath(
-      Form(".:%s/lib/tgt_%s:%s", aliRootDir.Data(), gSystem->GetBuildArch(),
-        gSystem->GetDynamicPath()) );
+      TString aliRootVer = re[1].Data();
+
+      // Get ALICE_ROOT from Modules
+      buf.Form( ". /cvmfs/alice.cern.ch/etc/login.sh && eval `alienv printenv VO_ALICE@AliRoot::%s` && echo \"$ALICE_ROOT\"", aliRootVer.Data() );
+      aliRootDir = gSystem->GetFromPipe( buf.Data() );
+
+      // Set (or override) environment for AliRoot
+      gSystem->Setenv("ALICE_ROOT", aliRootDir.Data());
+
+      // LD_LIBRARY_PATH: current working directory always has precedence.
+      // Note: supports both current $ALICE_ROOT/lib and legacy
+      //       $ALICE_ROOT/lib/tgt_<arch> format.
+
+      gSystem->SetDynamicPath(
+        Form(".:%s/lib:%s/lib/tgt_%s:%s", aliRootDir.Data(),
+          gSystem->GetBuildArch(), gSystem->GetDynamicPath()) );
+
+      ::Info(gMessTag.Data(),
+        "Enabling AliRoot %s located on PROOF node at %s (AAF mode)...",
+        aliRootVer.Data(), aliRootDir.Data());
+
+    }
+    else {
+
+      // AliRoot enabled from a single metaparfile. Assume that ALICE_ROOT is
+      // already defined on each worker.
+      // Note: this is the VAF case.
+
+      aliRootDir = gSystem->Getenv("ALICE_ROOT");  // NULL --> ""
+
+      if (aliRootDir.IsNull()) {
+        ::Error(gMessTag.Data(),
+          "ALICE_ROOT environment variable not defined on PROOF node, and not"
+          "loading from a PARfile containing AliRoot version in its name");
+        return -1;
+      }
+
+      ::Info(gMessTag.Data(),
+        "Enabling AliRoot located on PROOF node at %s (VAF mode)",
+        aliRootDir.Data());
+    }
 
   }
 
