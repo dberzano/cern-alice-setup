@@ -51,7 +51,7 @@ while read AliRootVer ; do
 
   (
     mkdir -p "$T/$AliRootVer/PROOF-INF"
-    cp AliRootSetup.C "$T/$AliRootVer/PROOF-INF/SETUP.C"
+    cp AliRoot_SETUP.C "$T/$AliRootVer/PROOF-INF/SETUP.C"
     tar -C "$T" --force-local -czvvf "$PackagesDir/$AliRootVer.par" "$AliRootVer/"
     tar -C "$PackagesDir" --force-local -xzvvf "$PackagesDir/$AliRootVer.par"
   ) > $T/log.txt 2>&1
