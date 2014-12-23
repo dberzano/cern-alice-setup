@@ -81,22 +81,26 @@ Bool_t SETUP_SetAliRootMode(TString &mode, const TString &extraLibs) {
 
   if (mode == "aliroot") {
     ::Info(gMessTag.Data(), "Loading libraries for AliRoot mode...");
-    rv = gROOT->Macro(
+    rv = gROOT->LoadMacro(
       gSystem->ExpandPathName("$ALICE_ROOT/macros/loadlibs.C") );
+    if (rv == 0) loadlibs();
   }
   else if (mode == "sim") {
     ::Info(gMessTag.Data(), "Loading libraries for simulation mode...");
-    rv = gROOT->Macro(
+    rv = gROOT->LoadMacro(
       gSystem->ExpandPathName("$ALICE_ROOT/macros/loadlibssim.C") );
+    if (rv == 0) loadlibssim();
   }
   else if (mode == "rec") {
     ::Info(gMessTag.Data(), "Loading libraries for reconstruction mode...");
-    rv = gROOT->Macro(
+    rv = gROOT->LoadMacro(
       gSystem->ExpandPathName("$ALICE_ROOT/macros/loadlibsrec.C") );
+    if (rv == 0) loadlibsrec();
   }
   else {
     // No mode specified, or invalid mode: load standard libraries, and also
     // fix loading order
+    ::Info(gMessTag.Data(), "No mode specified: loading standard libraries...");
     TPMERegexp reLibs("(ANALYSISalice|OADB|ANALYSIS|STEERBase|ESD|AOD)(:|$)");
     while (reLibs.Substitute(libs, "")) {}
     libs.Prepend("STEERBase:ESD:AOD:ANALYSIS:OADB:ANALYSISalice:");
