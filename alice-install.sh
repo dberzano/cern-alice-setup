@@ -842,11 +842,12 @@ function SwallowProgress() {
   TsEnd=$( date +%s )
   SwallowEnd "$Op" $Fatal $Ret $TsStart $TsEnd "$@"
 
-  if [ $Ret != 0 ] && [ $Fatal == 1 ]; then
+  if [[ $Ret != 0 && $Fatal == 1 ]]; then
     LastLogLines -e "$Op"
     exit 1
   fi
 
+  return $Ret
 }
 
 # Clean up AliEn
