@@ -751,7 +751,7 @@ function ModuleAliRoot() {
     if [[ -L "${AliRootSrc}/include" ]] ; then
       SwallowProgress -f --percentage \
         'Removing legacy symlink to include directory inside source' \
-        rm -f "${AliRootInst}/include"
+        rm -f "${AliRootSrc}/include"
     fi
 
     if [[ -d "${AliRootTmp}/version" ]] ; then
