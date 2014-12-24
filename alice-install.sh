@@ -603,19 +603,24 @@ function ModuleFastJet() {
 
     SwallowProgress -f --pattern "Building FastJet" make -j$MJ install
 
-    if [ "$FJCONTRIB_VER" != '' ] ; then
+    if [[ "$FJCONTRIB_VER" != '' ]] ; then
 
       #
       # Build FastJet contrib (optional)
       #
 
-      Swallow -f "Sourcing envvars" SourceEnvVars
-      Swallow -f "Moving into FastJet contrib build directory" \
+      Swallow -f 'Sourcing envvars' SourceEnvVars
+      Swallow -f 'Moving into FastJet contrib build directory' \
         cd "$FASTJET/src/fjcontrib-$FJCONTRIB_VER"
 
-      SwallowProgress -f --pattern "Configuring FastJet contrib" ./configure CXX="$CXX" CXXFLAGS="$CXXFLAGS"
-      SwallowProgress -f --pattern "Building FastJet contrib" make -j$MJ install
-      SwallowProgress -f --pattern "Building FastJet contrib shared library" make -j$MJ fragile-shared-install
+      SwallowProgress -f --pattern 'Configuring FastJet contrib' \
+        ./configure CXX="$CXX" CXXFLAGS="$CXXFLAGS"
+      SwallowProgress --pattern 'Building FastJet contrib' make -j$MJ
+      SwallowProgress --pattern 'Installing FastJet contrib' make install
+      SwallowProgress -f --pattern 'Building FastJet contrib shared library' \
+        make -j$MJ fragile-shared
+      SwallowProgress -f --pattern 'Installing FastJet contrib shared library' \
+        make fragile-shared-install
 
     fi
 
