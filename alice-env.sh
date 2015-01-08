@@ -313,6 +313,18 @@ function AliSetParallelMake() {
   export MJ
 }
 
+# remove environment overrides from gclient_env
+function AliAliEnPatchGclientEnv() (
+  local envFile="/tmp/gclient_env_$UID"
+  local sedMatch='GSHELL_ROOT\|LD_LIBRARY_PATH\|DYLD_LIBRARY_PATH\|X509_CERT_DIR\|PATH'
+  if [[ -e $envFile ]] ; then
+    # completely remove those nasty variables
+    sed -e "s/^\s*export\s\+\(${sedMatch}\)=\(.*\)$//g" \
+      "$envFile" > "${envFile}.0"
+    mv "${envFile}.0" "$envFile"
+  fi
+)
+
 # set environment according to the provided tuple (only argument)
 function AliExportVars() {
 
@@ -352,6 +364,9 @@ function AliExportVars() {
         export PATH="${GSHELL_ROOT}/bin:${PATH}"
         export LD_LIBRARY_PATH="${GSHELL_ROOT}/lib:${LD_LIBRARY_PATH}"
         export DYLD_LIBRARY_PATH="${GSHELL_ROOT}/lib:${DYLD_LIBRARY_PATH}"
+
+        # remove overridden variables from gclient_env_$UID
+        AliAliEnPatchGclientEnv
       ;;
 
       root)
