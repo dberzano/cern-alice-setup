@@ -202,6 +202,10 @@ function AliRemovePaths() {
           [[ $RemovePathsDebug == 1 ]] && echo -e "${DebugPrompt}    remove it: found one of the given files"
           KEEPDIR=0
           break
+        elif [ -e "${D}"/tgt_*/"${F}" ] ; then
+          [[ $RemovePathsDebug == 1 ]] && echo -e "${DebugPrompt}    remove it: a tgt_ subdirectory contains one of the given files"
+          KEEPDIR=0
+          break
         fi
       done
 
