@@ -182,9 +182,15 @@ function AliRemovePaths() {
   local NEWDIRS=""
   local OIFS="$IFS"
   local D F KEEPDIR
+  local RemovePathsDebug=0
+  local DebugPrompt="${Cc}RemovePaths>${Cz} "
   IFS=:
 
+  [[ $RemovePathsDebug == 1 ]] && echo -e "${DebugPrompt}${Cm}variable:${Cz} $VARNAME"
+
   for D in $DIRS ; do
+
+    [[ $RemovePathsDebug == 1 ]] && echo -e "${DebugPrompt}  directory $D"
 
     KEEPDIR=1
     D=$( cd "$D" 2> /dev/null && pwd || echo "$D" )
@@ -193,6 +199,7 @@ function AliRemovePaths() {
       # condemn directory if one of the given files is there
       for F in $@ ; do
         if [[ -e "$D/$F" ]] ; then
+          [[ $RemovePathsDebug == 1 ]] && echo -e "${DebugPrompt}    remove it: found one of the given files"
           KEEPDIR=0
           break
         fi
@@ -201,16 +208,21 @@ function AliRemovePaths() {
       # retain directory if it is in RetainPaths (may revert)
       for K in $RetainPaths ; do
         if [[ "$D" == "$( cd "$K" 2> /dev/null ; pwd )" ]] ; then
+          [[ $RemovePathsDebug == 1 ]] && echo -e "${DebugPrompt}    kept: is a system path"
           KEEPDIR=1
           break
         fi
       done
 
     else
+      [[ $RemovePathsDebug == 1 ]] && echo -e "${DebugPrompt}    remove it: cannot access it"
       KEEPDIR=0
     fi
     if [[ $KEEPDIR == 1 ]] ; then
+      [[ $RemovePathsDebug == 1 ]] && echo -e "${DebugPrompt}    ${Cg}final decision: keeping${Cz}"
       [[ "$NEWDIRS" == "" ]] && NEWDIRS="$D" || NEWDIRS="${NEWDIRS}:${D}"
+    else
+      [[ $RemovePathsDebug == 1 ]] && echo -e "${DebugPrompt}    ${Cr}final decision: discarding${Cz}"
     fi
 
   done
