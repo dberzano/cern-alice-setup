@@ -326,33 +326,33 @@ function AliExportVars() {
     case $sec in
 
       alien)
-        export ALIEN_DIR="$ALICE_PREFIX/alien"
-        export X509_CERT_DIR="$ALIEN_DIR/globus/share/certificates"
+        export ALIEN_DIR="${ALICE_PREFIX}/alien"
+        export X509_CERT_DIR="${ALIEN_DIR}/globus/share/certificates"
 
         # AliEn source installation uses a different destination directory
         [[ -d "$X509_CERT_DIR" ]] || X509_CERT_DIR="$ALIEN_DIR/api/share/certificates"
 
-        export GSHELL_ROOT="$ALIEN_DIR/api"
-        export PATH="$PATH:$GSHELL_ROOT/bin"
-        export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$GSHELL_ROOT/lib"
-        export DYLD_LIBRARY_PATH="$DYLD_LIBRARY_PATH:$GSHELL_ROOT/lib"
+        export GSHELL_ROOT="${ALIEN_DIR}/api"
+        export PATH="${GSHELL_ROOT}/bin:${PATH}"
+        export LD_LIBRARY_PATH="${GSHELL_ROOT}/lib:${LD_LIBRARY_PATH}"
+        export DYLD_LIBRARY_PATH="${GSHELL_ROOT}/lib:${DYLD_LIBRARY_PATH}"
       ;;
 
       root)
-        export ROOTSYS="$ALICE_PREFIX/root/$ROOT_SUBDIR"
-        export PATH="$ROOTSYS/bin:$PATH"
-        export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$ROOTSYS/lib"
+        export ROOTSYS="${ALICE_PREFIX}/root/${ROOT_SUBDIR}"
+        export PATH="${ROOTSYS}/bin:${PATH}"
+        export LD_LIBRARY_PATH="${ROOTSYS}/lib:${LD_LIBRARY_PATH}"
         export ROOT_VER
-        if [[ -e "$ROOTSYS/lib/ROOT.py" ]] ; then
+        if [[ -e "${ROOTSYS}/lib/ROOT.py" ]] ; then
           # PyROOT support
-          export PYTHONPATH="$ROOTSYS/lib:$PYTHONPATH"
+          export PYTHONPATH="${ROOTSYS}/lib:${PYTHONPATH}"
         fi
         export ROOT_ARCH=`root-config --arch 2> /dev/null`
       ;;
 
       geant3)
-        export GEANT3DIR="$ALICE_PREFIX/geant3/$G3_SUBDIR"
-        export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$GEANT3DIR/lib/tgt_${ROOT_ARCH}"
+        export GEANT3DIR="${ALICE_PREFIX}/geant3/${G3_SUBDIR}"
+        export LD_LIBRARY_PATH="${GEANT3DIR}/lib/tgt_${ROOT_ARCH}:${LD_LIBRARY_PATH}"
       ;;
 
       aliroot)
@@ -372,11 +372,11 @@ function AliExportVars() {
 
       fastjet)
         if [[ $FASTJET_VER != '' ]] ; then
-          export FASTJET="$ALICE_PREFIX/fastjet/$FASTJET_SUBDIR"
+          export FASTJET="${ALICE_PREFIX}/fastjet/${FASTJET_SUBDIR}"
           export FASTJET_VER
-          if [ -d "$FASTJET/bin" ] && [ -d "$FASTJET/lib" ] ; then
-            export PATH="$PATH:$FASTJET/bin"
-            export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$FASTJET/lib"
+          if [[ -d "${FASTJET}/bin" && -d "${FASTJET}/lib" ]] ; then
+            export PATH="${FASTJET}/bin:${PATH}"
+            export LD_LIBRARY_PATH="${FASTJET}/lib:${LD_LIBRARY_PATH}"
           fi
         else
           unset FASTJET_VER FASTJET_SUBDIR
