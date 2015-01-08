@@ -317,11 +317,23 @@ function AliSetParallelMake() {
 function AliAliEnPatchGclientEnv() (
   local envFile="/tmp/gclient_env_$UID"
   local sedMatch='GSHELL_ROOT\|LD_LIBRARY_PATH\|DYLD_LIBRARY_PATH\|X509_CERT_DIR\|PATH'
+  local line
   if [[ -e $envFile ]] ; then
+
     # completely remove those nasty variables
-    sed -e "s/^\s*export\s\+\(${sedMatch}\)=\(.*\)$//g" \
-      "$envFile" > "${envFile}.0"
+    while read line ; do
+
+      if [[ $line =~ ^export[[:blank:]]+([A-Za-z0-9_]+)= ]] ; then
+        case "${BASH_REMATCH[1]}" in
+          GSHELL_ROOT|LD_LIBRARY_PATH|DYLD_LIBRARY_PATH|PATH|X509_CERT_DIR) line='' ;;
+        esac
+      fi
+
+      [[ $line != '' ]] && echo "$line"
+
+    done < <( cat "$envFile" ) > "${envFile}.0"
     mv "${envFile}.0" "$envFile"
+
   fi
 )
 
