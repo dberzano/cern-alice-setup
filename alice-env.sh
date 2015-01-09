@@ -332,7 +332,7 @@ function AliAliEnPatchGclientEnv() (
       [[ $line != '' ]] && echo "$line"
 
     done < <( cat "$envFile" ) > "${envFile}.0"
-    \mv "${envFile}.0" "$envFile"
+    \mv -f "${envFile}.0" "$envFile"
 
   fi
 )
