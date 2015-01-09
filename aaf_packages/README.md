@@ -1,9 +1,9 @@
 Generating AAF PARfiles for CernVM-FS
 =====================================
 
-**Rationale:** creating PARfiles for enabling AliRoot on ALICE
-Analysis Facilities and export them on CernVM-FS, so that they are
-automatically available everywhere.
+**Rationale:** creating PARfiles for enabling AliRoot on ALICE Analysis
+Facilities and export them on CernVM-FS, so that they are automatically
+available everywhere.
 
 There are separate instructions for
 
@@ -39,8 +39,8 @@ cd ~/cern-alice-setup/aaf_packages
 ./gen_proof_packages.sh --proof-packages-dir /cvmfs/alice.cern.ch/etc/aaf_packages
 ```
 
-Packages for pre-existing AliRoot versions will not be created: only
-packages for new AliRoot versions are generated.
+Packages for pre-existing AliRoot versions will not be created: only packages
+for new AliRoot versions are generated.
 
 The destination directory is assumed to be exported via CernVM-FS.
 
@@ -52,11 +52,11 @@ AAF admins
 
 ### Once for all: PROOF setup for all nodes
 
-The local list of AliRoot versions will be automatically updated, as
-it will be available from CernVM-FS.
+The local list of AliRoot versions will be automatically updated, as it will be
+available from CernVM-FS.
 
-You still need to do some modification in your PROOF configuration,
-*i.e.* the `prf-main.cf` file, notably:
+You still need to do some modification in your PROOF configuration, *i.e.* the
+`prf-main.cf` file, notably:
 
 ```
 xpd.putrc Proof.GlobalPackageDirs /cvmfs/alice.cern.ch/x86_64-2.6-gnu-4.1.2/Packages/AAF/PAR
