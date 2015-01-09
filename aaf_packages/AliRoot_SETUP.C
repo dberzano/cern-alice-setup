@@ -166,13 +166,11 @@ Int_t SETUP(TList *inputList = NULL) {
     aliRootDir = gSystem->Getenv("ALICE_ROOT");  // NULL --> ""
 
     if (aliRootDir.IsNull()) {
-      ::Error(gMessTag.Data(),
-        "ALICE_ROOT environment variable not defined on client");
+      ::Error(gMessTag.Data(), "ALICE_ROOT environment variable not defined on client");
       return -1;
     }
 
-    ::Info(gMessTag.Data(), "Enabling local AliRoot located at %s",
-      aliRootDir.Data());
+    ::Info(gMessTag.Data(), "Enabling local AliRoot located at %s", aliRootDir.Data());
 
   }
   else {
@@ -197,7 +195,9 @@ Int_t SETUP(TList *inputList = NULL) {
       TString aliRootVer = re[1].Data();
 
       // Get ALICE_ROOT from Modules
-      buf.Form( ". /cvmfs/alice.cern.ch/etc/login.sh && eval `alienv printenv VO_ALICE@AliRoot::%s` && echo \"$ALICE_ROOT\"", aliRootVer.Data() );
+      buf.Form( ". /cvmfs/alice.cern.ch/etc/login.sh && "
+        "eval `alienv printenv VO_ALICE@AliRoot::%s` && "
+        "echo \"$ALICE_ROOT\"", aliRootVer.Data() );
       aliRootDir = gSystem->GetFromPipe( buf.Data() );
 
       // Set (or override) environment for AliRoot
@@ -243,11 +243,10 @@ Int_t SETUP(TList *inputList = NULL) {
   //
 
   // Add standard AliRoot include path
-  gSystem->AddIncludePath(Form("-I\"%s/include\"", aliRootDir.Data()));
+  gSystem->AddIncludePath( Form("-I\"%s/include\"", aliRootDir.Data()) );
 
   // Add standard AliRoot macro path
-  gROOT->SetMacroPath(
-    Form("%s:%s/macros", gROOT->GetMacroPath(), aliRootDir.Data()) );
+  gROOT->SetMacroPath( Form("%s:%s/macros", gROOT->GetMacroPath(), aliRootDir.Data()) );
 
   //
   // Process input parameters
@@ -276,10 +275,8 @@ Int_t SETUP(TList *inputList = NULL) {
   //
 
   if (!SETUP_SetAliRootMode(mode, extraLibs)) {
-    ::Error(gMessTag.Data(),
-      "Error loading libraries while setting AliRoot mode.");
-    ::Error(gMessTag.Data(),
-      "Did you enable the right version of ROOT?");
+    ::Error(gMessTag.Data(), "Error loading libraries while setting AliRoot mode.");
+    ::Error(gMessTag.Data(), "Did you enable the right version of ROOT?");
     return -1;
   }
 
@@ -293,8 +290,7 @@ Int_t SETUP(TList *inputList = NULL) {
     while ( extraIncs.Tokenize(inc, from, ":") ) {
       if (inc.IsNull()) continue;
       ::Info(gMessTag.Data(), ">> Adding include path %s", inc.Data());
-      gSystem->AddIncludePath(
-        Form("-I\"%s/%s\"", aliRootDir.Data(), inc.Data()) );
+      gSystem->AddIncludePath( Form("-I\"%s/%s\"", aliRootDir.Data(), inc.Data()) );
     }
   }
 
