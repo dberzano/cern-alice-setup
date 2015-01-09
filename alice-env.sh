@@ -332,7 +332,7 @@ function AliAliEnPatchGclientEnv() (
       [[ $line != '' ]] && echo "$line"
 
     done < <( cat "$envFile" ) > "${envFile}.0"
-    \mv "${envFile}.0" "$envFile"
+    \mv -f "${envFile}.0" "$envFile"
 
   fi
 )
@@ -708,8 +708,8 @@ function AliConfMigrate() {
   IFS="$oldIfs"
 
   if [[ $pfail != 1 && -s "$ALI_Conf" && -s "$ALI_ConfNew" && ! -e "$ALI_ConfOld" ]] ; then
-    \mv "${ALI_Conf}" "${ALI_ConfOld}"
-    \mv "${ALI_ConfNew}" "${ALI_Conf}"
+    \mv -f "${ALI_Conf}" "${ALI_ConfOld}"
+    \mv -f "${ALI_ConfNew}" "${ALI_Conf}"
     echo -e "${Cg}Configuration file format has changed!${Cz}"
     echo -e "${Cg}We have updated ${Cc}${ALI_Conf}${Cg} to the new format automatically.${Cz}"
     echo
