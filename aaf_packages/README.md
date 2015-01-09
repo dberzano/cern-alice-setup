@@ -27,7 +27,7 @@ git clone https://github.com/dberzano/cern-alice-setup.git
 The script will be available in `~/cern-alice-setup/aaf_packages`.
 
 We will assume that the global AAF packages directory will be
-`/cvmfs/alice.cern.ch/etc/aaf_packages`.
+`/cvmfs/alice.cern.ch/x86_64-2.6-gnu-4.1.2/Packages/AAF/PAR`.
 
 
 ### At each AliRoot release: update the list of packages
@@ -36,7 +36,7 @@ When a new AliRoot version has been released:
 
 ```bash
 cd ~/cern-alice-setup/aaf_packages
-./gen_proof_packages.sh --proof-packages-dir /cvmfs/alice.cern.ch/etc/aaf_packages
+./gen_proof_packages.sh --proof-packages-dir /cvmfs/alice.cern.ch/x86_64-2.6-gnu-4.1.2/Packages/AAF/PAR
 ```
 
 Packages for pre-existing AliRoot versions will not be created: only packages
