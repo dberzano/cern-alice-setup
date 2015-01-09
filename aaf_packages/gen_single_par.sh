@@ -2,15 +2,21 @@
 
 cd "$( dirname "$0" )"
 
+if [[ $1 != '' ]] ; then
+  parname=$1
+else
+  parname='AliRoot'
+fi
+
 src="${PWD}/AliRoot_SETUP.C"
-dst="${PWD}/AliRoot.par"
-#dst='/Volumes/cloud-gw-218/Analyses/Leoncino/CENTRALITY/LHC13de/new_OADB/AliRoot.par'
+dst="${PWD}/${parname}.par"
+#dst='/Volumes/cloud-gw-218/Analyses/Leoncino/CENTRALITY/LHC13de/new_OADB/${parname}.par'
 
 t=`mktemp -d /tmp/AliRoot_PAR-XXXXX`
-mkdir -p "${t}/AliRoot/PROOF-INF"
-cp "$src" "${t}/AliRoot/PROOF-INF/SETUP.C"
+mkdir -p "${t}/${parname}/PROOF-INF"
+cp "$src" "${t}/${parname}/PROOF-INF/SETUP.C"
 rm -f "$dst"
-( cd "$t" && tar czf "$dst" AliRoot/ )
+( cd "$t" && tar czf "$dst" "${parname}/" )
 
 rm -rf "$t"
 

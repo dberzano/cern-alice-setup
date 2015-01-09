@@ -10,6 +10,7 @@ There are separate instructions for
 * [ALICE CernVM-FS administrators](#alice-cernvm-fs-admins)
 * [AAF admins](#aaf-admins)
 * [AAF users](#aaf-users)
+* [VAF](#vaf)
 
 
 ALICE CernVM-FS admins
@@ -81,3 +82,40 @@ gProof->EnablePackage( "VO_ALICE@AliRoot::vAN-20140331" );
 ```
 
 **Note:** don't forget the `VO_ALICE@AliRoot::` prefix.
+
+
+VAF
+---
+
+Only one special PARfile is needed to enable AliRoot on the Virtual Analysis
+Facilities.
+
+Generated PARs are compatible both with AAFs and VAFs.
+
+To generate the single PARfile for VAFs:
+
+```bash
+cd ~/cern-alice-setup/aaf_packages
+./gen_single_par.sh
+```
+
+A PARfile named `AliRoot.par` will be generated. It can be copied in the user's
+current working directory, then it must be **first uploaded** then enabled on
+PROOF:
+
+```c++
+gProof->UploadPackage( "AliRoot" );
+gProof->EnablePackage( "AliRoot" );
+```
+
+### Generate a single PARfile with a custom name
+
+Instead of the default `AliRoot.par` you can run:
+
+```bash
+cd ~/cern-alice-setup/aaf_packages
+./gen_single_par.sh MyParFileSpecialName
+```
+
+A PARfile named `MyParFileSpecialName.par` will be created in the current
+directory.
