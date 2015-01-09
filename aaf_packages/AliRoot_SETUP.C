@@ -208,7 +208,7 @@ Int_t SETUP(TList *inputList = NULL) {
       //       $ALICE_ROOT/lib/tgt_<arch> format.
 
       gSystem->SetDynamicPath(
-        Form(".:%s/lib:%s/lib/tgt_%s:%s", aliRootDir.Data(),
+        Form(".:%s/lib:%s/lib/tgt_%s:%s", aliRootDir.Data(), aliRootDir.Data(),
           gSystem->GetBuildArch(), gSystem->GetDynamicPath()) );
 
       ::Info(gMessTag.Data(),
