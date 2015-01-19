@@ -452,6 +452,8 @@ function ModuleGeant3() {
   Banner "Installing Geant3..."
   Swallow -f "Sourcing envvars" SourceEnvVars
 
+  Swallow "Checking if Geant3 support has been requested" [ "$GEANT3_VER" != '' ] || return
+
   if [ "$DOWNLOAD_MODE" == '' ] || [ "$DOWNLOAD_MODE" == 'only' ] ; then
 
     #
@@ -796,6 +798,8 @@ function ModuleAliPhysics() {
 
   Banner 'Installing AliPhysics...'
   Swallow -f 'Sourcing envvars' SourceEnvVars
+
+  Swallow "Checking if AliPhysics support has been requested" [ "$ALIPHYSICS_VER" != '' ] || return
 
   # AliPhysics variables: only ${ALICE_PHYSICS} needed
   # - ${ALICE_PHYSICS}: installation directory
