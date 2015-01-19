@@ -415,6 +415,11 @@ function AliExportVars() {
       ;;
 
       aliphysics)
+        export ALIPHYSICS_VER
+        export ALICE_PHYSICS="${ALICE_PREFIX}/aliphysics/${ALIPHYSICS_SUBDIR}/inst"
+        export PATH="${ALICE_PHYSICS}/bin:${PATH}"
+        export LD_LIBRARY_PATH="${ALICE_PHYSICS}/lib:${LD_LIBRARY_PATH}"
+        export DYLD_LIBRARY_PATH="${ALICE_PHYSICS}/lib:${DYLD_LIBRARY_PATH}"
       ;;
 
       fastjet)
@@ -516,10 +521,17 @@ function AliPrintVars() {
   fi
 
   # detect AliRoot Core location
-  if [[ -x "${ALICE_ROOT}/bin/aliroot" ||  -x "${ALICE_ROOT}/bin/tgt_${ROOT_ARCH}/aliroot"  ]] ; then
+  if [[ -x "${ALICE_ROOT}/bin/aliroot" || -x "${ALICE_ROOT}/bin/tgt_${ROOT_ARCH}/aliroot"  ]] ; then
     WHERE_IS_ALIROOT=$( cd "${ALICE_ROOT}/.." && pwd || dirname "$ALICE_ROOT" )
   else
     WHERE_IS_ALIROOT="$NOTFOUND"
+  fi
+
+  # detect AliPhysics location
+  if [[ $( ls -1 "${ALICE_PHYSICS}/lib/"*.{so,dylib} 2>/dev/null | wc -l ) -gt 10 ]] ; then
+    WHERE_IS_ALIPHYSICS=$( cd "${ALICE_PHYSICS}/.." && pwd || dirname "$ALICE_PHYSICS" )
+  else
+    WHERE_IS_ALIPHYSICS="$NOTFOUND"
   fi
 
   echo
@@ -532,6 +544,9 @@ function AliPrintVars() {
     echo -e "  ${Cc}FastJet${Cz}        $WHERE_IS_FASTJET"
   fi
   echo -e "  ${Cc}AliRoot Core${Cz}   $WHERE_IS_ALIROOT"
+  if [[ "$ALIPHYSICS_VER" != '' ]] ; then
+    echo -e "  ${Cc}AliPhysics${Cz}     $WHERE_IS_ALIPHYSICS"
+  fi
   echo
 
 }
