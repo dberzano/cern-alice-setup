@@ -525,7 +525,9 @@ function AliPrintVars() {
   echo
   echo -e "  ${Cc}AliEn${Cz}          $WHERE_IS_ALIEN"
   echo -e "  ${Cc}ROOT${Cz}           $WHERE_IS_ROOT"
-  echo -e "  ${Cc}Geant3${Cz}         $WHERE_IS_G3"
+  if [[ "$G3_VER" != '' ]] ; then
+    echo -e "  ${Cc}Geant3${Cz}         $WHERE_IS_G3"
+  fi
   if [[ "$FASTJET" != '' ]] ; then
     echo -e "  ${Cc}FastJet${Cz}        $WHERE_IS_FASTJET"
   fi
