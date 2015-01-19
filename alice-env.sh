@@ -286,11 +286,11 @@ function AliCleanEnv() {
   else
 
     # standard cleanup
-    AliRemovePaths PATH alien_cp aliroot root fastjet-config
+    AliRemovePaths PATH alien_cp aliroot runTrain root fastjet-config
     AliRemovePaths LD_LIBRARY_PATH libCint.so libSTEER.so libXrdSec.so libgeant321.so \
-       libgapiUI.so libfastjet.so libfastjet.dylib
+       libgapiUI.so libfastjet.so libfastjet.dylib libTender.so libTender.dylib
     AliRemovePaths DYLD_LIBRARY_PATH libCint.so libSTEER.so libXrdSec.so libgeant321.so \
-       libgapiUI.so libfastjet.so libfastjet.dylib
+       libgapiUI.so libfastjet.so libfastjet.dylib libTender.so libTender.dylib
     AliRemovePaths PYTHONPATH ROOT.py
 
     # restore prompt
