@@ -1131,7 +1131,7 @@ function Help() {
   echo ""
 
   echo "  To build/install/update something (multiple choices allowed):"
-  echo -e "    ${C}$Cmd [--alien] [--root] [--geant3] [--fastjet] [--aliroot] [--ncores <n>] [--compiler [gcc|clang|/prefix/to/gcc]]${Z}"
+  echo -e "    ${C}$Cmd [--alien] [--root] [--geant3] [--fastjet] [--aliroot] [--aliphysics] [--ncores <n>] [--compiler [gcc|clang|/prefix/to/gcc]]${Z}"
   echo ""
 
   echo "  To build/install/update everything (do --prepare first):"
@@ -1139,7 +1139,7 @@ function Help() {
   echo ""
 
   echo "  To cleanup something (multiple choices allowed - data is erased!):"
-  echo -e "    ${C}$Cmd [--clean-root] [--clean-geant3] [--clean-fastjet] [--clean-aliroot]${Z}"
+  echo -e "    ${C}$Cmd [--clean-root] [--clean-geant3] [--clean-fastjet] [--clean-aliroot] [--clean-aliphysics]${Z}"
   echo ""
 
   echo "  To cleanup everything:"
