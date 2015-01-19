@@ -1172,12 +1172,15 @@ function Help() {
     local G3_STR="$G3_VER"
     local ALICE_STR="$ALICE_VER"
     local FASTJET_STR="$FASTJET_VER"
+    local ALIPHYSICS_STR="$ALIPHYSICS_VER"
 
     if [ "$ROOT_VER" != "$ROOT_SUBDIR" ]; then
       ROOT_STR="$ROOT_VER (subdir: $ROOT_SUBDIR)"
     fi
 
-    if [ "$G3_VER" != "$G3_SUBDIR" ]; then
+    if [ "$G3_VER" == '' ]; then
+      G3_STR="won't be installed"
+    elif [ "$G3_VER" != "$G3_SUBDIR" ]; then
       G3_STR="$G3_VER (subdir: $G3_SUBDIR)"
     fi
 
@@ -1189,6 +1192,12 @@ function Help() {
 
     if [ "$ALICE_VER" != "$ALICE_SUBDIR" ]; then
       ALICE_STR="$ALICE_VER (subdir: $ALICE_SUBDIR)"
+    fi
+
+    if [ "$ALIPHYSICS_VER" == '' ]; then
+      ALIPHYSICS_STR="won't be installed"
+    elif [ "$ALIPHYSICS_VER" != "$ALIPHYSICS_SUBDIR" ]; then
+      ALIPHYSICS_STR="$ALIPHYSICS_VER (subdir: $ALIPHYSICS_SUBDIR)"
     fi
 
     local BUILD_MODE_STR="$BUILD_MODE"
@@ -1210,6 +1219,7 @@ function Help() {
     echo -e "  ${M}Geant3:       ${A}$G3_STR${Z}"
     echo -e "  ${M}FastJet:      ${A}$FASTJET_STR${Z}"
     echo -e "  ${M}AliRoot Core: ${A}$ALICE_STR${Z}"
+    echo -e "  ${M}AliPhysics:   ${A}$ALIPHYSICS_STR${Z}"
     echo
     echo -e "${M}Compiler: ${A}$BUILD_MODE_STR${M} (supported: ${A}${SUPPORTED_BUILD_MODES}${M})${Z}"
   fi
