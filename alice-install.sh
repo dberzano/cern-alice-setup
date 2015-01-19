@@ -993,8 +993,16 @@ function ModuleCleanAliRoot() {
 # Clean up AliPhysics
 function ModuleCleanAliPhysics() {
   Banner 'Cleaning AliPhysics...'
-  Swallow -f --error-msg 'Not yet implemented' \
-    'Cleaning AliPhysics' false
+
+  local AliPhysicsBase=$( dirname "${ALICE_PHYSICS}" )
+  local AliPhysicsInst="$ALICE_PHYSICS"
+  local AliPhysicsSrc="${AliPhysicsBase}/src"
+  local AliPhysicsTmp="${AliPhysicsBase}/build"
+
+  Swallow -f 'Sourcing envvars' SourceEnvVars
+  Swallow 'Checking if AliPhysics is really there' [ -d "$AliPhysicsTmp" ] || return 0
+  Swallow -f 'Removing AliPhysics build directory' rm -rf "$AliPhysicsTmp"
+  Swallow -f "Removing AliPhysics install directory" rm -rf "$AliPhysicsInst"
 }
 
 # Download URL $1 to file $2 using wget or curl
