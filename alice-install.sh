@@ -235,6 +235,9 @@ function LastLogLines() {
   echo -e "\033[33m=== Last $LASTLINES lines of stderr -- $SWALLOW_LOG.err ===\033[m"
   tail -n$LASTLINES "$SWALLOW_LOG".err
   echo ""
+  echo -e "\033[31m=== Possible errors ===\033[m"
+  cat "$SWALLOW_LOG".err | grep -B 2 'error:' --color
+  echo ""
 
   [ "$1" == "-e" ] && ShowBugReportInfo
 }
