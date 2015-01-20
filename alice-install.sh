@@ -987,7 +987,7 @@ function ModuleCleanFastJet() {
 
 # Clean up AliRoot
 function ModuleCleanAliRoot() {
-  Banner 'Cleaning AliRoot...'
+  Banner 'Cleaning AliRoot Core...'
 
   local AliRootBase=$( dirname "${ALICE_ROOT}" )
   local AliRootInst="$ALICE_ROOT"
