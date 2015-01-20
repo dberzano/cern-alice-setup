@@ -235,6 +235,9 @@ function LastLogLines() {
   echo -e "\033[33m=== Last $LASTLINES lines of stderr -- $SWALLOW_LOG.err ===\033[m"
   tail -n$LASTLINES "$SWALLOW_LOG".err
   echo ""
+  echo -e "\033[31m=== Possible errors ===\033[m"
+  cat "$SWALLOW_LOG".err | grep -B 2 'error:' --color
+  echo ""
 
   [ "$1" == "-e" ] && ShowBugReportInfo
 }
@@ -448,6 +451,8 @@ function ModuleGeant3() {
 
   Banner "Installing Geant3..."
   Swallow -f "Sourcing envvars" SourceEnvVars
+
+  Swallow "Checking if Geant3 support has been requested" [ "$GEANT3_VER" != '' ] || return
 
   if [ "$DOWNLOAD_MODE" == '' ] || [ "$DOWNLOAD_MODE" == 'only' ] ; then
 
@@ -788,6 +793,93 @@ function ModuleAliRoot() {
 
 }
 
+# Module to fetch, update and compile AliPhysics
+function ModuleAliPhysics() {
+
+  Banner 'Installing AliPhysics...'
+  Swallow -f 'Sourcing envvars' SourceEnvVars
+
+  Swallow "Checking if AliPhysics support has been requested" [ "$ALIPHYSICS_VER" != '' ] || return
+
+  # AliPhysics variables: only ${ALICE_PHYSICS} needed
+  # - ${ALICE_PHYSICS}: installation directory
+  # - ${ALICE_PHYSICS}/../build: build directory
+  # - ${ALICE_PHYSICS}/../src: source directory
+
+  local AliPhysicsBase=$( dirname "${ALICE_PHYSICS}" )
+  local AliPhysicsInst="$ALICE_PHYSICS"
+  local AliPhysicsSrc="${AliPhysicsBase}/src"
+  local AliPhysicsTmp="${AliPhysicsBase}/build"
+
+  if [[ ! -d "$AliPhysicsTmp" ]]; then
+    Swallow -f "Creating AliPhysics build directory" mkdir -p "$AliPhysicsTmp"
+  fi
+
+  if [[ "$DOWNLOAD_MODE" == '' || "$DOWNLOAD_MODE" == 'only' ]] ; then
+
+    # Download AliPhysics from Git
+
+    local AliPhysicsGit="${AliPhysicsBase}/../git"
+
+    Swallow -f 'Creating AliPhysics Git local directory' \
+      mkdir -p "$AliPhysicsGit"
+    Swallow -f 'Moving into AliRoot Git local directory' cd "$AliPhysicsGit"
+    if [[ ! -e "$AliPhysicsGit/.git" ]] ; then
+      SwallowProgress -f --pattern \
+        'Cloning AliPhysics Git repository (might take some time)' \
+        git clone http://git.cern.ch/pub/AliPhysics .
+    fi
+    AliPhysicsGit=$(cd "$AliPhysicsGit";pwd)
+
+    SwallowProgress -f --pattern \
+      'Updating list of remote AliPhysics Git branches' \
+      git remote update origin --prune
+
+    # Shallow copy with git-new-workdir
+    if [[ ! -d "${AliPhysicsSrc}/.git" ]] ; then
+      rmdir "$AliPhysicsSrc" > /dev/null 2>&1  # works if dir is empty
+      SwallowProgress -f --pattern \
+        "Creating a local clone for version ${ALIPHYSICS_VER}" \
+        git-new-workdir "$AliPhysicsGit" "$AliPhysicsSrc" "$ALIPHYSICS_VER"
+    fi
+
+    Swallow -f 'Moving to local clone' cd "$AliPhysicsSrc"
+    Swallow -f "Checking out AliPhysics version $ALIPHYSICS_VER" \
+      git checkout "$ALIPHYSICS_VER"
+
+    if [[ "$(git rev-parse --abbrev-ref HEAD)" != 'HEAD' ]] ; then
+      # update only if on a branch: errors are fatal
+      SwallowProgress -f --pattern \
+        "Updating AliPhysics $ALIPHYSICS_VER from Git" git pull --rebase
+    fi
+
+  fi # end download
+
+  if [[ "$DOWNLOAD_MODE" == '' || "$DOWNLOAD_MODE" == 'no' ]] ; then
+
+    # Build AliPhysics
+
+    Swallow -f 'Moving into AliPhysics build directory' cd "$AliPhysicsTmp"
+
+    SwallowProgress -f --pattern \
+      'Configuring AliPhysics with CMake' \
+      cmake "$AliPhysicsSrc" \
+        -DCMAKE_C_COMPILER=`root-config --cc` \
+        -DCMAKE_CXX_COMPILER=`root-config --cxx` \
+        -DCMAKE_Fortran_COMPILER=`root-config --f77` \
+        -DCMAKE_INSTALL_PREFIX="$AliPhysicsInst" \
+        -DALIEN="$ALIEN_DIR" \
+        -DROOTSYS="$ROOTSYS" \
+        -DFASTJET="$FASTJET" \
+        -DALIROOT="$ALICE_ROOT"
+
+    SwallowProgress -f --percentage 'Building AliPhysics' make -j$MJ
+    SwallowProgress -f --percentage 'Installing AliPhysics' make -j$MJ install
+
+  fi # end build
+
+}
+
 # Get file size - depending on the operating system
 function GetFileSizeBytes() {(
   V=$( wc -c "$1" | awk '{ print $1 }' )
@@ -895,7 +987,7 @@ function ModuleCleanFastJet() {
 
 # Clean up AliRoot
 function ModuleCleanAliRoot() {
-  Banner 'Cleaning AliRoot...'
+  Banner 'Cleaning AliRoot Core...'
 
   local AliRootBase=$( dirname "${ALICE_ROOT}" )
   local AliRootInst="$ALICE_ROOT"
@@ -906,6 +998,21 @@ function ModuleCleanAliRoot() {
   Swallow 'Checking if AliRoot is really there' [ -d "$AliRootTmp" ] || return 0
   Swallow -f 'Removing AliRoot build directory' rm -rf "$AliRootTmp"
   Swallow -f "Removing AliRoot install directory" rm -rf "$AliRootInst"
+}
+
+# Clean up AliPhysics
+function ModuleCleanAliPhysics() {
+  Banner 'Cleaning AliPhysics...'
+
+  local AliPhysicsBase=$( dirname "${ALICE_PHYSICS}" )
+  local AliPhysicsInst="$ALICE_PHYSICS"
+  local AliPhysicsSrc="${AliPhysicsBase}/src"
+  local AliPhysicsTmp="${AliPhysicsBase}/build"
+
+  Swallow -f 'Sourcing envvars' SourceEnvVars
+  Swallow 'Checking if AliPhysics is really there' [ -d "$AliPhysicsTmp" ] || return 0
+  Swallow -f 'Removing AliPhysics build directory' rm -rf "$AliPhysicsTmp"
+  Swallow -f "Removing AliPhysics install directory" rm -rf "$AliPhysicsInst"
 }
 
 # Download URL $1 to file $2 using wget or curl
@@ -1024,7 +1131,7 @@ function Help() {
   echo ""
 
   echo "  To build/install/update something (multiple choices allowed):"
-  echo -e "    ${C}$Cmd [--alien] [--root] [--geant3] [--fastjet] [--aliroot] [--ncores <n>] [--compiler [gcc|clang|/prefix/to/gcc]]${Z}"
+  echo -e "    ${C}$Cmd [--alien] [--root] [--geant3] [--fastjet] [--aliroot] [--aliphysics] [--ncores <n>] [--compiler [gcc|clang|/prefix/to/gcc]]${Z}"
   echo ""
 
   echo "  To build/install/update everything (do --prepare first):"
@@ -1032,7 +1139,7 @@ function Help() {
   echo ""
 
   echo "  To cleanup something (multiple choices allowed - data is erased!):"
-  echo -e "    ${C}$Cmd [--clean-root] [--clean-geant3] [--clean-fastjet] [--clean-aliroot]${Z}"
+  echo -e "    ${C}$Cmd [--clean-root] [--clean-geant3] [--clean-fastjet] [--clean-aliroot] [--clean-aliphysics]${Z}"
   echo ""
 
   echo "  To cleanup everything:"
@@ -1072,12 +1179,15 @@ function Help() {
     local G3_STR="$G3_VER"
     local ALICE_STR="$ALICE_VER"
     local FASTJET_STR="$FASTJET_VER"
+    local ALIPHYSICS_STR="$ALIPHYSICS_VER"
 
     if [ "$ROOT_VER" != "$ROOT_SUBDIR" ]; then
       ROOT_STR="$ROOT_VER (subdir: $ROOT_SUBDIR)"
     fi
 
-    if [ "$G3_VER" != "$G3_SUBDIR" ]; then
+    if [ "$G3_VER" == '' ]; then
+      G3_STR="won't be installed"
+    elif [ "$G3_VER" != "$G3_SUBDIR" ]; then
       G3_STR="$G3_VER (subdir: $G3_SUBDIR)"
     fi
 
@@ -1089,6 +1199,12 @@ function Help() {
 
     if [ "$ALICE_VER" != "$ALICE_SUBDIR" ]; then
       ALICE_STR="$ALICE_VER (subdir: $ALICE_SUBDIR)"
+    fi
+
+    if [ "$ALIPHYSICS_VER" == '' ]; then
+      ALIPHYSICS_STR="won't be installed"
+    elif [ "$ALIPHYSICS_VER" != "$ALIPHYSICS_SUBDIR" ]; then
+      ALIPHYSICS_STR="$ALIPHYSICS_VER (subdir: $ALIPHYSICS_SUBDIR)"
     fi
 
     local BUILD_MODE_STR="$BUILD_MODE"
@@ -1110,6 +1226,7 @@ function Help() {
     echo -e "  ${M}Geant3:       ${A}$G3_STR${Z}"
     echo -e "  ${M}FastJet:      ${A}$FASTJET_STR${Z}"
     echo -e "  ${M}AliRoot Core: ${A}$ALICE_STR${Z}"
+    echo -e "  ${M}AliPhysics:   ${A}$ALIPHYSICS_STR${Z}"
     echo
     echo -e "${M}Compiler: ${A}$BUILD_MODE_STR${M} (supported: ${A}${SUPPORTED_BUILD_MODES}${M})${Z}"
   fi
@@ -1209,8 +1326,10 @@ function Main() {
   local DO_G3=0
   local DO_FASTJET=0
   local DO_ALICE=0
+  local DO_ALIPHYSICS=0
   local DO_CLEAN_ALIEN=0
   local DO_CLEAN_ALICE=0
+  local DO_CLEAN_ALIPHYSICS=0
   local DO_CLEAN_ROOT=0
   local DO_CLEAN_G3=0
   local DO_CLEAN_FASTJET=0
@@ -1254,12 +1373,17 @@ function Main() {
           DO_ALICE=1
         ;;
 
+        aliphysics)
+          DO_ALIPHYSICS=1
+        ;;
+
         all)
           DO_ALIEN=1
           DO_ROOT=1
           DO_G3=1
           DO_FASTJET=1
           DO_ALICE=1
+          DO_ALIPHYSICS=1
         ;;
 
         #
@@ -1286,12 +1410,17 @@ function Main() {
           DO_CLEAN_ALICE=1
         ;;
 
+        clean-aliphysics)
+          DO_CLEAN_ALIPHYSICS=1
+        ;;
+
         clean-all)
           DO_CLEAN_ALIEN=1
           DO_CLEAN_ROOT=1
           DO_CLEAN_G3=1
           DO_CLEAN_FASTJET=1
           DO_CLEAN_ALICE=1
+          DO_CLEAN_ALIPHYSICS=1
         ;;
 
         #
@@ -1368,8 +1497,8 @@ function Main() {
   done
 
   # How many build actions?
-  let N_INST=DO_ALIEN+DO_ROOT+DO_G3+DO_FASTJET+DO_ALICE
-  let N_CLEAN=DO_CLEAN_ALIEN+DO_CLEAN_ROOT+DO_CLEAN_G3+DO_CLEAN_FASTJET+DO_CLEAN_ALICE
+  let N_INST=DO_ALIEN+DO_ROOT+DO_G3+DO_FASTJET+DO_ALICE+DO_ALIPHYSICS
+  let N_CLEAN=DO_CLEAN_ALIEN+DO_CLEAN_ROOT+DO_CLEAN_G3+DO_CLEAN_FASTJET+DO_CLEAN_ALICE+DO_CLEAN_ALIPHYSICS
   let N_INST_CLEAN=N_INST+N_CLEAN
 
   if [ $DO_PREP == 0 ] && [ $DO_BUGREPORT == 0 ] && \
@@ -1423,16 +1552,18 @@ function Main() {
     Banner 'Non-interactive installation begins: go get some tea and scones'
 
     # All modules
-    [ $DO_CLEAN_ALIEN   == 1 ] && ModuleCleanAliEn
-    [ $DO_ALIEN         == 1 ] && ModuleAliEn
-    [ $DO_CLEAN_ROOT    == 1 ] && ModuleCleanRoot
-    [ $DO_ROOT          == 1 ] && ModuleRoot
-    [ $DO_CLEAN_G3      == 1 ] && ModuleCleanGeant3
-    [ $DO_G3            == 1 ] && ModuleGeant3
-    [ $DO_CLEAN_FASTJET == 1 ] && ModuleCleanFastJet
-    [ $DO_FASTJET       == 1 ] && ModuleFastJet
-    [ $DO_CLEAN_ALICE   == 1 ] && ModuleCleanAliRoot
-    [ $DO_ALICE         == 1 ] && ModuleAliRoot
+    [ $DO_CLEAN_ALIEN      == 1 ] && ModuleCleanAliEn
+    [ $DO_ALIEN            == 1 ] && ModuleAliEn
+    [ $DO_CLEAN_ROOT       == 1 ] && ModuleCleanRoot
+    [ $DO_ROOT             == 1 ] && ModuleRoot
+    [ $DO_CLEAN_G3         == 1 ] && ModuleCleanGeant3
+    [ $DO_G3               == 1 ] && ModuleGeant3
+    [ $DO_CLEAN_FASTJET    == 1 ] && ModuleCleanFastJet
+    [ $DO_FASTJET          == 1 ] && ModuleFastJet
+    [ $DO_CLEAN_ALICE      == 1 ] && ModuleCleanAliRoot
+    [ $DO_ALICE            == 1 ] && ModuleAliRoot
+    [ $DO_CLEAN_ALIPHYSICS == 1 ] && ModuleCleanAliPhysics
+    [ $DO_ALIPHYSICS       == 1 ] && ModuleAliPhysics
   fi
 
   # Remove logs: if we are here, everything went right, so no need to see the
