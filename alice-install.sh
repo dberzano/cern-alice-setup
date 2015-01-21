@@ -27,6 +27,7 @@ export MIN_ROOT_VER_NUM=''
 export MIN_ROOT_VER_STR='all'
 export LC_ALL=C
 export DebugSwallow=0
+export DebugDetectOs=0
 
 #
 # Functions
@@ -1301,6 +1302,17 @@ function DetectOsBuildOpts() {
   MIN_ROOT_VER_NUM=$( ConvertVersionStringToNumber "$MIN_ROOT_VER_STR" )
   BUILD_MODE=`echo $SUPPORTED_BUILD_MODES | awk '{print $1}'`
 
+  # Report debug, if requested
+  if [[ $DebugDetectOs == 1 ]] ; then
+    # Output value of all the variables set by this function
+    echo
+    echo -e "\033[33mOperating-system specific build options\033[m"
+    for VarName in ALIEN_INSTALL_TYPE FASTJET_PATCH_HEADERS SUPPORTED_BUILD_MODES BUILDOPT_CPATH \
+      MIN_ROOT_VER_STR BUILDOPT_LDFLAGS ; do
+      echo -e " \033[35m* \033[34m${VarName}=\033[m\033[35m$(eval echo \$$VarName)\033[m"
+    done
+  fi
+
 }
 
 # Convert a version string to a number, e.g.:
@@ -1347,6 +1359,14 @@ function Main() {
   local N_CLEAN=0
   local N_INST_CLEAN=0
   local PARAM
+
+  # Look for debug
+  for (( i=0 ; i<=$# ; i++ )) ; do
+    if [[ ${!i} == '--debug' ]] ; then
+      DebugSwallow=1
+      DebugDetectOs=1
+    fi
+  done
 
   # Detect proper build options
   DetectOsBuildOpts
@@ -1436,7 +1456,7 @@ function Main() {
         #
 
         debug)
-          DebugSwallow=1
+          # already checked on top, skip it
         ;;
 
         bugreport)
