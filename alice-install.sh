@@ -25,6 +25,7 @@ export FASTJET_PATCH_HEADERS=0
 export DOWNLOAD_MODE=''
 export MIN_ROOT_VER_NUM=''
 export MIN_ROOT_VER_STR='all'
+export LC_ALL=C
 
 #
 # Functions
