@@ -687,6 +687,14 @@ function ModuleFastJet() {
 
 }
 
+# Function to force-set a remote in a Git repository
+# $1: remote name
+# $2: URL
+# Returns nonzero on error
+function GitForceSetRemote() {
+  git remote set-url "$1" "$2" || git remote add "$1" "$2"
+}
+
 # Module to fetch, update and compile AliRoot
 function ModuleAliRoot() {
 
@@ -704,6 +712,10 @@ function ModuleAliRoot() {
   local AliRootInst="$ALICE_ROOT"
   local AliRootSrc="${AliRootBase}/src"
   local AliRootTmp="${AliRootBase}/build"
+
+  # AliRoot Git private and public URLs
+  local AliRootGitUrlPub='http://git.cern.ch/pub/AliRoot'
+  local AliRootGitUrlPriv='https://git.cern.ch/reps/AliRoot'
 
   if [[ ! -d "$AliRootTmp" ]]; then
     Swallow -f "Creating AliRoot build directory" mkdir -p "$AliRootTmp"
@@ -725,13 +737,17 @@ function ModuleAliRoot() {
     if [[ ! -e "$AliRootGit/.git" ]] ; then
       SwallowProgress -f --pattern \
         'Cloning AliRoot Git repository (might take some time)' \
-        git clone http://git.cern.ch/pub/AliRoot .
+        git clone "$AliRootGitUrlPub" .
     fi
     AliRootGit=$(cd "$AliRootGit";pwd)
 
+    # Setting a public and private remote
+    Swallow -f 'Setting Git read-only remote' GitForceSetRemote alipub "$AliRootGitUrlPub"
+    Swallow -f 'Setting Git read-write remote' GitForceSetRemote alipriv "$AliRootGitUrlPriv"
+
     SwallowProgress -f --pattern \
       'Updating list of remote AliRoot Git branches' \
-      git remote update origin --prune
+      git remote update alipub --prune
 
     # Source is ${AliRootSrc} his will be a Git directory on its own that shares
     # the object database, but with its own index. This is possible via the
@@ -755,7 +771,7 @@ function ModuleAliRoot() {
       # if we are working on a clone made with git-new-workdir, changes in the
       # git object database will be propagated to all the sibling clones
       SwallowProgress -f --pattern \
-        "Updating AliRoot $ALICE_VER from Git" git pull --rebase
+        "Updating AliRoot $ALICE_VER from public Git" git pull --rebase alipub "$ALICE_VER"
     fi
 
   fi # end download
@@ -878,6 +894,10 @@ function ModuleAliPhysics() {
   local AliPhysicsSrc="${AliPhysicsBase}/src"
   local AliPhysicsTmp="${AliPhysicsBase}/build"
 
+  # AliPhysics Git private and public URLs
+  local AliPhysicsGitUrlPub='http://git.cern.ch/pub/AliPhysics'
+  local AliPhysicsGitUrlPriv='https://git.cern.ch/reps/AliPhysics'
+
   if [[ ! -d "$AliPhysicsTmp" ]]; then
     Swallow -f "Creating AliPhysics build directory" mkdir -p "$AliPhysicsTmp"
   fi
@@ -894,13 +914,17 @@ function ModuleAliPhysics() {
     if [[ ! -e "$AliPhysicsGit/.git" ]] ; then
       SwallowProgress -f --pattern \
         'Cloning AliPhysics Git repository (might take some time)' \
-        git clone http://git.cern.ch/pub/AliPhysics .
+        git clone "$AliPhysicsGitUrlPub" .
     fi
     AliPhysicsGit=$(cd "$AliPhysicsGit";pwd)
 
+    # Setting a public and private remote
+    Swallow -f 'Setting Git read-only remote' GitForceSetRemote alipub "$AliPhysicsGitUrlPub"
+    Swallow -f 'Setting Git read-write remote' GitForceSetRemote alipriv "$AliPhysicsGitUrlPriv"
+
     SwallowProgress -f --pattern \
       'Updating list of remote AliPhysics Git branches' \
-      git remote update origin --prune
+      git remote update alipub --prune
 
     # Shallow copy with git-new-workdir
     if [[ ! -d "${AliPhysicsSrc}/.git" ]] ; then
@@ -917,7 +941,7 @@ function ModuleAliPhysics() {
     if [[ "$(git rev-parse --abbrev-ref HEAD)" != 'HEAD' ]] ; then
       # update only if on a branch: errors are fatal
       SwallowProgress -f --pattern \
-        "Updating AliPhysics $ALIPHYSICS_VER from Git" git pull --rebase
+        "Updating AliPhysics $ALIPHYSICS_VER from public Git" git pull --rebase alipub "$ALIPHYSICS_VER"
     fi
 
   fi # end download
