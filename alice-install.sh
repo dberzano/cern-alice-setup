@@ -26,6 +26,7 @@ export DOWNLOAD_MODE=''
 export MIN_ROOT_VER_NUM=''
 export MIN_ROOT_VER_STR='all'
 export LC_ALL=C
+export DebugSwallow=0
 
 #
 # Functions
@@ -80,6 +81,11 @@ function SwallowStart() {
   echo -e "$MSG" >> "$OUT"
   echo -e "$MSG" >> "$ERR"
 
+  if [[ $DebugSwallow == 1 ]] ; then
+    echo
+    echo -e "\033[35m PWD:>\033[34m $PWD\033[m"
+    echo -e "\033[35m CMD:>\033[34m $@\033[m"
+  fi
   echo -en "[....] $OP..."
 
 }
@@ -1428,6 +1434,10 @@ function Main() {
         #
         # Other targets
         #
+
+        debug)
+          DebugSwallow=1
+        ;;
 
         bugreport)
           DO_BUGREPORT=1
