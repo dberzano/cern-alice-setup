@@ -454,7 +454,7 @@ function ModuleGeant3() {
   Banner "Installing Geant3..."
   Swallow -f "Sourcing envvars" SourceEnvVars
 
-  Swallow "Checking if Geant3 support has been requested" [ "$GEANT3_VER" != '' ] || return
+  Swallow "Checking if Geant3 support has been requested" [ "$G3_VER" != '' ] || return
 
   if [ "$DOWNLOAD_MODE" == '' ] || [ "$DOWNLOAD_MODE" == 'only' ] ; then
 
