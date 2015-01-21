@@ -383,43 +383,59 @@ function AliExportVars() {
       ;;
 
       root)
-        export ROOTSYS="${ALICE_PREFIX}/root/${ROOT_SUBDIR}"
-        export PATH="${ROOTSYS}/bin:${PATH}"
-        export LD_LIBRARY_PATH="${ROOTSYS}/lib:${LD_LIBRARY_PATH}"
-        export ROOT_VER
-        if [[ -e "${ROOTSYS}/lib/ROOT.py" ]] ; then
-          # PyROOT support
-          export PYTHONPATH="${ROOTSYS}/lib:${PYTHONPATH}"
+        if [[ $ROOT_VER != '' ]] ; then
+          export ROOTSYS="${ALICE_PREFIX}/root/${ROOT_SUBDIR}"
+          export PATH="${ROOTSYS}/bin:${PATH}"
+          export LD_LIBRARY_PATH="${ROOTSYS}/lib:${LD_LIBRARY_PATH}"
+          export ROOT_VER
+          if [[ -e "${ROOTSYS}/lib/ROOT.py" ]] ; then
+            # PyROOT support
+            export PYTHONPATH="${ROOTSYS}/lib:${PYTHONPATH}"
+          fi
+          export ROOT_ARCH=`root-config --arch 2> /dev/null`
+        else
+          unset ROOT_VER ROOT_SUBDIR
         fi
-        export ROOT_ARCH=`root-config --arch 2> /dev/null`
       ;;
 
       geant3)
-        export GEANT3DIR="${ALICE_PREFIX}/geant3/${G3_SUBDIR}"
-        export LD_LIBRARY_PATH="${GEANT3DIR}/lib/tgt_${ROOT_ARCH}:${LD_LIBRARY_PATH}"
+        if [[ $G3_VER != '' ]] ; then
+          export GEANT3DIR="${ALICE_PREFIX}/geant3/${G3_SUBDIR}"
+          export LD_LIBRARY_PATH="${GEANT3DIR}/lib/tgt_${ROOT_ARCH}:${LD_LIBRARY_PATH}"
+        else
+          unset G3_VER G3_SUBDIR
+        fi
       ;;
 
       aliroot)
-        export ALICE_VER
+        if [[ $ALICE_VER != '' ]] ; then
+          export ALICE_VER
 
-        # this is the only variable truly needed: it is set to the installation directory
-        export ALICE_ROOT="${ALICE_PREFIX}/aliroot/${ALICE_SUBDIR}/inst"
+          # this is the only variable truly needed: it is set to the installation directory
+          export ALICE_ROOT="${ALICE_PREFIX}/aliroot/${ALICE_SUBDIR}/inst"
 
-        # set for compatibility and it will stay like this unless overridden by aliphysics
-        export ALICE_PHYSICS="$ALICE_ROOT"
+          # set for compatibility and it will stay like this unless overridden by aliphysics
+          export ALICE_PHYSICS="$ALICE_ROOT"
 
-        # export paths both for legacy and modern CMake
-        export PATH="${ALICE_ROOT}/bin:${ALICE_ROOT}/bin/tgt_${ROOT_ARCH}:${PATH}"
-        export LD_LIBRARY_PATH="${ALICE_ROOT}/lib:${ALICE_ROOT}/lib/tgt_${ROOT_ARCH}:${LD_LIBRARY_PATH}"
-        export DYLD_LIBRARY_PATH="${ALICE_ROOT}/lib:${ALICE_ROOT}/lib/tgt_${ROOT_ARCH}:${DYLD_LIBRARY_PATH}"
+          # export paths both for legacy and modern CMake
+          export PATH="${ALICE_ROOT}/bin:${ALICE_ROOT}/bin/tgt_${ROOT_ARCH}:${PATH}"
+          export LD_LIBRARY_PATH="${ALICE_ROOT}/lib:${ALICE_ROOT}/lib/tgt_${ROOT_ARCH}:${LD_LIBRARY_PATH}"
+          export DYLD_LIBRARY_PATH="${ALICE_ROOT}/lib:${ALICE_ROOT}/lib/tgt_${ROOT_ARCH}:${DYLD_LIBRARY_PATH}"
+        else
+          unset ALICE_VER ALICE_SUBDIR
+        fi
       ;;
 
       aliphysics)
-        export ALIPHYSICS_VER
-        export ALICE_PHYSICS="${ALICE_PREFIX}/aliphysics/${ALIPHYSICS_SUBDIR}/inst"
-        export PATH="${ALICE_PHYSICS}/bin:${PATH}"
-        export LD_LIBRARY_PATH="${ALICE_PHYSICS}/lib:${LD_LIBRARY_PATH}"
-        export DYLD_LIBRARY_PATH="${ALICE_PHYSICS}/lib:${DYLD_LIBRARY_PATH}"
+        if [[ $ALIPHYSICS_VER != '' ]] ; then
+          export ALIPHYSICS_VER
+          export ALICE_PHYSICS="${ALICE_PREFIX}/aliphysics/${ALIPHYSICS_SUBDIR}/inst"
+          export PATH="${ALICE_PHYSICS}/bin:${PATH}"
+          export LD_LIBRARY_PATH="${ALICE_PHYSICS}/lib:${LD_LIBRARY_PATH}"
+          export DYLD_LIBRARY_PATH="${ALICE_PHYSICS}/lib:${DYLD_LIBRARY_PATH}"
+        else
+          unset ALIPHYSICS_VER ALIPHYSICS_SUBDIR
+        fi
       ;;
 
       fastjet)
