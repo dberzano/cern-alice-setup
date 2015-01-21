@@ -19,7 +19,6 @@ export BUILD_MODE='' # clang, gcc, custom-gcc
 export SUPPORTED_BUILD_MODES=''
 export CUSTOM_GCC_PATH='/opt/gcc'
 export BUILDOPT_CPATH=''
-export ALIEN_INSTALL_TYPE=''
 export FASTJET_PATCH_HEADERS=0
 export DOWNLOAD_MODE=''
 export MIN_ROOT_VER_NUM=''
@@ -1043,16 +1042,9 @@ function ModuleAliEn() {
   Swallow -f "Making AliEn installer executable" \
     chmod +x "$ALIEN_INSTALLER"
 
-  local InstallMsg=''
-  if [ "$ALIEN_INSTALL_TYPE" == 'compile' ] ; then
-    InstallMsg='Compiling AliEn from sources'
-  else
-    InstallMsg='Installing AliEn binaries'
-  fi
-
-  Swallow -f "$InstallMsg" \
+  Swallow -f 'Compiling AliEn from sources' \
     "$ALIEN_INSTALLER" -install-dir "$ALIEN_DIR" -batch -notorrent \
-    -no-certificate-check -type "$ALIEN_INSTALL_TYPE"
+    -no-certificate-check -type compile
 
   cd "$CURWD"
   Swallow -f "Removing temporary working directory" rm -rf "$ALIEN_TEMP_INST_DIR"
@@ -1239,7 +1231,6 @@ function DetectOsBuildOpts() {
   local OsVer
 
   if [[ $KernelName == 'Darwin' ]] ; then
-    ALIEN_INSTALL_TYPE='user'
 
     # Needed for including <cstdlib>: fixes fabs errors with libc++
     FASTJET_PATCH_HEADERS=1
@@ -1252,7 +1243,6 @@ function DetectOsBuildOpts() {
     if [[ $OsVer -ge 12 ]] ; then
       # 12 = Mountain Lion (10.8)
       BUILDOPT_CPATH='/usr/X11/include'  # XQuartz
-      ALIEN_INSTALL_TYPE='compile'
       MIN_ROOT_VER_STR='v5-34-18'
     fi
     if [[ $OsVer -ge 13 ]] ; then
@@ -1264,7 +1254,6 @@ function DetectOsBuildOpts() {
       MIN_ROOT_VER_STR='v5-34-22'
     fi
   elif [[ $KernelName == 'Linux' ]] ; then
-    ALIEN_INSTALL_TYPE='compile'
     SUPPORTED_BUILD_MODES='gcc custom-gcc clang'
     OsName=`source $VerFile > /dev/null 2>&1 ; echo $DISTRIB_ID`
     OsVer=`source $VerFile > /dev/null 2>&1 ; echo $DISTRIB_RELEASE | tr -d .`
@@ -1278,7 +1267,7 @@ function DetectOsBuildOpts() {
     # Output value of all the variables set by this function
     echo
     echo -e "\033[33mOperating-system specific build options\033[m"
-    for VarName in ALIEN_INSTALL_TYPE FASTJET_PATCH_HEADERS SUPPORTED_BUILD_MODES BUILDOPT_CPATH \
+    for VarName in FASTJET_PATCH_HEADERS SUPPORTED_BUILD_MODES BUILDOPT_CPATH \
       MIN_ROOT_VER_STR ; do
       echo -e " \033[35m* \033[34m${VarName}=\033[m\033[35m$(eval echo \$$VarName)\033[m"
     done
