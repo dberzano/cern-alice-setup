@@ -18,7 +18,6 @@ export NCORES=0
 export BUILD_MODE='' # clang, gcc, custom-gcc
 export SUPPORTED_BUILD_MODES=''
 export CUSTOM_GCC_PATH='/opt/gcc'
-export BUILDOPT_LDFLAGS=''
 export BUILDOPT_CPATH=''
 export ALIEN_INSTALL_TYPE=''
 export FASTJET_PATCH_HEADERS=0
@@ -439,11 +438,10 @@ function ModuleRoot() {
 
     SwallowProgress -f --pattern "Configuring ROOT" ./configure $ConfigOpts
 
-    local AppendLDFLAGS AppendCPATH
-    [ "$BUILDOPT_LDFLAGS" != '' ] && AppendLDFLAGS="LDFLAGS=$BUILDOPT_LDFLAGS"
+    local AppendCPATH
     [ "$BUILDOPT_CPATH" != '' ] && AppendCPATH="CPATH=$BUILDOPT_CPATH"
 
-    SwallowProgress -f --pattern "Building ROOT" make -j$MJ $AppendLDFLAGS $AppendCPATH
+    SwallowProgress -f --pattern "Building ROOT" make -j$MJ $AppendCPATH
 
     # To fix some problems during the creation of PARfiles in AliRoot
     if [ -e "$ROOTSYS/test/Makefile.arch" ]; then
@@ -611,7 +609,7 @@ function ModuleFastJet() {
       ;;
     esac
 
-    export CXXFLAGS="$BUILDOPT_LDFLAGS -lgmp"
+    export CXXFLAGS='-lgmp'
     SwallowProgress -f --pattern "Configuring FastJet" \
       ./configure --enable-cgal --prefix=$FASTJET
 
@@ -730,38 +728,16 @@ function ModuleAliRoot() {
       # Build with FastJet?
       local FastJetFlag="-DFASTJET=$FASTJET"
 
-      if [[ "$BUILDOPT_LDFLAGS" != '' ]]; then
-
-        # Special configuration for latest Ubuntu/Linux Mint
-        SwallowProgress -f --pattern \
-          'Bootstrapping AliRoot build with CMake (using LDFLAGS)' \
-          cmake "$AliRootSrc" \
-            -DCMAKE_C_COMPILER=`root-config --cc` \
-            -DCMAKE_CXX_COMPILER=`root-config --cxx` \
-            -DCMAKE_Fortran_COMPILER=`root-config --f77` \
-            -DCMAKE_MODULE_LINKER_FLAGS="$BUILDOPT_LDFLAGS" \
-            -DCMAKE_SHARED_LINKER_FLAGS="$BUILDOPT_LDFLAGS" \
-            -DCMAKE_EXE_LINKER_FLAGS="$BUILDOPT_LDFLAGS" \
-            -DCMAKE_INSTALL_PREFIX="$AliRootInst" \
-            -DALIEN="$ALIEN_DIR" \
-            -DROOTSYS="$ROOTSYS" \
-            $FastJetFlag
-
-      else
-
-        # Any other configuration (no linker)
-        SwallowProgress -f --pattern \
-          'Bootstrapping AliRoot build with CMake' \
-          cmake "$AliRootSrc" \
-            -DCMAKE_C_COMPILER=`root-config --cc` \
-            -DCMAKE_CXX_COMPILER=`root-config --cxx` \
-            -DCMAKE_Fortran_COMPILER=`root-config --f77` \
-            -DCMAKE_INSTALL_PREFIX="$AliRootInst" \
-            -DALIEN="$ALIEN_DIR" \
-            -DROOTSYS="$ROOTSYS" \
-            $FastJetFlag
-
-      fi
+      SwallowProgress -f --pattern \
+        'Bootstrapping AliRoot build with CMake' \
+        cmake "$AliRootSrc" \
+          -DCMAKE_C_COMPILER=`root-config --cc` \
+          -DCMAKE_CXX_COMPILER=`root-config --cxx` \
+          -DCMAKE_Fortran_COMPILER=`root-config --f77` \
+          -DCMAKE_INSTALL_PREFIX="$AliRootInst" \
+          -DALIEN="$ALIEN_DIR" \
+          -DROOTSYS="$ROOTSYS" \
+          $FastJetFlag
 
     fi
 
@@ -1292,11 +1268,6 @@ function DetectOsBuildOpts() {
     SUPPORTED_BUILD_MODES='gcc custom-gcc clang'
     OsName=`source $VerFile > /dev/null 2>&1 ; echo $DISTRIB_ID`
     OsVer=`source $VerFile > /dev/null 2>&1 ; echo $DISTRIB_RELEASE | tr -d .`
-    if [ "$OsName" == 'Ubuntu' ] && [ "$OsVer" -ge 1110 ]; then
-      BUILDOPT_LDFLAGS='-Wl,--no-as-needed'
-    elif [ "$OsName" == 'LinuxMint' ] && [ "$OsVer" -ge 12 ]; then
-      BUILDOPT_LDFLAGS='-Wl,--no-as-needed'
-    fi
   fi
 
   MIN_ROOT_VER_NUM=$( ConvertVersionStringToNumber "$MIN_ROOT_VER_STR" )
@@ -1308,7 +1279,7 @@ function DetectOsBuildOpts() {
     echo
     echo -e "\033[33mOperating-system specific build options\033[m"
     for VarName in ALIEN_INSTALL_TYPE FASTJET_PATCH_HEADERS SUPPORTED_BUILD_MODES BUILDOPT_CPATH \
-      MIN_ROOT_VER_STR BUILDOPT_LDFLAGS ; do
+      MIN_ROOT_VER_STR ; do
       echo -e " \033[35m* \033[34m${VarName}=\033[m\033[35m$(eval echo \$$VarName)\033[m"
     done
   fi
