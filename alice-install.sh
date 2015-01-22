@@ -24,6 +24,7 @@ export DOWNLOAD_MODE=''
 export MIN_ROOT_VER_NUM=''
 export MIN_ROOT_VER_STR='all'
 export LC_ALL=C
+export USE_CXX11=0
 export DebugSwallow=0
 export DebugDetectOs=0
 
@@ -407,6 +408,11 @@ function ModuleRoot() {
       if [ `./configure --help 2>/dev/null|grep -c cocoa` == 1 ]; then
         ConfigOpts="$ConfigOpts --enable-cocoa"
       fi
+    fi
+
+    # C++11 requested?
+    if [[ $USE_CXX11 == 1 ]] ; then
+      ConfigOpts="${ConfigOpts} --enable-cxx11"
     fi
 
     case "$BUILD_MODE" in
@@ -1464,7 +1470,10 @@ function Main() {
                  of: $SUPPORTED_BUILD_MODES"
             exit 1
           fi
+        ;;
 
+        c++11)
+          USE_CXX11=1
         ;;
 
         download-only)
