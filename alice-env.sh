@@ -892,7 +892,7 @@ function AliMain() {
   # print menu if non-interactive
   [[ "$OPT_NONINTERACTIVE" != 1 ]] && AliMenu
 
-  unset ROOT_VER G3_VER ALICE_VER FASTJET_VER FJCONTRIB_VER
+  unset ROOT_VER G3_VER ALICE_VER ALIPHYSICS_VER FASTJET_VER FJCONTRIB_VER
 
   # selection by query (-m <query>) has priority over by number (-n <ntuple>)
   [[ $queryAliTuple != '' ]] && nAliTuple=$( AliTupleNumberByQuery "$queryAliTuple" )
