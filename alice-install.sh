@@ -1221,7 +1221,7 @@ function Help() {
       BUILD_MODE_STR="$BUILD_MODE (under $CUSTOM_GCC_PATH)"
     fi
 
-    echo -e "${R}Specify one or more actions among: ${M}--all, --alien, --aliroot, --geant3, --root, --fastjet${Z}"
+    echo -e "${R}Specify one or more actions among: ${M}--all, --alien, --aliroot, --aliphysics, --geant3, --root, --fastjet${Z}"
     echo
     echo -e "If you re-run this script with one or more actions now, the following configuration will be used:"
     echo
