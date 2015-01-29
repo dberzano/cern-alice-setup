@@ -830,9 +830,11 @@ function AliMain() {
       -v) OPT_QUIET=0 ;;
       -n)
         OPT_NONINTERACTIVE=1
-        nAliTuple=$(( $2 ))
-        [[ $nAliTuple == 0 ]] && unset nAliTuple
-        shift
+        if [[ $2 =~ ^[0-9]+$ ]] ; then
+          nAliTuple=$(( $2 ))
+          [[ $nAliTuple == 0 ]] && unset nAliTuple
+          shift
+        fi
       ;;
       -m)
         OPT_NONINTERACTIVE=1
