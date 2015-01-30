@@ -149,6 +149,11 @@ Int_t SETUP(TList *inputList = NULL) {
       return -1;
     }
 
+    if (aliPhysicsDir.EqualTo(aliRootDir)) {
+      // AliPhysics does not exist if it points to the same directory of AliRoot
+      aliPhysicsDir = "";
+    }
+
     ::Info(gMessTag.Data(), "Enabling ALICE software on client");
 
   }
@@ -168,12 +173,11 @@ Int_t SETUP(TList *inputList = NULL) {
 
     // Here we have two working modes: AAF and VAF.
     //  - AAF mode: look for VO_ALICE@(AliRoot|AliPhysics)::<version>
-    //  - VAF mode: look for AliRoot.par or AliPhysics.par
+    //  - VAF mode: any other PARfile name
 
     TString buf;
     buf = gSystem->BaseName(gSystem->pwd());
     TPMERegexp reAaf("^VO_ALICE@(AliRoot|AliPhysics)::(.*)$");
-    TPMERegexp reVaf("^(AliRoot|AliPhysics)$");
 
     if (reAaf.Match(buf) == 3) {
 
@@ -228,13 +232,11 @@ Int_t SETUP(TList *inputList = NULL) {
       }
 
     }
-    else if (reVaf.Match(buf) == 2) {
+    else {
 
       // AliRoot enabled from a single metaparfile. Assume that ALICE_ROOT and
       // ALICE_PHYSICS are already defined on master and each worker.
       // Note: this is the VAF case.
-
-      TString swName = reVaf[1].Data();
 
       aliRootDir = gSystem->Getenv("ALICE_ROOT");  // NULL --> ""
       aliPhysicsDir = gSystem->Getenv("ALICE_PHYSICS");  // NULL --> ""
@@ -246,35 +248,20 @@ Int_t SETUP(TList *inputList = NULL) {
         return -1;
       }
 
-      if (swName.EqualTo("AliPhysics") && aliPhysicsDir.IsNull()) {
-        // You asked for AliPhysics, but it's not there: fatal
-        ::Error(gMessTag.Data(),
-          "ALICE_PHYSICS environment variable not defined on PROOF node, and not"
-          "loading from a PARfile containing AliPhysics version in its name");
-        return -1;
+      if (aliPhysicsDir.EqualTo(aliRootDir)) {
+        // AliPhysics does not exist if it points to the same directory of AliRoot
+        aliPhysicsDir = "";
       }
 
       ::Info(gMessTag.Data(),
-        "Enabling %s located on PROOF node (VAF mode)", swName.Data());
-    }
-    else {
-
-      ::Error(gMessTag.Data(),
-        "I do not know which software (AliRoot? AliPhysics?) and version to enable.");
-      ::Error(gMessTag.Data(),
-        "If you are on AAF: name your PARfile VO_ALICE@[AliRoot|AliPhysics]::v<version>.par");
-      ::Error(gMessTag.Data(),
-        "If you are on VAF: name your PARfile either AliRoot.par or AliPhysics.par");
-
-      return -1;
-
+        "Enabling ALICE software located on PROOF node (VAF mode)");
     }
 
   }
 
   //
   // Where are AliRoot and AliPhysics? Inform user
-  ///
+  //
 
   ::Info(gMessTag.Data(), ">> ALICE_ROOT=%s", aliRootDir.Data());
   ::Info(gMessTag.Data(), ">> ALICE_PHYSICS=%s", aliPhysicsDir.Data());
