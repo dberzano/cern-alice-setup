@@ -139,7 +139,7 @@ Int_t SETUP(TList *inputList = NULL) {
     // On client
     //
 
-    gMessTag = "Client";
+    gMessTag = "client";
     aliRootDir = gSystem->Getenv("ALICE_ROOT");  // NULL --> ""
     aliPhysicsDir = gSystem->Getenv("ALICE_PHYSICS");  // NULL --> ""
 
@@ -157,6 +157,12 @@ Int_t SETUP(TList *inputList = NULL) {
     //
 
     gMessTag = gSystem->HostName();
+    if (gProof->IsMaster()) {
+      gMessTag.Append("(master)");
+    }
+    else {
+      gMessTag.Append("(worker)");
+    }
 
     // Here we have two working modes: AAF and VAF.
     //  - AAF mode: look for VO_ALICE@(AliRoot|AliPhysics)::<version>
