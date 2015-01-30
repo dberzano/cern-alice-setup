@@ -129,29 +129,6 @@ Bool_t SETUP_SetAliRootMode(TString &mode, const TString &extraLibs) {
 }
 
 //______________________________________________________________________________
-void SETUP_MakePar() {
-
-  TString tmp = gSystem->GetFromPipe("mktemp -d /tmp/AliRoot-MakePar-XXXXX");
-  TString buf;
-  buf.Form("rm -rf AliRoot.par");
-  buf.Form("%s/AliRoot/PROOF-INF", tmp.Data());
-  gSystem->mkdir(buf.Data(), kTRUE);
-  buf.Form("%s/AliRoot/PROOF-INF/SETUP.C", tmp.Data());
-  gSystem->CopyFile("AliRoot_SETUP.C", buf.Data());
-  buf.Form("tar -C %s -cvzf AliRoot.par AliRoot/", tmp.Data());
-  gSystem->Exec(buf.Data());
-  buf.Form("rm -rf %s", tmp.Data());
-  gSystem->Exec(buf.Data());
-  if (gSystem->AccessPathName("AliRoot.par") == kFALSE) {
-    ::Info(gSystem->HostName(), "AliRoot.par created successfully");
-  }
-  else {
-    ::Error(gSystem->HostName(), "Problems creating AliRoot.par");
-  }
-
-}
-
-//______________________________________________________________________________
 Int_t SETUP(TList *inputList = NULL) {
 
   TString aliRootDir, aliPhysicsDir;
