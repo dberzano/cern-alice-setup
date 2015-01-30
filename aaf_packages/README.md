@@ -31,19 +31,23 @@ We will assume that the global AAF packages directory will be
 `/cvmfs/alice.cern.ch/x86_64-2.6-gnu-4.1.2/Packages/AAF/PAR`.
 
 
-### At each AliRoot release: update the list of packages
+### At each AliRoot Core and AliPhysics release: update the list of packages
 
-When a new AliRoot version has been released:
+When a new AliRoot Core or AliPhysics version is released:
 
 ```bash
-cd ~/cern-alice-setup/aaf_packages
-./gen_proof_packages.sh --proof-packages-dir /cvmfs/alice.cern.ch/x86_64-2.6-gnu-4.1.2/Packages/AAF/PAR
+~/cern-alice-setup/aaf_packages/gen_proof_packages.sh --proof-packages-dir /cvmfs/alice.cern.ch/x86_64-2.6-gnu-4.1.2/Packages/AAF/PAR
 ```
 
-Packages for pre-existing AliRoot versions will not be created: only packages
-for new AliRoot versions are generated.
+**Note:** the above command works from any working directory.
 
-The destination directory is assumed to be exported via CernVM-FS.
+Packages for pre-existing AliRoot Core and AliPhysics versions will not be
+recreated: only packages for new AliRoot versions are generated.
+
+By default the above command shows only the newly created packages. To output
+the list of skipped packages, add the `--show-skipped` switch.
+
+In a standard configuration, the destination directory is exported via CVMFS.
 
 **Note:** this procedure can be done automatically.
 
@@ -75,38 +79,54 @@ gProof->ShowPackages();
 ```
 
 
-### Enabling a certain AliRoot version
+### Enabling a certain AliRoot Core or AliPhysics version
+
+For AliRoot Core:
 
 ```c++
-gProof->EnablePackage( "VO_ALICE@AliRoot::vAN-20140331" );
+gProof->EnablePackage( "VO_ALICE@AliRoot::v5-06-02" );
 ```
 
-**Note:** don't forget the `VO_ALICE@AliRoot::` prefix.
+For AliPhysics:
+
+```c++
+gProof->EnablePackage( "VO_ALICE@AliPhysics::vAN-20150129" );
+```
+
+**Note:** don't forget the `VO_ALICE@AliRoot::` or `VO_ALICE@AliPhysics::`
+prefix, this is a common mistake.
 
 
 VAF
 ---
 
-Only one special PARfile is needed to enable AliRoot on the Virtual Analysis
-Facilities.
+Only one special PARfile is needed to enable AliRoot Core or AliPhysics on the
+Virtual Analysis Facilities.
+
+Loading this PARfile will enable either AliRoot Core or AliPhysics, depending
+on the user's choice while entering the VAF environment. If AliPhysics is
+available in the VAF environment, then it will also be enabled by this package.
+If it is not available, only AliRoot Core will be enabled.
 
 Generated PARs are compatible both with AAFs and VAFs.
 
 To generate the single PARfile for VAFs:
 
 ```bash
-cd ~/cern-alice-setup/aaf_packages
-./gen_single_par.sh
+~/cern-alice-setup/aaf_packages/gen_single_par.sh
 ```
 
-A PARfile named `AliRoot.par` will be generated. It can be copied in the user's
+A PARfile named `AliceVaf.par` will be generated. It can be copied in the user's
 current working directory, then it must be **first uploaded** then enabled on
 PROOF:
 
 ```c++
-gProof->UploadPackage( "AliRoot" );
-gProof->EnablePackage( "AliRoot" );
+gProof->UploadPackage( "AliceVaf" );
+gProof->EnablePackage( "AliceVaf" );
 ```
+
+**Note:** on VAF the package name does not actually matter.
+
 
 ### Generate a single PARfile with a custom name
 
