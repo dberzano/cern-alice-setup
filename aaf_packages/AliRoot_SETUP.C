@@ -141,13 +141,13 @@ Int_t SETUP(TList *inputList = NULL) {
 
     gMessTag = "Client";
     aliRootDir = gSystem->Getenv("ALICE_ROOT");  // NULL --> ""
+    aliPhysicsDir = gSystem->Getenv("ALICE_PHYSICS");  // NULL --> ""
 
     if (aliRootDir.IsNull()) {
+      // ALICE_ROOT is mandatory; ALICE_PHYSICS is optional
       ::Error(gMessTag.Data(), "ALICE_ROOT environment variable not defined on client");
       return -1;
     }
-
-    ::Info(gMessTag.Data(), "Enabling local AliRoot located at %s", aliRootDir.Data());
 
   }
   else {
@@ -241,6 +241,13 @@ Int_t SETUP(TList *inputList = NULL) {
     }
 
   }
+
+  //
+  // Where are AliRoot and AliPhysics? Inform user
+  ///
+
+  ::Info(gMessTag.Data(), ">> ALICE_ROOT=%s", aliRootDir.Data());
+  ::Info(gMessTag.Data(), ">> ALICE_PHYSICS=%s", aliPhysicsDir.Data());
 
   //
   // Common operations on Client and PROOF Master/Workers
