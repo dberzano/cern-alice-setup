@@ -9,7 +9,7 @@
  *
  * List of variables supported for AAF "compatibility":
  *
- * [X] ALIROOT_EXTRA_INCLUDES
+ * [ ] ALIROOT_EXTRA_INCLUDES
  * [X] ALIROOT_MODE
  * [X] ALIROOT_EXTRA_LIBS
  * [ ] ALIROOT_AAF_BAD_WORKER
@@ -34,7 +34,7 @@
 
 TString gMessTag;
 
-//______________________________________________________________________________
+
 Bool_t SETUP_LoadLibraries(const TString &libs) {
 
   // Loads a list of colon-separated libraries. Returns kTRUE on success, kFALSE
@@ -62,8 +62,8 @@ Bool_t SETUP_LoadLibraries(const TString &libs) {
   return 0;
 }
 
-//______________________________________________________________________________
-Bool_t SETUP_SetAliRootMode(TString &mode, const TString &extraLibs) {
+
+Bool_t SETUP_SetAliRootCoreMode(TString &mode, const TString &extraLibs) {
 
   // Sets a certain AliRoot mode, defining a set of libraries to load. Extra
   // libraries to load can be specified as well. Returns kTRUE on success, or
@@ -101,9 +101,9 @@ Bool_t SETUP_SetAliRootMode(TString &mode, const TString &extraLibs) {
     // No mode specified, or invalid mode: load standard libraries, and also
     // fix loading order
     ::Info(gMessTag.Data(), "No mode specified: loading standard libraries...");
-    TPMERegexp reLibs("(ANALYSISalice|OADB|ANALYSIS|STEERBase|ESD|AOD)(:|$)");
+    TPMERegexp reLibs("(ANALYSISalice|ANALYSIS|STEERBase|ESD|AOD)(:|$)");
     while (reLibs.Substitute(libs, "")) {}
-    libs.Prepend("STEERBase:ESD:AOD:ANALYSIS:OADB:ANALYSISalice:");
+    libs.Prepend("STEERBase:ESD:AOD:ANALYSIS:ANALYSISalice:");
   }
 
   // Check status code
@@ -128,33 +128,10 @@ Bool_t SETUP_SetAliRootMode(TString &mode, const TString &extraLibs) {
   return kTRUE;
 }
 
-//______________________________________________________________________________
-void SETUP_MakePar() {
 
-  TString tmp = gSystem->GetFromPipe("mktemp -d /tmp/AliRoot-MakePar-XXXXX");
-  TString buf;
-  buf.Form("rm -rf AliRoot.par");
-  buf.Form("%s/AliRoot/PROOF-INF", tmp.Data());
-  gSystem->mkdir(buf.Data(), kTRUE);
-  buf.Form("%s/AliRoot/PROOF-INF/SETUP.C", tmp.Data());
-  gSystem->CopyFile("AliRoot_SETUP.C", buf.Data());
-  buf.Form("tar -C %s -cvzf AliRoot.par AliRoot/", tmp.Data());
-  gSystem->Exec(buf.Data());
-  buf.Form("rm -rf %s", tmp.Data());
-  gSystem->Exec(buf.Data());
-  if (gSystem->AccessPathName("AliRoot.par") == kFALSE) {
-    ::Info(gSystem->HostName(), "AliRoot.par created successfully");
-  }
-  else {
-    ::Error(gSystem->HostName(), "Problems creating AliRoot.par");
-  }
-
-}
-
-//______________________________________________________________________________
 Int_t SETUP(TList *inputList = NULL) {
 
-  TString aliRootDir;
+  TString aliRootDir, aliPhysicsDir;
 
   if (gProof && !gProof->IsMaster()) {
 
@@ -162,15 +139,22 @@ Int_t SETUP(TList *inputList = NULL) {
     // On client
     //
 
-    gMessTag = "Client";
+    gMessTag = "client";
     aliRootDir = gSystem->Getenv("ALICE_ROOT");  // NULL --> ""
+    aliPhysicsDir = gSystem->Getenv("ALICE_PHYSICS");  // NULL --> ""
 
     if (aliRootDir.IsNull()) {
+      // ALICE_ROOT is mandatory; ALICE_PHYSICS is optional
       ::Error(gMessTag.Data(), "ALICE_ROOT environment variable not defined on client");
       return -1;
     }
 
-    ::Info(gMessTag.Data(), "Enabling local AliRoot located at %s", aliRootDir.Data());
+    if (aliPhysicsDir.EqualTo(aliRootDir)) {
+      // AliPhysics does not exist if it points to the same directory of AliRoot
+      aliPhysicsDir = "";
+    }
+
+    ::Info(gMessTag.Data(), "Enabling ALICE software on client");
 
   }
   else {
@@ -180,49 +164,82 @@ Int_t SETUP(TList *inputList = NULL) {
     //
 
     gMessTag = gSystem->HostName();
+    if (gProof && gProof->IsMaster()) {
+      gMessTag.Append("(master)");
+    }
+    else {
+      gMessTag.Append("(worker)");
+    }
 
-    // Extract AliRoot version from this package's name
+    // Here we have two working modes: AAF and VAF.
+    //  - AAF mode: look for VO_ALICE@(AliRoot|AliPhysics)::<version>
+    //  - VAF mode: any other PARfile name
+
     TString buf;
     buf = gSystem->BaseName(gSystem->pwd());
-    TPMERegexp re("^VO_ALICE@AliRoot::(.*)$");
-    if (re.Match(buf) == 2) {
+    TPMERegexp reAaf("^VO_ALICE@(AliRoot|AliPhysics)::(.*)$");
+
+    if (reAaf.Match(buf) == 3) {
 
       // AliRoot enabled from a metaparfile whose name matches
       // VO_ALICE@AliRoot::<version>: set up ALICE_ROOT environment variable
       // accordingly from there.
       // Note: this is the AAF case.
 
-      TString aliRootVer = re[1].Data();
+      TString swName = reAaf[1].Data();
+      TString swVer = reAaf[2].Data();
 
-      // Get ALICE_ROOT from Modules
+      // Get ALICE_ROOT and ALICE_PHYSICS from the env set by Modules
       buf.Form( ". /cvmfs/alice.cern.ch/etc/login.sh && "
-        "eval `alienv printenv VO_ALICE@AliRoot::%s` && "
-        "echo \"$ALICE_ROOT\"", aliRootVer.Data() );
-      aliRootDir = gSystem->GetFromPipe( buf.Data() );
+        "eval `alienv printenv VO_ALICE@%s::%s` && "
+        "echo \"$ALICE_ROOT\" ; "
+        "echo \"$ALICE_PHYSICS\"", swName.Data(), swVer.Data() );
+      buf = gSystem->GetFromPipe( buf.Data() );
 
-      // Set (or override) environment for AliRoot
-      gSystem->Setenv("ALICE_ROOT", aliRootDir.Data());
+      // Output on two lines
+      TString tok;
+      Ssiz_t from = 0;
+      UInt_t count = 0;
+      while ( buf.Tokenize(tok, from, "\n") ) {
+        if (count == 0) {
+          aliRootDir = tok;
+        }
+        else if (count == 1) {
+          aliPhysicsDir = tok;
+        }
+        else {
+          break;
+        }
+        count++;
+      }
 
+      // Set (or override) environment for AliRoot and AliPhysics.
       // LD_LIBRARY_PATH: current working directory always has precedence.
       // Note: supports both current $ALICE_ROOT/lib and legacy
       //       $ALICE_ROOT/lib/tgt_<arch> format.
-
+      gSystem->Setenv("ALICE_ROOT", aliRootDir.Data());
       gSystem->SetDynamicPath(
         Form(".:%s/lib:%s/lib/tgt_%s:%s", aliRootDir.Data(), aliRootDir.Data(),
           gSystem->GetBuildArch(), gSystem->GetDynamicPath()) );
 
       ::Info(gMessTag.Data(),
-        "Enabling AliRoot %s located on PROOF node at %s (AAF mode)...",
-        aliRootVer.Data(), aliRootDir.Data());
+        "Enabling %s %s on PROOF (AAF mode)...", swName.Data(), swVer.Data());
+
+      if (!aliPhysicsDir.IsNull()) {
+        gSystem->Setenv("ALICE_PHYSICS", aliPhysicsDir.Data());
+        gSystem->SetDynamicPath(
+          Form("%s/lib:%s", aliPhysicsDir.Data(), gSystem->GetDynamicPath()) );
+      }
 
     }
     else {
 
-      // AliRoot enabled from a single metaparfile. Assume that ALICE_ROOT is
-      // already defined on each worker.
+      // AliRoot enabled from a single metaparfile. Assume that ALICE_ROOT and
+      // ALICE_PHYSICS are already defined on master and each worker.
       // Note: this is the VAF case.
 
       aliRootDir = gSystem->Getenv("ALICE_ROOT");  // NULL --> ""
+      aliPhysicsDir = gSystem->Getenv("ALICE_PHYSICS");  // NULL --> ""
 
       if (aliRootDir.IsNull()) {
         ::Error(gMessTag.Data(),
@@ -231,37 +248,50 @@ Int_t SETUP(TList *inputList = NULL) {
         return -1;
       }
 
+      if (aliPhysicsDir.EqualTo(aliRootDir)) {
+        // AliPhysics does not exist if it points to the same directory of AliRoot
+        aliPhysicsDir = "";
+      }
+
       ::Info(gMessTag.Data(),
-        "Enabling AliRoot located on PROOF node at %s (VAF mode)",
-        aliRootDir.Data());
+        "Enabling ALICE software located on PROOF node (VAF mode)");
     }
 
   }
 
   //
+  // Where are AliRoot and AliPhysics? Inform user
+  //
+
+  ::Info(gMessTag.Data(), ">> ALICE_ROOT=%s", aliRootDir.Data());
+  ::Info(gMessTag.Data(), ">> ALICE_PHYSICS=%s", aliPhysicsDir.Data());
+
+  //
   // Common operations on Client and PROOF Master/Workers
   //
 
-  // Add standard AliRoot include path
+  // Add standard AliRoot Core include and macro path
   gSystem->AddIncludePath( Form("-I\"%s/include\"", aliRootDir.Data()) );
-
-  // Add standard AliRoot macro path
   gROOT->SetMacroPath( Form("%s:%s/macros", gROOT->GetMacroPath(), aliRootDir.Data()) );
+
+  // Same for AliPhysics
+  if (!aliPhysicsDir.IsNull()) {
+    gSystem->AddIncludePath( Form("-I\"%s/include\"", aliPhysicsDir.Data()) );
+    gROOT->SetMacroPath( Form("%s:%s/macros", gROOT->GetMacroPath(), aliPhysicsDir.Data()) );
+  }
 
   //
   // Process input parameters
   //
 
-  TString extraIncs, extraLibs, mode;
+  TString extraLibs, mode;
   Bool_t enableAliEn = kFALSE;
 
   if (inputList) {
     TIter it(inputList);
     TNamed *pair;
     while ((pair = dynamic_cast<TNamed *>(it.Next()))) {
-      if ( strcmp(pair->GetName(), "ALIROOT_EXTRA_INCLUDES") == 0 )
-        extraIncs = pair->GetTitle();
-      else if ( strcmp(pair->GetName(), "ALIROOT_EXTRA_LIBS") == 0 )
+      if ( strcmp(pair->GetName(), "ALIROOT_EXTRA_LIBS") == 0 )
         extraLibs = pair->GetTitle();
       else if ( strcmp(pair->GetName(), "ALIROOT_ENABLE_ALIEN") == 0 )
         enableAliEn = ( *(pair->GetTitle()) != '\0' );
@@ -271,27 +301,13 @@ Int_t SETUP(TList *inputList = NULL) {
   }
 
   //
-  // Load extra libraries and set AliRoot mode
+  // Load extra libraries and set AliRoot Core mode
   //
 
-  if (!SETUP_SetAliRootMode(mode, extraLibs)) {
+  if (!SETUP_SetAliRootCoreMode(mode, extraLibs)) {
     ::Error(gMessTag.Data(), "Error loading libraries while setting AliRoot mode.");
     ::Error(gMessTag.Data(), "Did you enable the right version of ROOT?");
     return -1;
-  }
-
-  //
-  // Set extra includes
-  //
-
-  {
-    TString inc;
-    Ssiz_t from = 0;
-    while ( extraIncs.Tokenize(inc, from, ":") ) {
-      if (inc.IsNull()) continue;
-      ::Info(gMessTag.Data(), ">> Adding include path %s", inc.Data());
-      gSystem->AddIncludePath( Form("-I\"%s/%s\"", aliRootDir.Data(), inc.Data()) );
-    }
   }
 
   //

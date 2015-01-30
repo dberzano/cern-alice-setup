@@ -5,7 +5,7 @@ cd "$( dirname "$0" )"
 if [[ $1 != '' ]] ; then
   parname=$1
 else
-  parname='AliRoot'
+  parname='AliceVaf'
 fi
 
 src="${PWD}/AliRoot_SETUP.C"

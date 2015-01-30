@@ -69,7 +69,7 @@ while read AliRootVer ; do
 
   rm -rf "$T"
 
-done < <( alienv q | grep '^VO_ALICE@AliRoot::' )
+done < <( alienv q | grep -E '^VO_ALICE@(AliRoot|AliPhysics)::' )
 
 echo "$CountDone package(s) created"
 echo "$CountSkip package(s) were already up-to-date"
