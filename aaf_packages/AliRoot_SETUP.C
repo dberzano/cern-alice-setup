@@ -154,7 +154,7 @@ void SETUP_MakePar() {
 //______________________________________________________________________________
 Int_t SETUP(TList *inputList = NULL) {
 
-  TString aliRootDir;
+  TString aliRootDir, aliPhysicsDir;
 
   if (gProof && !gProof->IsMaster()) {
 
@@ -181,39 +181,66 @@ Int_t SETUP(TList *inputList = NULL) {
 
     gMessTag = gSystem->HostName();
 
-    // Extract AliRoot version from this package's name
+    // Here we have two working modes: AAF and VAF.
+    //  - AAF mode: look for VO_ALICE@(AliRoot|AliPhysics)::<version>
+    //  - VAF mode: look for AliRoot.par or AliPhysics.par
+
     TString buf;
     buf = gSystem->BaseName(gSystem->pwd());
-    TPMERegexp re("^VO_ALICE@AliRoot::(.*)$");
-    if (re.Match(buf) == 2) {
+    TPMERegexp reAaf("^VO_ALICE@(AliRoot|AliPhysics)::(.*)$");
+    TPMERegexp reVaf("^(AliRoot|AliPhysics)$");
+
+    if (reAaf.Match(buf) == 3) {
 
       // AliRoot enabled from a metaparfile whose name matches
       // VO_ALICE@AliRoot::<version>: set up ALICE_ROOT environment variable
       // accordingly from there.
       // Note: this is the AAF case.
 
-      TString aliRootVer = re[1].Data();
+      TString swName = reAaf[1].Data();
+      TString swVer = reAaf[2].Data();
 
-      // Get ALICE_ROOT from Modules
+      // Get ALICE_ROOT and ALICE_PHYSICS from the env set by Modules
       buf.Form( ". /cvmfs/alice.cern.ch/etc/login.sh && "
-        "eval `alienv printenv VO_ALICE@AliRoot::%s` && "
-        "echo \"$ALICE_ROOT\"", aliRootVer.Data() );
-      aliRootDir = gSystem->GetFromPipe( buf.Data() );
+        "eval `alienv printenv VO_ALICE@%s::%s` && "
+        "echo \"$ALICE_ROOT\" ; "
+        "echo \"$ALICE_PHYSICS\"", swName.Data(), swVer.Data() );
+      buf = gSystem->GetFromPipe( buf.Data() );
 
-      // Set (or override) environment for AliRoot
-      gSystem->Setenv("ALICE_ROOT", aliRootDir.Data());
+      // Output on two lines
+      TString tok;
+      Ssiz_t from = 0;
+      UInt_t count = 0;
+      while ( buf.Tokenize(tok, from, "\n") ) {
+        if (count == 0) {
+          aliRootDir = tok;
+        }
+        else if (count == 1) {
+          aliPhysicsDir = tok;
+        }
+        else {
+          break;
+        }
+        count++;
+      }
 
+      // Set (or override) environment for AliRoot and AliPhysics.
       // LD_LIBRARY_PATH: current working directory always has precedence.
       // Note: supports both current $ALICE_ROOT/lib and legacy
       //       $ALICE_ROOT/lib/tgt_<arch> format.
-
+      gSystem->Setenv("ALICE_ROOT", aliRootDir.Data());
       gSystem->SetDynamicPath(
         Form(".:%s/lib:%s/lib/tgt_%s:%s", aliRootDir.Data(), aliRootDir.Data(),
           gSystem->GetBuildArch(), gSystem->GetDynamicPath()) );
 
       ::Info(gMessTag.Data(),
-        "Enabling AliRoot %s located on PROOF node at %s (AAF mode)...",
-        aliRootVer.Data(), aliRootDir.Data());
+        "Enabling %s %s on PROOF (AAF mode)...", swName.Data(), swVer.Data());
+
+      if (!aliPhysicsDir.IsNull()) {
+        gSystem->Setenv("ALICE_PHYSICS", aliPhysicsDir.Data());
+        gSystem->SetDynamicPath(
+          Form("%s/lib:%s", aliPhysicsDir.Data(), gSystem->GetDynamicPath()) );
+      }
 
     }
     else {
@@ -242,11 +269,15 @@ Int_t SETUP(TList *inputList = NULL) {
   // Common operations on Client and PROOF Master/Workers
   //
 
-  // Add standard AliRoot include path
+  // Add standard AliRoot Core include and macro path
   gSystem->AddIncludePath( Form("-I\"%s/include\"", aliRootDir.Data()) );
-
-  // Add standard AliRoot macro path
   gROOT->SetMacroPath( Form("%s:%s/macros", gROOT->GetMacroPath(), aliRootDir.Data()) );
+
+  // Same for AliPhysics
+  if (!aliPhysicsDir.IsNull()) {
+    gSystem->AddIncludePath( Form("-I\"%s/include\"", aliPhysicsDir.Data()) );
+    gROOT->SetMacroPath( Form("%s:%s/macros", gROOT->GetMacroPath(), aliPhysicsDir.Data()) );
+  }
 
   //
   // Process input parameters
@@ -271,7 +302,7 @@ Int_t SETUP(TList *inputList = NULL) {
   }
 
   //
-  // Load extra libraries and set AliRoot mode
+  // Load extra libraries and set AliRoot Core mode
   //
 
   if (!SETUP_SetAliRootMode(mode, extraLibs)) {
