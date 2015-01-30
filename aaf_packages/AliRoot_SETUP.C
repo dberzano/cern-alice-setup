@@ -63,7 +63,7 @@ Bool_t SETUP_LoadLibraries(const TString &libs) {
 }
 
 //______________________________________________________________________________
-Bool_t SETUP_SetAliRootMode(TString &mode, const TString &extraLibs) {
+Bool_t SETUP_SetAliRootCoreMode(TString &mode, const TString &extraLibs) {
 
   // Sets a certain AliRoot mode, defining a set of libraries to load. Extra
   // libraries to load can be specified as well. Returns kTRUE on success, or
@@ -280,7 +280,7 @@ Int_t SETUP(TList *inputList = NULL) {
   // Load extra libraries and set AliRoot Core mode
   //
 
-  if (!SETUP_SetAliRootMode(mode, extraLibs)) {
+  if (!SETUP_SetAliRootCoreMode(mode, extraLibs)) {
     ::Error(gMessTag.Data(), "Error loading libraries while setting AliRoot mode.");
     ::Error(gMessTag.Data(), "Did you enable the right version of ROOT?");
     return -1;
