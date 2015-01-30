@@ -101,9 +101,9 @@ Bool_t SETUP_SetAliRootMode(TString &mode, const TString &extraLibs) {
     // No mode specified, or invalid mode: load standard libraries, and also
     // fix loading order
     ::Info(gMessTag.Data(), "No mode specified: loading standard libraries...");
-    TPMERegexp reLibs("(ANALYSISalice|OADB|ANALYSIS|STEERBase|ESD|AOD)(:|$)");
+    TPMERegexp reLibs("(ANALYSISalice|ANALYSIS|STEERBase|ESD|AOD)(:|$)");
     while (reLibs.Substitute(libs, "")) {}
-    libs.Prepend("STEERBase:ESD:AOD:ANALYSIS:OADB:ANALYSISalice:");
+    libs.Prepend("STEERBase:ESD:AOD:ANALYSIS:ANALYSISalice:");
   }
 
   // Check status code

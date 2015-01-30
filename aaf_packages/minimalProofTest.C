@@ -1,6 +1,7 @@
 void minimalProofTest() {
-  TString aliRootVer = "vAN-20141201";
+  //TString aliRootVer = "vAN-20141201";
   //TString aliRootVer = "vAN-20150107";
+  TString aliRootVer = "v5-06-02";
   TString rootVer = "v5-34-08-6";
   TString connStr = "dberzano@alice-caf.cern.ch";
 
@@ -15,4 +16,10 @@ void minimalProofTest() {
   gProof->ClearPackages();
   gProof->UploadPackage( Form("VO_ALICE@AliRoot::%s", aliRootVer.Data()) );
   gProof->EnablePackage( Form("VO_ALICE@AliRoot::%s", aliRootVer.Data()) );
+
+  // Print some tests
+  Printf("What is ALICE_ROOT on the remote node?");
+  gProof->Exec( ".!echo $ALICE_ROOT" );
+  Printf("What is ALICE_PHYSICS on the remote node?");
+  gProof->Exec( ".!echo $ALICE_PHYSICS" );
 }
