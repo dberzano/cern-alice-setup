@@ -34,7 +34,7 @@
 
 TString gMessTag;
 
-//______________________________________________________________________________
+
 Bool_t SETUP_LoadLibraries(const TString &libs) {
 
   // Loads a list of colon-separated libraries. Returns kTRUE on success, kFALSE
@@ -62,7 +62,7 @@ Bool_t SETUP_LoadLibraries(const TString &libs) {
   return 0;
 }
 
-//______________________________________________________________________________
+
 Bool_t SETUP_SetAliRootCoreMode(TString &mode, const TString &extraLibs) {
 
   // Sets a certain AliRoot mode, defining a set of libraries to load. Extra
@@ -128,7 +128,7 @@ Bool_t SETUP_SetAliRootCoreMode(TString &mode, const TString &extraLibs) {
   return kTRUE;
 }
 
-//______________________________________________________________________________
+
 Int_t SETUP(TList *inputList = NULL) {
 
   TString aliRootDir, aliPhysicsDir;
