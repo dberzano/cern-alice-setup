@@ -9,7 +9,7 @@
  *
  * List of variables supported for AAF "compatibility":
  *
- * [X] ALIROOT_EXTRA_INCLUDES
+ * [ ] ALIROOT_EXTRA_INCLUDES
  * [X] ALIROOT_MODE
  * [X] ALIROOT_EXTRA_LIBS
  * [ ] ALIROOT_AAF_BAD_WORKER
@@ -283,16 +283,14 @@ Int_t SETUP(TList *inputList = NULL) {
   // Process input parameters
   //
 
-  TString extraIncs, extraLibs, mode;
+  TString extraLibs, mode;
   Bool_t enableAliEn = kFALSE;
 
   if (inputList) {
     TIter it(inputList);
     TNamed *pair;
     while ((pair = dynamic_cast<TNamed *>(it.Next()))) {
-      if ( strcmp(pair->GetName(), "ALIROOT_EXTRA_INCLUDES") == 0 )
-        extraIncs = pair->GetTitle();
-      else if ( strcmp(pair->GetName(), "ALIROOT_EXTRA_LIBS") == 0 )
+      if ( strcmp(pair->GetName(), "ALIROOT_EXTRA_LIBS") == 0 )
         extraLibs = pair->GetTitle();
       else if ( strcmp(pair->GetName(), "ALIROOT_ENABLE_ALIEN") == 0 )
         enableAliEn = ( *(pair->GetTitle()) != '\0' );
@@ -309,20 +307,6 @@ Int_t SETUP(TList *inputList = NULL) {
     ::Error(gMessTag.Data(), "Error loading libraries while setting AliRoot mode.");
     ::Error(gMessTag.Data(), "Did you enable the right version of ROOT?");
     return -1;
-  }
-
-  //
-  // Set extra includes
-  //
-
-  {
-    TString inc;
-    Ssiz_t from = 0;
-    while ( extraIncs.Tokenize(inc, from, ":") ) {
-      if (inc.IsNull()) continue;
-      ::Info(gMessTag.Data(), ">> Adding include path %s", inc.Data());
-      gSystem->AddIncludePath( Form("-I\"%s/%s\"", aliRootDir.Data(), inc.Data()) );
-    }
   }
 
   //
