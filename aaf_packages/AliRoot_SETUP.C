@@ -149,6 +149,8 @@ Int_t SETUP(TList *inputList = NULL) {
       return -1;
     }
 
+    ::Info(gMessTag.Data(), "Enabling ALICE software on client");
+
   }
   else {
 
@@ -157,7 +159,7 @@ Int_t SETUP(TList *inputList = NULL) {
     //
 
     gMessTag = gSystem->HostName();
-    if (gProof->IsMaster()) {
+    if (gProof && gProof->IsMaster()) {
       gMessTag.Append("(master)");
     }
     else {
@@ -226,13 +228,16 @@ Int_t SETUP(TList *inputList = NULL) {
       }
 
     }
-    else {
+    else if (reVaf.Match(buf) == 2) {
 
-      // AliRoot enabled from a single metaparfile. Assume that ALICE_ROOT is
-      // already defined on each worker.
+      // AliRoot enabled from a single metaparfile. Assume that ALICE_ROOT and
+      // ALICE_PHYSICS are already defined on master and each worker.
       // Note: this is the VAF case.
 
+      TString swName = reVaf[1].Data();
+
       aliRootDir = gSystem->Getenv("ALICE_ROOT");  // NULL --> ""
+      aliPhysicsDir = gSystem->Getenv("ALICE_PHYSICS");  // NULL --> ""
 
       if (aliRootDir.IsNull()) {
         ::Error(gMessTag.Data(),
@@ -241,9 +246,28 @@ Int_t SETUP(TList *inputList = NULL) {
         return -1;
       }
 
+      if (swName.EqualTo("AliPhysics") && aliPhysicsDir.IsNull()) {
+        // You asked for AliPhysics, but it's not there: fatal
+        ::Error(gMessTag.Data(),
+          "ALICE_PHYSICS environment variable not defined on PROOF node, and not"
+          "loading from a PARfile containing AliPhysics version in its name");
+        return -1;
+      }
+
       ::Info(gMessTag.Data(),
-        "Enabling AliRoot located on PROOF node at %s (VAF mode)",
-        aliRootDir.Data());
+        "Enabling %s located on PROOF node (VAF mode)", swName.Data());
+    }
+    else {
+
+      ::Error(gMessTag.Data(),
+        "I do not know which software (AliRoot? AliPhysics?) and version to enable.");
+      ::Error(gMessTag.Data(),
+        "If you are on AAF: name your PARfile VO_ALICE@[AliRoot|AliPhysics]::v<version>.par");
+      ::Error(gMessTag.Data(),
+        "If you are on VAF: name your PARfile either AliRoot.par or AliPhysics.par");
+
+      return -1;
+
     }
 
   }
