@@ -28,6 +28,7 @@ export MIN_ROOT_VER_STR='all'
 export LC_ALL=C
 export DebugSwallow=0
 export DebugDetectOs=0
+export BuildType='normal'
 
 #
 # Functions
@@ -736,6 +737,13 @@ function ModuleAliRoot() {
       # Build with FastJet?
       local FastJetFlag="-DFASTJET=$FASTJET"
 
+      # Build type
+      case $BuildType in
+        normal)    CMakeBuildType='RELWITHDEBINFO' ;;
+        optimized) CMakeBuildType='RELEASE' ;;
+        debug)     CMakeBuildType='DEBUG' ;;
+      esac
+
       if [[ "$BUILDOPT_LDFLAGS" != '' ]]; then
 
         # Special configuration for latest Ubuntu/Linux Mint
@@ -751,6 +759,7 @@ function ModuleAliRoot() {
             -DCMAKE_INSTALL_PREFIX="$AliRootInst" \
             -DALIEN="$ALIEN_DIR" \
             -DROOTSYS="$ROOTSYS" \
+            -DCMAKE_BUILD_TYPE=$CMakeBuildType \
             $FastJetFlag
 
       else
@@ -765,6 +774,7 @@ function ModuleAliRoot() {
             -DCMAKE_INSTALL_PREFIX="$AliRootInst" \
             -DALIEN="$ALIEN_DIR" \
             -DROOTSYS="$ROOTSYS" \
+            -DCMAKE_BUILD_TYPE=$CMakeBuildType \
             $FastJetFlag
 
       fi
@@ -874,6 +884,13 @@ function ModuleAliPhysics() {
 
     # Build AliPhysics
 
+    # Build type
+    case $BuildType in
+      normal)    CMakeBuildType='RELWITHDEBINFO' ;;
+      optimized) CMakeBuildType='RELEASE' ;;
+      debug)     CMakeBuildType='DEBUG' ;;
+    esac
+
     Swallow -f 'Moving into AliPhysics build directory' cd "$AliPhysicsTmp"
 
     SwallowProgress -f --pattern \
@@ -886,7 +903,8 @@ function ModuleAliPhysics() {
         -DALIEN="$ALIEN_DIR" \
         -DROOTSYS="$ROOTSYS" \
         -DFASTJET="$FASTJET" \
-        -DALIROOT="$ALICE_ROOT"
+        -DALIROOT="$ALICE_ROOT" \
+        -DCMAKE_BUILD_TYPE=$CMakeBuildType
 
     SwallowProgress -f --percentage 'Building AliPhysics' make -j$MJ
     SwallowProgress -f --percentage 'Installing AliPhysics' make -j$MJ install
@@ -1146,7 +1164,11 @@ function Help() {
   echo ""
 
   echo "  To build/install/update something (multiple choices allowed):"
-  echo -e "    ${C}$Cmd [--alien] [--root] [--geant3] [--fastjet] [--aliroot] [--aliphysics] [--ncores <n>] [--compiler [gcc|clang|/prefix/to/gcc]]${Z}"
+  echo -e "    ${C}$Cmd \\ ${Z}"
+  echo -e "    ${C}  [--alien] [--root] [--geant3] [--fastjet] [--aliroot] [--aliphysics] \\ ${Z}"
+  echo -e "    ${C}  [--ncores <n>] \\ ${Z}"
+  echo -e "    ${C}  [--compiler [gcc|clang|/prefix/to/gcc]]${Z} \\"
+  echo -e "    ${C}  [--type [normal|optimized|debug]]${Z}"
   echo ""
 
   echo "  To build/install/update everything (do --prepare first):"
@@ -1244,6 +1266,7 @@ function Help() {
     echo -e "  ${M}AliPhysics:   ${A}$ALIPHYSICS_STR${Z}"
     echo
     echo -e "${M}Compiler: ${A}$BUILD_MODE_STR${M} (supported: ${A}${SUPPORTED_BUILD_MODES}${M})${Z}"
+    echo -e "${M}Build type: ${A}$BuildType${M} (supported: ${A}normal, optimized, debug${M})${Z}"
   fi
   echo ""
 
@@ -1455,6 +1478,22 @@ function Main() {
           DO_CLEAN_FASTJET=1
           DO_CLEAN_ALICE=1
           DO_CLEAN_ALIPHYSICS=1
+        ;;
+
+        #
+        # Build type
+        #
+
+        type)
+
+          if [[ $2 == 'normal' || $2 == 'optimized' || $2 == 'debug' ]] ; then
+            BuildType="$2"
+            shift
+          else
+            Help "Build type \"$2\" not supported, use one of: normal, optimized, debug"
+            exit 1
+          fi
+
         ;;
 
         #
