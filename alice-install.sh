@@ -617,7 +617,7 @@ function ModuleFastJet() {
 
   fi
 
-  if [ "$DOWNLOAD_MODE" == '' ] || [ "$DOWNLOAD_MODE" == 'no' ] ; then
+  if [[ "$DOWNLOAD_MODE" == '' || "$DOWNLOAD_MODE" == 'no' ]] ; then
 
     #
     # Build FastJet
@@ -638,7 +638,23 @@ function ModuleFastJet() {
       ;;
     esac
 
-    export CXXFLAGS="$BUILDOPT_LDFLAGS -lgmp"
+    # Build type: optimization level and debug symbols
+    case $BuildType in
+      debug)
+        FastJetOptDbgFlags='-O0 -g'
+      ;;
+      normal)
+        FastJetOptDbgFlags='-O2 -g'
+      ;;
+      optimized)
+        FastJetOptDbgFlags='-O3'
+      ;;
+    esac
+
+    # Exporting this variable is relevant to FastJet's configure, while FJ contrib's Makefile picks
+    # it directly from the environment
+    export CXXFLAGS="${BUILDOPT_LDFLAGS} ${FastJetOptDbgFlags} -lgmp"
+
     SwallowProgress -f --pattern "Configuring FastJet" \
       ./configure --enable-cgal --prefix=$FASTJET
 
