@@ -79,13 +79,19 @@ function SwallowStart() {
   shift
 
   MSG='*** ['"$(DateTime)"'] BEGIN OP='"$OP"' CWD='"$PWD"' CMD='"$@"' ***'
-  echo -e "$MSG" >> "$OUT"
-  echo -e "$MSG" >> "$ERR"
+  echo -e "\n\n$MSG" >> "$OUT"
+  echo -e "\n\n$MSG" >> "$ERR"
 
   if [[ $DebugSwallow == 1 ]] ; then
     echo
-    echo -e "\033[35m PWD:>\033[34m $PWD\033[m"
-    echo -e "\033[35m CMD:>\033[34m $@\033[m"
+    echo -e "\033[35m CWD:>\033[34m $CWD\033[m"
+    for ((i=1 ; i<$# ; i++)) ; do
+      if [[ $i == 1 ]] ; then
+        echo -e "\033[35m CMD:>\033[34m ${!i}\033[m"
+      else
+        echo -e "\033[35m $(printf '% 3u' $((i-1))):>\033[34m   ${!i}\033[m"
+      fi
+    done
   fi
   echo -en "[....] $OP..."
 
