@@ -84,8 +84,8 @@ function SwallowStart() {
 
   if [[ $DebugSwallow == 1 ]] ; then
     echo
-    echo -e "\033[35m CWD:>\033[34m $CWD\033[m"
-    for ((i=1 ; i<$# ; i++)) ; do
+    echo -e "\033[35m CWD:>\033[34m $PWD\033[m"
+    for ((i=1 ; i<=$# ; i++)) ; do
       if [[ $i == 1 ]] ; then
         echo -e "\033[35m CMD:>\033[34m ${!i}\033[m"
       else
