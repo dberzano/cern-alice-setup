@@ -1590,18 +1590,18 @@ function Main() {
     Banner 'Non-interactive installation begins: go get some tea and scones'
 
     # All modules
-    [ $DO_CLEAN_ALIEN      == 1 ] && ModuleCleanAliEn
-    [ $DO_ALIEN            == 1 ] && ModuleAliEn
-    [ $DO_CLEAN_ROOT       == 1 ] && ModuleCleanRoot
-    [ $DO_ROOT             == 1 ] && ModuleRoot
-    [ $DO_CLEAN_G3         == 1 ] && ModuleCleanGeant3
-    [ $DO_G3               == 1 ] && ModuleGeant3
-    [ $DO_CLEAN_FASTJET    == 1 ] && ModuleCleanFastJet
-    [ $DO_FASTJET          == 1 ] && ModuleFastJet
-    [ $DO_CLEAN_ALICE      == 1 ] && ModuleCleanAliRoot
-    [ $DO_ALICE            == 1 ] && ModuleAliRoot
-    [ $DO_CLEAN_ALIPHYSICS == 1 ] && ModuleCleanAliPhysics
-    [ $DO_ALIPHYSICS       == 1 ] && ModuleAliPhysics
+    [[ $DO_CLEAN_ALIEN      == 1 ]] && ModuleCleanAliEn
+    [[ $DO_ALIEN            == 1 ]] && ModuleAliEn
+    [[ $DO_CLEAN_ROOT       == 1 ]] && ModuleCleanRoot
+    [[ $DO_ROOT             == 1 ]] && ModuleRoot
+    [[ $DO_CLEAN_G3         == 1 ]] && ModuleCleanGeant3
+    [[ $DO_G3               == 1 ]] && ModuleGeant3
+    [[ $DO_CLEAN_FASTJET    == 1 ]] && ModuleCleanFastJet
+    [[ $DO_FASTJET          == 1 ]] && ModuleFastJet
+    [[ $DO_CLEAN_ALICE      == 1 ]] && ModuleCleanAliRoot
+    [[ $DO_ALICE            == 1 ]] && ModuleAliRoot
+    [[ $DO_CLEAN_ALIPHYSICS == 1 ]] && ModuleCleanAliPhysics
+    [[ $DO_ALIPHYSICS       == 1 ]] && ModuleAliPhysics
   fi
 
   # Remove logs: if we are here, everything went right, so no need to see the
