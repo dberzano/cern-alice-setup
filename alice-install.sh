@@ -395,6 +395,25 @@ function ModuleRoot() {
 
     Swallow -f 'Moving into ROOT build directory' cd "$ROOTSYS"
 
+    # Build type. Note that ROOT, if configured with ./configure (and not CMake), does not allow us
+    # to be flexible with respect to build options. We will need to override them when running make
+    # by passing the additional OPT= variable. The following options match the build options for
+    # AliRoot Core and AliPhysics for consistency
+    case $BuildType in
+      debug)
+        BuildCfgFlags='--build=debug'
+        BuildMakeFlags='-O0 -g'
+      ;;
+      normal)
+        BuildCfgFlags='--build=debug'
+        BuildMakeFlags='-O2 -g'
+      ;;
+      optimized)
+        BuildCfgFlags=''
+        BuildMakeFlags='-O3'
+      ;;
+    esac
+
     # Choose correct configuration
     local ConfigOpts="--with-pythia6-uscore=SINGLE \
       --with-alien-incdir=$GSHELL_ROOT/include \
@@ -406,14 +425,14 @@ function ModuleRoot() {
       --enable-roofit \
       --enable-soversion \
       --disable-bonjour \
-      --enable-builtin-freetype"
+      --enable-builtin-freetype $BuildCfgFlags"
 
     # Are --disable-fink and --enable-cocoa available (OS X only)?
-    if [ "`uname`" == 'Darwin' ] ; then
-      if [ `./configure --help 2>/dev/null|grep -c finkdir` == 1 ]; then
+    if [[ "`uname`" == 'Darwin' ]] ; then
+      if [[ `./configure --help 2>/dev/null|grep -c finkdir` == 1 ]] ; then
         ConfigOpts="$ConfigOpts --disable-fink"
       fi
-      if [ `./configure --help 2>/dev/null|grep -c cocoa` == 1 ]; then
+      if [[ `./configure --help 2>/dev/null|grep -c cocoa` == 1 ]] ; then
         ConfigOpts="$ConfigOpts --enable-cocoa"
       fi
     fi
@@ -444,13 +463,14 @@ function ModuleRoot() {
 
     esac
 
-    SwallowProgress -f --pattern "Configuring ROOT" ./configure $ConfigOpts
+    SwallowProgress -f --pattern 'Configuring ROOT' ./configure $ConfigOpts
 
     local AppendLDFLAGS AppendCPATH
-    [ "$BUILDOPT_LDFLAGS" != '' ] && AppendLDFLAGS="LDFLAGS=$BUILDOPT_LDFLAGS"
-    [ "$BUILDOPT_CPATH" != '' ] && AppendCPATH="CPATH=$BUILDOPT_CPATH"
+    [[ "$BUILDOPT_LDFLAGS" != '' ]] && AppendLDFLAGS="LDFLAGS=$BUILDOPT_LDFLAGS"
+    [[ "$BUILDOPT_CPATH" != '' ]] && AppendCPATH="CPATH=$BUILDOPT_CPATH"
 
-    SwallowProgress -f --pattern "Building ROOT" make -j$MJ $AppendLDFLAGS $AppendCPATH
+    SwallowProgress -f --pattern 'Building ROOT' \
+      make -j$MJ $AppendLDFLAGS $AppendCPATH OPT="$BuildMakeFlags"
 
     # To fix some problems during the creation of PARfiles in AliRoot
     if [ -e "$ROOTSYS/test/Makefile.arch" ]; then
