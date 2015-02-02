@@ -1124,7 +1124,7 @@ function RemoveLogs() {
 
 # Prints out a nice help
 function Help() {
-  local Cmd='bash <(curl -fsSL http://cern.ch/go/NcS7)'
+  local Cmd='bash <(curl -fsSL http://alien.cern.ch/alice-installer)'
   local C="\033[1m"
   local Z="\033[m"
   local R="\033[31m"
