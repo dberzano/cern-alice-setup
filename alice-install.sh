@@ -1362,7 +1362,7 @@ function Main() {
 
   # Look for debug
   for (( i=0 ; i<=$# ; i++ )) ; do
-    if [[ ${!i} == '--debug' ]] ; then
+    if [[ ${!i} == '--verbose' ]] ; then
       DebugSwallow=1
       DebugDetectOs=1
     fi
@@ -1455,7 +1455,7 @@ function Main() {
         # Other targets
         #
 
-        debug)
+        verbose)
           # already checked on top, skip it
         ;;
 
