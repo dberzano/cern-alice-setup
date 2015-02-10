@@ -3,6 +3,8 @@
 import sys, os, time
 import getopt
 import subprocess
+import tempfile
+import shutil
 import logging, logging.handlers
 
 ## @class AutoDoc
@@ -17,15 +19,17 @@ class AutoDoc(object):
   #  @param git_clone Full path to the Git clone to consider
   #  @param output_path Directory containing one subdirectory per documentation version
   #  @param debug True enables debug output, False suppresses it
-  #  @param refs Can either be "head" or "new" (for new tags)
-  def __init__(self, git_clone, output_path, debug, refs):
+  #  @param new_tags If True, generate doc for new tags; if False, see branch
+  #  @param branch If new_tags is False, generates doc for this branch's head
+  def __init__(self, git_clone, output_path, debug, new_tags, branch):
     self._git_clone = git_clone
     self._output_path = output_path
     self._log = None
-    self._refs = refs
-    assert refs == 'head' or refs == 'new', 'refs can only be "head" or "new"'
+    self._new_tags = new_tags
+    self._branch = branch
 
     self._init_log(debug)
+
 
   ## Initializes the logging facility.
   #
@@ -117,7 +121,7 @@ class AutoDoc(object):
 
   ## Updates current branch from remote.
   #
-  # Note that the branch must be properly configured externally.
+  #  Note that the branch must be properly checked out otherwise.
   #
   #  @return True on success, False on error
   def update_branch(self):
@@ -137,6 +141,108 @@ class AutoDoc(object):
 
     self._log.error('Error updating branch, returned %d' % rc)
     return False
+
+
+  ## Checks out a Git reference, but cleans up first.
+  #
+  #  @param ref A Git reference (tag, branch...) to check out
+  #
+  #  @return True on success, False on error
+  def checkout_ref(self, ref):
+
+    self._log.debug('Resetting current working directory')
+    cmd = [ 'git', 'reset', '--hard', 'HEAD' ]
+    with open(os.devnull, 'w') as dev_null:
+      sp = subprocess.Popen(cmd, stderr=dev_null, stdout=dev_null, shell=False, cwd=self._git_clone)
+    rc = sp.wait()
+    if rc == 0:
+      self._log.debug('Success resetting current working directory')
+    else:
+      self._log.error('Error resetting current working directory, returned %d' % rc)
+      return False
+
+    self._log.debug('Cleaning up working directory')
+    cmd = [ 'git', 'clean', '-f', '-d' ]
+    with open(os.devnull, 'w') as dev_null:
+      sp = subprocess.Popen(cmd, stderr=dev_null, stdout=dev_null, shell=False, cwd=self._git_clone)
+    rc = sp.wait()
+    if rc == 0:
+      self._log.debug('Success cleaning up working directory')
+    else:
+      self._log.error('Error cleaning up working directory, returned %d' % rc)
+      return False
+
+    self._log.debug('Checking out reference %s' % ref)
+    cmd = [ 'git', 'checkout', ref ]
+    with open(os.devnull, 'w') as dev_null:
+      sp = subprocess.Popen(cmd, stderr=dev_null, stdout=dev_null, shell=False, cwd=self._git_clone)
+    rc = sp.wait()
+    if rc == 0:
+      self._log.debug('Success checking out reference %s' % ref)
+    else:
+      self._log.error('Error checking out reference %s, returned %d' % (ref, rc))
+      return False
+
+    return True
+
+
+  ## Creates Doxygen documentation.
+  #
+  #  @return True on success, False on error
+  def gen_doc(self):
+
+    self.checkout_ref(self._branch)
+
+    self._log.debug('Creating a temporary build directory')
+    build_path = tempfile.mkdtemp()
+    self._log.debug('Temporary build directory: %s' % build_path)
+
+    self._log.debug('Preparing build with CMake')
+    cmd = [ 'cmake', self._git_clone, '-DDOXYGEN_ONLY=ON' ]
+    with open(os.devnull, 'w') as dev_null:
+      sp = subprocess.Popen(cmd, stderr=dev_null, stdout=dev_null, shell=False, cwd=build_path)
+    rc = sp.wait()
+    if rc == 0:
+      self._log.debug('Success preparing build with CMake')
+    else:
+      self._log.error('Error preparing build with CMake, returned %d' % rc)
+      return False
+
+    self._log.debug('Generating documentation (will take a while)')
+    cmd = [ 'make', 'doxygen' ]
+    with open(os.devnull, 'w') as dev_null:
+      sp = subprocess.Popen(cmd, stderr=dev_null, stdout=dev_null, shell=False, cwd=build_path)
+    rc = sp.wait()
+    if rc == 0:
+      self._log.debug('Success generating documentation')
+    else:
+      self._log.error('Error generating documentation, returned %d' % rc)
+      return False
+
+    # Let it except freely on error
+    self._log.debug('Creating output directory')
+    if not os.path.isdir(self._output_path):
+      os.makedirs(self._output_path)
+
+    self._log.debug('Publishing documentation to %s' % self._output_path)
+    cmd = [ 'rsync', '-a', '--delete',
+      '%s/doxygen/html/' % build_path,
+      '%s/%s/' % (self._output_path, self._branch) ]
+    with open(os.devnull, 'w') as dev_null:
+      sp = subprocess.Popen(cmd, stderr=dev_null, stdout=dev_null, shell=False, cwd=build_path)
+    rc = sp.wait()
+    if rc == 0:
+      self._log.debug('Success publishing documentation to %s' % self._output_path)
+    else:
+      self._log.error('Error publishing documentation to %s, returned %d' % (self._output_path, rc))
+      return False
+
+    # Clean up working directory
+    self._log.debug('Cleaning up working directory %s' % build_path)
+    shutil.rmtree(build_path)
+
+    # All went right
+    return True
 
 
   ## Demo mode: remove a couple of tags to see the difference, and revert the
@@ -261,6 +367,7 @@ class AutoDoc(object):
     #
 
     # Generate doc, check exitcode, move to location, notify via email
+    self.gen_doc()
 
     return True
 
@@ -270,7 +377,7 @@ class AutoDoc(object):
   #  @return 0 on success, nonzero on error
   def run(self):
 
-    if self._refs == 'new':
+    if self._new_tags:
       r = self.gen_doc_new_tags()
     else:
       r = self.gen_doc_head()
@@ -287,10 +394,11 @@ if __name__ == '__main__':
     'git-clone': None,
     'output-path': None,
     'debug': False,
-    'refs': None
+    'branch': None,
+    'new-tags': None
   }
 
-  opts, args = getopt.getopt(sys.argv[1:], '', [ 'git-clone=', 'output-path=', 'debug', 'refs=' ])
+  opts, args = getopt.getopt(sys.argv[1:], '', [ 'git-clone=', 'output-path=', 'debug', 'branch=', 'new-tags' ])
   for o, a in opts:
     if o == '--git-clone':
       params['git-clone'] = a
@@ -298,11 +406,12 @@ if __name__ == '__main__':
       params['output-path'] = a
     elif o == '--debug':
       params['debug'] = True
-    elif o == '--refs':
-      if a == 'head' or a == 'new':
-        params['refs'] = a
-      else:
-        raise getopt.GetoptError('refs can only take "new" or "head" as value')
+    elif o == '--branch':
+      params['new-tags'] = False
+      params['branch'] = a
+    elif o == '--new-tags':
+      params['new-tags'] = True
+      params['branch'] = False
     elif o == '--head':
       params['new-tags'] = False
     else:
@@ -316,7 +425,8 @@ if __name__ == '__main__':
     git_clone=params['git-clone'],
     output_path=params['output-path'],
     debug=params['debug'],
-    refs=params['refs']
+    new_tags=params['new-tags'],
+    branch=params['branch']
   )
   r = autodoc.run()
   sys.exit(r)
