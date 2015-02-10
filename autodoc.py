@@ -17,10 +17,13 @@ class AutoDoc(object):
   #  @param git_clone Full path to the Git clone to consider
   #  @param output_path Directory containing one subdirectory per documentation version
   #  @param debug True enables debug output, False suppresses it
-  def __init__(self, git_clone, output_path, debug):
+  #  @param refs Can either be "head" or "new" (for new tags)
+  def __init__(self, git_clone, output_path, debug, refs):
     self._git_clone = git_clone
     self._output_path = output_path
     self._log = None
+    self._refs = refs
+    assert refs == 'head' or refs == 'new', 'refs can only be "head" or "new"'
 
     self._init_log(debug)
 
@@ -90,7 +93,7 @@ class AutoDoc(object):
     return None
 
 
-  ## Updates remote repository
+  ## Updates remote repository.
   #
   #  @return True on success, False on error
   def update_repo(self):
@@ -112,7 +115,32 @@ class AutoDoc(object):
     return False
 
 
-  ## Demo mode: remove a couple of tags to see the difference
+  ## Updates current branch from remote.
+  #
+  # Note that the branch must be properly configured externally.
+  #
+  #  @return True on success, False on error
+  def update_branch(self):
+
+    self._log.debug('Updating current branch')
+
+    cmd = [ 'git', 'pull', '--rebase' ]
+
+    with open(os.devnull, 'w') as dev_null:
+      sp = subprocess.Popen(cmd, stderr=dev_null, stdout=dev_null, shell=False, cwd=self._git_clone)
+
+    rc = sp.wait()
+
+    if rc == 0:
+      self._log.debug('Success updating branch')
+      return True
+
+    self._log.error('Error updating branch, returned %d' % rc)
+    return False
+
+
+  ## Demo mode: remove a couple of tags to see the difference, and revert the
+  #  repository back to the past to see if pull works.
   def demo(self):
     for tag in [ 'vAN-20150118', 'vAN-20150115', 'vAN-20150117' ]:
       cmd = [ 'git', 'tag', '--delete', tag ]
@@ -122,10 +150,21 @@ class AutoDoc(object):
       if rc != 0:
         logging.error('Problem removing %s: %d' % (tag, rc))
 
-  ## Entry point for all operations.
+    sha1 = 'a9eacf03772d8587d41641e6849632ce25e474b3'
+    cmd = [ 'git', 'reset', '--hard', sha1 ]
+    with open(os.devnull, 'w') as dev_null:
+      sp = subprocess.Popen(cmd, stderr=dev_null, stdout=dev_null, shell=False, cwd=self._git_clone)
+    rc = sp.wait()
+    if rc != 0:
+      logging.error('Problem resetting repo: %d' % (rc))
+
+
+  ## Generate documentation for new tags found.
   #
-  #  @return 0 on success, nonzero on error
-  def run(self):
+  #  @return False on failure, True on success
+  #
+  #  @todo Remove debug code
+  def gen_doc_new_tags(self):
 
     # Just for debug: demo() will disappear
     self.demo()
@@ -133,7 +172,7 @@ class AutoDoc(object):
     tags_before = self.get_tags()
     if tags_before is None:
       self._log.fatal('Cannot get tags before updating: check and repair your repository')
-      return 1
+      return False
 
     # This operation needs to be repeated several times in case of failures
     update_success = False
@@ -157,12 +196,12 @@ class AutoDoc(object):
     if update_success == False:
       self._log.fatal('Cannot update after %d attempts: check Git remote and connectivity' % \
         failure_threshold)
-      return 1
+      return False
 
     tags_after = self.get_tags()
     if tags_after is None:
       self._log.fatal('Cannot get tags after updating: check and repair your repository')
-      return 1
+      return False
 
     #
     # If we are here, everything is fine
@@ -181,7 +220,64 @@ class AutoDoc(object):
 
     # Generate doc, check exitcode, move to location, notify via email
 
-    return 0
+    return True
+
+
+  ## Generate documentation for the current branch's head, which is updated
+  #  first.
+  #
+  #  @return False on failure, True on success
+  def gen_doc_head(self):
+
+    # Just for debug: demo() will disappear
+    self.demo()
+
+    # This operation needs to be repeated several times in case of failures
+    update_success = False
+    failure_count = 0
+    failure_threshold = 3
+    retry_pause_s = 3
+    while True:
+      update_success = self.update_branch()
+      if update_success == False:
+        failure_count = failure_count + 1
+        if failure_count == failure_threshold:
+          break
+        else:
+          # Take a breath before trying again
+          self._log.debug('Waiting %d seconds before performing update attempt %d/%d' % \
+            (retry_pause_s, failure_count+1, failure_threshold))
+          time.sleep(retry_pause_s)
+      else:
+        break
+
+    if update_success == False:
+      self._log.fatal('Cannot update after %d attempts: check Git remote and connectivity' % \
+        failure_threshold)
+      return False
+
+    #
+    # If we are here, everything is fine
+    #
+
+    # Generate doc, check exitcode, move to location, notify via email
+
+    return True
+
+
+  ## Entry point for all operations.
+  #
+  #  @return 0 on success, nonzero on error
+  def run(self):
+
+    if self._refs == 'new':
+      r = self.gen_doc_new_tags()
+    else:
+      r = self.gen_doc_head()
+
+    if r == True:
+      return 0
+    return 1
 
 
 # Entry point
@@ -190,10 +286,11 @@ if __name__ == '__main__':
   params = {
     'git-clone': None,
     'output-path': None,
-    'debug': False
+    'debug': False,
+    'refs': None
   }
 
-  opts, args = getopt.getopt(sys.argv[1:], '', [ 'git-clone=', 'output-path=', 'debug' ])
+  opts, args = getopt.getopt(sys.argv[1:], '', [ 'git-clone=', 'output-path=', 'debug', 'refs=' ])
   for o, a in opts:
     if o == '--git-clone':
       params['git-clone'] = a
@@ -201,6 +298,13 @@ if __name__ == '__main__':
       params['output-path'] = a
     elif o == '--debug':
       params['debug'] = True
+    elif o == '--refs':
+      if a == 'head' or a == 'new':
+        params['refs'] = a
+      else:
+        raise getopt.GetoptError('refs can only take "new" or "head" as value')
+    elif o == '--head':
+      params['new-tags'] = False
     else:
       raise getopt.GetoptError('unknown parameter: %s' % o)
 
@@ -211,7 +315,8 @@ if __name__ == '__main__':
   autodoc = AutoDoc(
     git_clone=params['git-clone'],
     output_path=params['output-path'],
-    debug=params['debug']
+    debug=params['debug'],
+    refs=params['refs']
   )
   r = autodoc.run()
   sys.exit(r)
