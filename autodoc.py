@@ -422,26 +422,30 @@ if __name__ == '__main__':
     elif o == '--debug':
       params['debug'] = True
     elif o == '--branch':
-      params['new-tags'] = False
       params['branch'] = a
-
     elif o == '--new-tags':
-      if params['new-tags'] == False:
-        raise getopt.GetoptError('use either --new-tags or --head')
       params['new-tags'] = True
-      params['branch'] = False
-      params['build-path'] = False
-
-    elif o == '--head':
-      if params['new-tags'] == True:
-        raise getopt.GetoptError('use either --new-tags or --head')
-      params['new-tags'] = False
-
     elif o == '--build-path':
       params['build-path'] = a
-
     else:
       raise getopt.GetoptError('unknown parameter: %s' % o)
+
+  if params['new-tags'] == True:
+
+    if params['branch'] is not None:
+      raise getopt.GetoptError('use either --new-tags or --branch')
+    elif params['build-path'] is not None:
+      raise getopt.GetoptError('cannot use --build-path with --new-tags')
+    else:
+      # Silence errors of required params
+      params['build-path'] = False
+      params['branch'] = False
+
+  elif params['branch'] is not None:
+    params['new-tags'] = False
+
+  else:
+    raise getopt.GetoptError('one of --new-tags or --branch is mandatory')
 
   for p in params:
     if params[p] is None:
