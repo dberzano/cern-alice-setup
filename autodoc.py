@@ -14,6 +14,9 @@ import logging, logging.handlers
 #  @todo Move documentation in place
 class AutoDoc(object):
 
+  ## Module version
+  __version__ = '0.1.0'
+
   ## Constructor.
   #
   #  @param git_clone Full path to the Git clone to consider
@@ -432,6 +435,8 @@ class AutoDoc(object):
   #
   #  @return 0 on success, nonzero on error
   def run(self):
+
+    self._log.info('This is AutoDoc v%s' % self.__version__)
 
     self.demo()
 
