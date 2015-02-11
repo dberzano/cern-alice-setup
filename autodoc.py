@@ -137,16 +137,20 @@ class AutoDoc(object):
     return False
 
 
-  ## Updates current branch from remote.
+  ## Updates current working directory from the specified remote branch.
   #
-  #  Note that the branch must be properly checked out otherwise.
+  #  Note that the branch must be properly checked out otherwise. Tags are not
+  #  fetched by this command.
+  #
+  #  @param remote Name of the remote to use (*i.e.* **origin**)
+  #  @param branch Remote branch
   #
   #  @return True on success, False on error
-  def update_branch(self):
+  def update_branch(self, remote, branch):
 
-    self._log.debug('Updating current branch')
+    self._log.info('Getting updates for %s/%s' % (remote, branch))
 
-    cmd = [ 'git', 'pull', '--rebase' ]
+    cmd = [ 'git', 'pull', remote, branch, '--no-tags' ]
 
     with open(os.devnull, 'w') as dev_null:
       if not self._show_cmd_output:
@@ -394,7 +398,7 @@ class AutoDoc(object):
     failure_threshold = 3
     retry_pause_s = 3
     while True:
-      update_success = self.update_branch()
+      update_success = self.update_branch('origin', self._branch)
       if update_success == False:
         failure_count = failure_count + 1
         if failure_count == failure_threshold:
