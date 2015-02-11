@@ -51,15 +51,19 @@ class AutoDoc(object):
   def _init_log(self, debug, syslog_only):
 
     self._log = logging.getLogger('AutoDoc')
-    log_formatter = logging.Formatter('AutoDoc[%d]: %%(levelname)s: %%(message)s' % os.getpid())
+
+    msg_fmt_syslog = 'AutoDoc[%d]: %%(levelname)s: %%(message)s' % os.getpid()
+    msg_fmt_stderr = '%(asctime)s ' + msg_fmt_syslog
+    datetime_fmt = '%Y-%m-%d %H:%M:%S'
 
     if syslog_only == False:
       stderr_handler = logging.StreamHandler(stream=sys.stderr)
-      stderr_handler.setFormatter(log_formatter)
+      # Date/time only on stderr (syslog already has it)
+      stderr_handler.setFormatter( logging.Formatter(msg_fmt_stderr, datetime_fmt) )
       self._log.addHandler(stderr_handler)
 
     syslog_handler = self._get_syslog_handler()
-    syslog_handler.setFormatter(log_formatter)
+    syslog_handler.setFormatter( logging.Formatter(msg_fmt_syslog) )
     self._log.addHandler(syslog_handler)
 
     if debug:
