@@ -22,7 +22,8 @@ class AutoDoc(object):
   #  @param new_tags If True, generate doc for new tags; if False, see branch
   #  @param branch If new_tags is False, generates doc for this branch's head
   #  @param build_path Uses the given path as CMake and Doxygen cache, instead of a disposable one
-  def __init__(self, git_clone, output_path, debug, new_tags, branch, build_path):
+  #  @param syslog_only If True, log on syslog only and be quiet on stderr and stdout
+  def __init__(self, git_clone, output_path, debug, new_tags, branch, build_path, syslog_only):
     ## Full path to the Git clone
     self._git_clone = git_clone
     ## Full path to the prefix of the output directory (doc will be put in a subdir of it)
@@ -37,21 +38,25 @@ class AutoDoc(object):
     self._build_path = build_path
     ## Show output of external commands
     self._show_cmd_output = debug
+    if syslog_only:
+      self._show_cmd_output = False
 
-    self._init_log(debug)
+    self._init_log(debug, syslog_only)
 
 
   ## Initializes the logging facility.
   #
   #  @param debug True enables debug output, False suppresses it
-  def _init_log(self, debug):
+  #  @param syslog_only If True, log on syslog only and be quiet on stderr
+  def _init_log(self, debug, syslog_only):
 
     self._log = logging.getLogger('AutoDoc')
     log_formatter = logging.Formatter('AutoDoc[%d]: %%(levelname)s: %%(message)s' % os.getpid())
 
-    stderr_handler = logging.StreamHandler(stream=sys.stderr)
-    stderr_handler.setFormatter(log_formatter)
-    self._log.addHandler(stderr_handler)
+    if syslog_only == False:
+      stderr_handler = logging.StreamHandler(stream=sys.stderr)
+      stderr_handler.setFormatter(log_formatter)
+      self._log.addHandler(stderr_handler)
 
     syslog_handler = self._get_syslog_handler()
     syslog_handler.setFormatter(log_formatter)
@@ -445,11 +450,12 @@ if __name__ == '__main__':
     'debug': False,
     'branch': None,
     'new-tags': None,
-    'build-path': None
+    'build-path': None,
+    'syslog-only': False
   }
 
   opts, args = getopt.getopt(sys.argv[1:], '',
-    [ 'git-clone=', 'output-path=', 'debug', 'branch=', 'new-tags', 'build-path=' ])
+    [ 'git-clone=', 'output-path=', 'debug', 'branch=', 'new-tags', 'build-path=', 'syslog-only' ])
   for o, a in opts:
     if o == '--git-clone':
       params['git-clone'] = a
@@ -463,6 +469,8 @@ if __name__ == '__main__':
       params['new-tags'] = True
     elif o == '--build-path':
       params['build-path'] = a
+    elif o == '--syslog-only':
+      params['syslog-only'] = True
     else:
       raise getopt.GetoptError('unknown parameter: %s' % o)
 
@@ -496,7 +504,8 @@ if __name__ == '__main__':
     debug=params['debug'],
     new_tags=params['new-tags'],
     branch=params['branch'],
-    build_path=params['build-path']
+    build_path=params['build-path'],
+    syslog_only=params['syslog-only']
   )
   r = autodoc.run()
   sys.exit(r)
