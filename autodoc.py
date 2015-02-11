@@ -21,12 +21,14 @@ class AutoDoc(object):
   #  @param debug True enables debug output, False suppresses it
   #  @param new_tags If True, generate doc for new tags; if False, see branch
   #  @param branch If new_tags is False, generates doc for this branch's head
-  def __init__(self, git_clone, output_path, debug, new_tags, branch):
+  #  @param build_path Uses the given path as CMake and Doxygen cache, instead of a disposable one
+  def __init__(self, git_clone, output_path, debug, new_tags, branch, build_path):
     self._git_clone = git_clone
     self._output_path = output_path
     self._log = None
     self._new_tags = new_tags
     self._branch = branch
+    self._build_path = build_path
 
     self._init_log(debug)
 
@@ -191,11 +193,21 @@ class AutoDoc(object):
   #  @return True on success, False on error
   def gen_doc(self):
 
-    self.checkout_ref(self._branch)
+    if not self.checkout_ref(self._branch):
+      return False
 
-    self._log.debug('Creating a temporary build directory')
-    build_path = tempfile.mkdtemp()
-    self._log.debug('Temporary build directory: %s' % build_path)
+    build_path = self._build_path
+
+    if build_path is None:
+      self._log.debug('Creating a temporary build directory')
+      build_path = tempfile.mkdtemp()
+      dispose_build_path = True
+    else:
+      dispose_build_path = False
+      if not os.path.isdir(build_path):
+        os.makedirs(build_path)
+
+    self._log.debug('Build directory: %s' % build_path)
 
     self._log.debug('Preparing build with CMake')
     cmd = [ 'cmake', self._git_clone, '-DDOXYGEN_ONLY=ON' ]
@@ -238,8 +250,9 @@ class AutoDoc(object):
       return False
 
     # Clean up working directory
-    self._log.debug('Cleaning up working directory %s' % build_path)
-    shutil.rmtree(build_path)
+    if dispose_build_path:
+      self._log.debug('Cleaning up working directory %s' % build_path)
+      shutil.rmtree(build_path)
 
     # All went right
     return True
@@ -248,7 +261,7 @@ class AutoDoc(object):
   ## Demo mode: remove a couple of tags to see the difference, and revert the
   #  repository back to the past to see if pull works.
   def demo(self):
-    for tag in [ 'vAN-20150118', 'vAN-20150115', 'vAN-20150117' ]:
+    for tag in [ 'vAN-20150118', 'vAN-20150115', 'vAN-20150117', 'v5-06-02', 'v5-06-03' ]:
       cmd = [ 'git', 'tag', '--delete', tag ]
       with open(os.devnull, 'w') as dev_null:
         sp = subprocess.Popen(cmd, stderr=dev_null, stdout=dev_null, shell=False, cwd=self._git_clone)
@@ -395,10 +408,12 @@ if __name__ == '__main__':
     'output-path': None,
     'debug': False,
     'branch': None,
-    'new-tags': None
+    'new-tags': None,
+    'build-path': None
   }
 
-  opts, args = getopt.getopt(sys.argv[1:], '', [ 'git-clone=', 'output-path=', 'debug', 'branch=', 'new-tags' ])
+  opts, args = getopt.getopt(sys.argv[1:], '',
+    [ 'git-clone=', 'output-path=', 'debug', 'branch=', 'new-tags', 'build-path=' ])
   for o, a in opts:
     if o == '--git-clone':
       params['git-clone'] = a
@@ -409,11 +424,22 @@ if __name__ == '__main__':
     elif o == '--branch':
       params['new-tags'] = False
       params['branch'] = a
+
     elif o == '--new-tags':
+      if params['new-tags'] == False:
+        raise getopt.GetoptError('use either --new-tags or --head')
       params['new-tags'] = True
       params['branch'] = False
+      params['build-path'] = False
+
     elif o == '--head':
+      if params['new-tags'] == True:
+        raise getopt.GetoptError('use either --new-tags or --head')
       params['new-tags'] = False
+
+    elif o == '--build-path':
+      params['build-path'] = a
+
     else:
       raise getopt.GetoptError('unknown parameter: %s' % o)
 
@@ -426,7 +452,8 @@ if __name__ == '__main__':
     output_path=params['output-path'],
     debug=params['debug'],
     new_tags=params['new-tags'],
-    branch=params['branch']
+    branch=params['branch'],
+    build_path=params['build-path']
   )
   r = autodoc.run()
   sys.exit(r)
