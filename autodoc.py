@@ -188,13 +188,12 @@ class AutoDoc(object):
     return True
 
 
-  ## Creates Doxygen documentation.
+  ## Creates Doxygen documentation for the current working directory of Git.
+  #
+  #  @param output_path_subdir Subdir of output path where to store the generated documentation
   #
   #  @return True on success, False on error
-  def gen_doc(self):
-
-    if not self.checkout_ref(self._branch):
-      return False
+  def gen_doc(self, output_path_subdir):
 
     build_path = self._build_path
 
@@ -239,7 +238,7 @@ class AutoDoc(object):
     self._log.debug('Publishing documentation to %s' % self._output_path)
     cmd = [ 'rsync', '-a', '--delete',
       '%s/doxygen/html/' % build_path,
-      '%s/%s/' % (self._output_path, self._branch) ]
+      '%s/%s/' % (self._output_path, output_path_subdir) ]
     with open(os.devnull, 'w') as dev_null:
       sp = subprocess.Popen(cmd, stderr=dev_null, stdout=dev_null, shell=False, cwd=build_path)
     rc = sp.wait()
@@ -255,6 +254,8 @@ class AutoDoc(object):
       shutil.rmtree(build_path)
 
     # All went right
+    self._log.info('Documentation successfully generated in %s/%s' % \
+      (self._output_path, output_path_subdir))
     return True
 
 
@@ -284,9 +285,6 @@ class AutoDoc(object):
   #
   #  @todo Remove debug code
   def gen_doc_new_tags(self):
-
-    # Just for debug: demo() will disappear
-    self.demo()
 
     tags_before = self.get_tags()
     if tags_before is None:
@@ -337,19 +335,30 @@ class AutoDoc(object):
     else:
       self._log.info('New tags found: %s' % ' '.join(tags_new))
 
-    # Generate doc, check exitcode, move to location, notify via email
+    # Generate doc
+    for tag in tags_new:
+      if not self.checkout_ref(ref):
+        self._log.fatal('Cannot switch to tag %s: aborting' % tag)
+        return False
+
+      if not self.gen_doc(output_path_subdir=tag):
+        self._log.fatal('Cannot generate documentation for tag %s: aborting' % tag)
+        return False
+      else:
+        self._log.info('Generated documentation for tag %s' % tag)
 
     return True
 
 
-  ## Generate documentation for the current branch's head, which is updated
-  #  first.
+  ## Generate documentation for a branch's head, which is updated first.
   #
   #  @return False on failure, True on success
   def gen_doc_head(self):
 
-    # Just for debug: demo() will disappear
-    self.demo()
+    self._log.info('Generating documentation for %s' % self._branch)
+
+    if not self.checkout_ref(self._branch):
+      return False
 
     # This operation needs to be repeated several times in case of failures
     update_success = False
@@ -375,14 +384,7 @@ class AutoDoc(object):
         failure_threshold)
       return False
 
-    #
-    # If we are here, everything is fine
-    #
-
-    # Generate doc, check exitcode, move to location, notify via email
-    self.gen_doc()
-
-    return True
+    return self.gen_doc(output_path_subdir=self._branch)
 
 
   ## Entry point for all operations.
@@ -450,6 +452,9 @@ if __name__ == '__main__':
   for p in params:
     if params[p] is None:
      raise getopt.GetoptError('mandatory parameter missing: %s' % p)
+
+  if params['build-path'] == False:
+    params['build-path'] = None
 
   autodoc = AutoDoc(
     git_clone=params['git-clone'],
