@@ -23,11 +23,17 @@ class AutoDoc(object):
   #  @param branch If new_tags is False, generates doc for this branch's head
   #  @param build_path Uses the given path as CMake and Doxygen cache, instead of a disposable one
   def __init__(self, git_clone, output_path, debug, new_tags, branch, build_path):
+    ## Full path to the Git clone
     self._git_clone = git_clone
+    ## Full path to the prefix of the output directory (doc will be put in a subdir of it)
     self._output_path = output_path
+    ## Logging facility (use it with `self._log.info()`, etc.)
     self._log = None
+    ## Generate for new tags (True, or False)
     self._new_tags = new_tags
+    ## If not generating for new tags, branch name to consider
     self._branch = branch
+    ## Instead of generating a temporary build directory use this one (*i.e.* for caching)
     self._build_path = build_path
 
     self._init_log(debug)
