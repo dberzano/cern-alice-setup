@@ -35,6 +35,8 @@ class AutoDoc(object):
     self._branch = branch
     ## Instead of generating a temporary build directory use this one (*i.e.* for caching)
     self._build_path = build_path
+    ## Show output of external commands
+    self._show_cmd_output = debug
 
     self._init_log(debug)
 
@@ -88,7 +90,11 @@ class AutoDoc(object):
     self._log.debug('Getting list of tags')
 
     with open(os.devnull, 'w') as dev_null:
-      sp = subprocess.Popen(cmd, stderr=dev_null, stdout=subprocess.PIPE, shell=False, \
+      if not self._show_cmd_output:
+        redirect = dev_null
+      else:
+        redirect = None
+      sp = subprocess.Popen(cmd, stderr=redirect, stdout=subprocess.PIPE, shell=False, \
         cwd=self._git_clone)
 
     tags = []
@@ -115,7 +121,11 @@ class AutoDoc(object):
     cmd = [ 'git', 'remote', 'update', '--prune' ]
 
     with open(os.devnull, 'w') as dev_null:
-      sp = subprocess.Popen(cmd, stderr=dev_null, stdout=dev_null, shell=False, cwd=self._git_clone)
+      if not self._show_cmd_output:
+        redirect = dev_null
+      else:
+        redirect = None
+      sp = subprocess.Popen(cmd, stderr=redirect, stdout=redirect, shell=False, cwd=self._git_clone)
 
     rc = sp.wait()
 
@@ -139,7 +149,11 @@ class AutoDoc(object):
     cmd = [ 'git', 'pull', '--rebase' ]
 
     with open(os.devnull, 'w') as dev_null:
-      sp = subprocess.Popen(cmd, stderr=dev_null, stdout=dev_null, shell=False, cwd=self._git_clone)
+      if not self._show_cmd_output:
+        redirect = dev_null
+      else:
+        redirect = None
+      sp = subprocess.Popen(cmd, shell=False, stderr=redirect, stdout=redirect, cwd=self._git_clone)
 
     rc = sp.wait()
 
@@ -158,38 +172,42 @@ class AutoDoc(object):
   #  @return True on success, False on error
   def checkout_ref(self, ref):
 
-    self._log.debug('Resetting current working directory')
-    cmd = [ 'git', 'reset', '--hard', 'HEAD' ]
     with open(os.devnull, 'w') as dev_null:
-      sp = subprocess.Popen(cmd, stderr=dev_null, stdout=dev_null, shell=False, cwd=self._git_clone)
-    rc = sp.wait()
-    if rc == 0:
-      self._log.debug('Success resetting current working directory')
-    else:
-      self._log.error('Error resetting current working directory, returned %d' % rc)
-      return False
 
-    self._log.debug('Cleaning up working directory')
-    cmd = [ 'git', 'clean', '-f', '-d' ]
-    with open(os.devnull, 'w') as dev_null:
-      sp = subprocess.Popen(cmd, stderr=dev_null, stdout=dev_null, shell=False, cwd=self._git_clone)
-    rc = sp.wait()
-    if rc == 0:
-      self._log.debug('Success cleaning up working directory')
-    else:
-      self._log.error('Error cleaning up working directory, returned %d' % rc)
-      return False
+      if not self._show_cmd_output:
+        redirect = dev_null
+      else:
+        redirect = None
 
-    self._log.debug('Checking out reference %s' % ref)
-    cmd = [ 'git', 'checkout', ref ]
-    with open(os.devnull, 'w') as dev_null:
-      sp = subprocess.Popen(cmd, stderr=dev_null, stdout=dev_null, shell=False, cwd=self._git_clone)
-    rc = sp.wait()
-    if rc == 0:
-      self._log.debug('Success checking out reference %s' % ref)
-    else:
-      self._log.error('Error checking out reference %s, returned %d' % (ref, rc))
-      return False
+      self._log.debug('Resetting current working directory')
+      cmd = [ 'git', 'reset', '--hard', 'HEAD' ]
+      sp = subprocess.Popen(cmd, stderr=redirect, stdout=redirect, shell=False, cwd=self._git_clone)
+      rc = sp.wait()
+      if rc == 0:
+        self._log.debug('Success resetting current working directory')
+      else:
+        self._log.error('Error resetting current working directory, returned %d' % rc)
+        return False
+
+      self._log.debug('Cleaning up working directory')
+      cmd = [ 'git', 'clean', '-f', '-d' ]
+      sp = subprocess.Popen(cmd, stderr=redirect, stdout=redirect, shell=False, cwd=self._git_clone)
+      rc = sp.wait()
+      if rc == 0:
+        self._log.debug('Success cleaning up working directory')
+      else:
+        self._log.error('Error cleaning up working directory, returned %d' % rc)
+        return False
+
+      self._log.debug('Checking out reference %s' % ref)
+      cmd = [ 'git', 'checkout', ref ]
+      sp = subprocess.Popen(cmd, stderr=redirect, stdout=redirect, shell=False, cwd=self._git_clone)
+      rc = sp.wait()
+      if rc == 0:
+        self._log.debug('Success checking out reference %s' % ref)
+      else:
+        self._log.error('Error checking out reference %s, returned %d' % (ref, rc))
+        return False
 
     return True
 
@@ -214,45 +232,49 @@ class AutoDoc(object):
 
     self._log.debug('Build directory: %s' % build_path)
 
-    self._log.debug('Preparing build with CMake')
-    cmd = [ 'cmake', self._git_clone, '-DDOXYGEN_ONLY=ON' ]
     with open(os.devnull, 'w') as dev_null:
-      sp = subprocess.Popen(cmd, stderr=dev_null, stdout=dev_null, shell=False, cwd=build_path)
-    rc = sp.wait()
-    if rc == 0:
-      self._log.debug('Success preparing build with CMake')
-    else:
-      self._log.error('Error preparing build with CMake, returned %d' % rc)
-      return False
 
-    self._log.debug('Generating documentation (will take a while)')
-    cmd = [ 'make', 'doxygen' ]
-    with open(os.devnull, 'w') as dev_null:
-      sp = subprocess.Popen(cmd, stderr=dev_null, stdout=dev_null, shell=False, cwd=build_path)
-    rc = sp.wait()
-    if rc == 0:
-      self._log.debug('Success generating documentation')
-    else:
-      self._log.error('Error generating documentation, returned %d' % rc)
-      return False
+      if not self._show_cmd_output:
+        redirect = dev_null
+      else:
+        redirect = None
 
-    # Let it except freely on error
-    self._log.debug('Creating output directory')
-    if not os.path.isdir(self._output_path):
-      os.makedirs(self._output_path)
+      self._log.debug('Preparing build with CMake')
+      cmd = [ 'cmake', self._git_clone, '-DDOXYGEN_ONLY=ON' ]
+      sp = subprocess.Popen(cmd, stderr=redirect, stdout=redirect, shell=False, cwd=build_path)
+      rc = sp.wait()
+      if rc == 0:
+        self._log.debug('Success preparing build with CMake')
+      else:
+        self._log.error('Error preparing build with CMake, returned %d' % rc)
+        return False
 
-    self._log.debug('Publishing documentation to %s' % self._output_path)
-    cmd = [ 'rsync', '-a', '--delete',
-      '%s/doxygen/html/' % build_path,
-      '%s/%s/' % (self._output_path, output_path_subdir) ]
-    with open(os.devnull, 'w') as dev_null:
+      self._log.debug('Generating documentation (will take a while)')
+      cmd = [ 'make', 'doxygen' ]
       sp = subprocess.Popen(cmd, stderr=dev_null, stdout=dev_null, shell=False, cwd=build_path)
-    rc = sp.wait()
-    if rc == 0:
-      self._log.debug('Success publishing documentation to %s' % self._output_path)
-    else:
-      self._log.error('Error publishing documentation to %s, returned %d' % (self._output_path, rc))
-      return False
+      rc = sp.wait()
+      if rc == 0:
+        self._log.debug('Success generating documentation')
+      else:
+        self._log.error('Error generating documentation, returned %d' % rc)
+        return False
+
+      # Let it except freely on error
+      self._log.debug('Creating output directory')
+      if not os.path.isdir(self._output_path):
+        os.makedirs(self._output_path)
+
+      self._log.debug('Publishing documentation to %s' % self._output_path)
+      cmd = [ 'rsync', '-a', '--delete',
+        '%s/doxygen/html/' % build_path,
+        '%s/%s/' % (self._output_path, output_path_subdir) ]
+      sp = subprocess.Popen(cmd, stderr=redirect, stdout=redirect, shell=False, cwd=build_path)
+      rc = sp.wait()
+      if rc == 0:
+        self._log.debug('Success publishing documentation to %s' % self._output_path)
+      else:
+        self._log.error('Error publishing documentation to %s, returned %d' % (self._output_path, rc))
+        return False
 
     # Clean up working directory
     if dispose_build_path:
@@ -274,7 +296,7 @@ class AutoDoc(object):
         sp = subprocess.Popen(cmd, stderr=dev_null, stdout=dev_null, shell=False, cwd=self._git_clone)
       rc = sp.wait()
       if rc != 0:
-        logging.error('Problem removing %s: %d' % (tag, rc))
+        self._log.error('Problem removing %s: %d' % (tag, rc))
 
     sha1 = 'a9eacf03772d8587d41641e6849632ce25e474b3'
     cmd = [ 'git', 'reset', '--hard', sha1 ]
@@ -282,7 +304,7 @@ class AutoDoc(object):
       sp = subprocess.Popen(cmd, stderr=dev_null, stdout=dev_null, shell=False, cwd=self._git_clone)
     rc = sp.wait()
     if rc != 0:
-      logging.error('Problem resetting repo: %d' % (rc))
+      self._log.error('Problem resetting repo: %d' % (rc))
 
 
   ## Generate documentation for new tags found.
@@ -397,6 +419,8 @@ class AutoDoc(object):
   #
   #  @return 0 on success, nonzero on error
   def run(self):
+
+    self.demo()
 
     if self._new_tags:
       r = self.gen_doc_new_tags()
