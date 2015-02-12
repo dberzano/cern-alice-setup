@@ -26,7 +26,10 @@ class AutoDoc(object):
   #  @param branch If new_tags is False, generates doc for this branch's head
   #  @param build_path Uses the given path as CMake and Doxygen cache, instead of a disposable one
   #  @param syslog_only If True, log on syslog only and be quiet on stderr and stdout
-  def __init__(self, git_clone, output_path, debug, new_tags, branch, build_path, syslog_only):
+  #  @param always_purge If True, always delete temp directory, even when doc generation fails
+  def __init__(self, git_clone, output_path, debug, new_tags, branch, build_path, \
+    syslog_only, always_purge):
+
     ## Full path to the Git clone
     self._git_clone = git_clone
     ## Full path to the prefix of the output directory (doc will be put in a subdir of it)
@@ -43,6 +46,8 @@ class AutoDoc(object):
     self._show_cmd_output = debug
     if syslog_only:
       self._show_cmd_output = False
+    ## Delete temp directory also when doc generation fails
+    self._always_purge = always_purge
 
     self._init_log(debug, syslog_only)
 
@@ -277,67 +282,79 @@ class AutoDoc(object):
     if build_path is None:
       self._log.debug('Creating a temporary build directory')
       build_path = tempfile.mkdtemp()
-      dispose_build_path = True
+      build_path_is_temp = True
     else:
-      dispose_build_path = False
+      build_path_is_temp = False
       if not os.path.isdir(build_path):
         os.makedirs(build_path)
 
+    all_ok = True
+
     self._log.debug('Build directory: %s' % build_path)
 
-    with open(os.devnull, 'w') as dev_null:
+    try:
 
-      if not self._show_cmd_output:
-        redirect = dev_null
-      else:
-        redirect = None
+      with open(os.devnull, 'w') as dev_null:
 
-      self._log.debug('Preparing build with CMake')
-      cmd = [ 'cmake', self._git_clone, '-DDOXYGEN_ONLY=ON' ]
-      sp = subprocess.Popen(cmd, stderr=redirect, stdout=redirect, shell=False, cwd=build_path)
-      rc = sp.wait()
-      if rc == 0:
-        self._log.debug('Success preparing build with CMake')
-      else:
-        self._log.error('Error preparing build with CMake, returned %d' % rc)
-        return False
+        if not self._show_cmd_output:
+          redirect = dev_null
+        else:
+          redirect = None
 
-      self._log.debug('Generating documentation (will take a while)')
-      cmd = [ 'make', 'doxygen' ]
-      sp = subprocess.Popen(cmd, stderr=dev_null, stdout=dev_null, shell=False, cwd=build_path)
-      rc = sp.wait()
-      if rc == 0:
-        self._log.debug('Success generating documentation')
-      else:
-        self._log.error('Error generating documentation, returned %d' % rc)
-        return False
+        self._log.debug('Preparing build with CMake')
+        cmd = [ 'cmake', self._git_clone, '-DDOXYGEN_ONLY=ON' ]
+        sp = subprocess.Popen(cmd, stderr=redirect, stdout=redirect, shell=False, cwd=build_path)
+        rc = sp.wait()
+        if rc == 0:
+          self._log.debug('Success preparing build with CMake')
+        else:
+          self._log.error('Error preparing build with CMake, returned %d' % rc)
+          raise Exception
 
-      # Let it except freely on error
-      self._log.debug('Creating output directory')
-      if not os.path.isdir(self._output_path):
-        os.makedirs(self._output_path)
+        self._log.debug('Generating documentation (will take a while)')
+        cmd = [ 'make', 'doxygen' ]
+        sp = subprocess.Popen(cmd, stderr=dev_null, stdout=dev_null, shell=False, cwd=build_path)
+        rc = sp.wait()
+        if rc == 0:
+          self._log.debug('Success generating documentation')
+        else:
+          self._log.error('Error generating documentation, returned %d' % rc)
+          raise Exception
 
-      self._log.debug('Publishing documentation to %s' % self._output_path)
-      cmd = [ 'rsync', '-a', '--delete',
-        '%s/doxygen/html/' % build_path,
-        '%s/%s/' % (self._output_path, output_path_subdir) ]
-      sp = subprocess.Popen(cmd, stderr=redirect, stdout=redirect, shell=False, cwd=build_path)
-      rc = sp.wait()
-      if rc == 0:
-        self._log.debug('Success publishing documentation to %s' % self._output_path)
-      else:
-        self._log.error('Error publishing documentation to %s, returned %d' % (self._output_path, rc))
-        return False
+        # Let it except freely on error
+        self._log.debug('Creating output directory')
+        if not os.path.isdir(self._output_path):
+          os.makedirs(self._output_path)
 
-    # Clean up working directory
-    if dispose_build_path:
-      self._log.debug('Cleaning up working directory %s' % build_path)
-      shutil.rmtree(build_path)
+        self._log.debug('Publishing documentation to %s' % self._output_path)
+        cmd = [ 'rsync', '-a', '--delete',
+          '%s/doxygen/html/' % build_path,
+          '%s/%s/' % (self._output_path, output_path_subdir) ]
+        sp = subprocess.Popen(cmd, stderr=redirect, stdout=redirect, shell=False, cwd=build_path)
+        rc = sp.wait()
+        if rc == 0:
+          self._log.debug('Success publishing documentation to %s' % self._output_path)
+        else:
+          self._log.error('Error publishing documentation to %s, returned %d' % (self._output_path, rc))
+          raise Exception
+
+    except Exception:
+      all_ok = False
+
+    finally:
+
+      # Clean up working directory
+      if build_path_is_temp and ( all_ok or self._always_purge ):
+        self._log.debug('Cleaning up working directory %s' % build_path)
+        shutil.rmtree(build_path)
 
     # All went right
-    self._log.info('Documentation successfully generated in %s/%s' % \
-      (self._output_path, output_path_subdir))
-    return True
+    if all_ok:
+      self._log.info('Documentation successfully generated in %s/%s' % \
+        (self._output_path, output_path_subdir))
+      return True
+    else:
+      return False
 
 
   ## Demo mode: remove a couple of tags to see the difference, and revert the
@@ -505,11 +522,13 @@ if __name__ == '__main__':
     'branch': None,
     'new-tags': None,
     'build-path': None,
-    'syslog-only': False
+    'syslog-only': False,
+    'always-purge': False
   }
 
   opts, args = getopt.getopt(sys.argv[1:], '',
-    [ 'git-clone=', 'output-path=', 'debug', 'branch=', 'new-tags', 'build-path=', 'syslog-only' ])
+    [ 'git-clone=', 'output-path=', 'debug', 'branch=',
+      'new-tags', 'build-path=', 'syslog-only', 'always-purge' ])
   for o, a in opts:
     if o == '--git-clone':
       params['git-clone'] = a
@@ -525,6 +544,8 @@ if __name__ == '__main__':
       params['build-path'] = a
     elif o == '--syslog-only':
       params['syslog-only'] = True
+    elif o == '--always-purge':
+      params['always-purge'] = True
     else:
       raise getopt.GetoptError('unknown parameter: %s' % o)
 
@@ -559,7 +580,8 @@ if __name__ == '__main__':
     new_tags=params['new-tags'],
     branch=params['branch'],
     build_path=params['build-path'],
-    syslog_only=params['syslog-only']
+    syslog_only=params['syslog-only'],
+    always_purge=params['always-purge']
   )
   r = autodoc.run()
   sys.exit(r)

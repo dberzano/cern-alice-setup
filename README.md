@@ -61,7 +61,12 @@ Returns 0 on success, nonzero on failure.
 By default the command outputs a restricted number of messages on both stderr
 and syslog.
 
+Temporary build directory is deleted on success, and retained by default on
+error.
+
 * `--debug`: enables debug messages, and enables output from the external
   commands
 * `--syslog-only`: only log on syslog, be completely quiet on stderr (useful for
   cron jobs)
+* `--always-purge`: delete temporary directory also in case of error *(this
+  never applies to `--build-path` which is always retained)*
