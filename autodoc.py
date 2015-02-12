@@ -381,7 +381,7 @@ class AutoDoc(object):
 
     # Generate doc
     for tag in tags_new:
-      if not self.checkout_ref(ref):
+      if not self.checkout_ref(tag):
         self._log.fatal('Cannot switch to tag %s: aborting' % tag)
         return False
 
