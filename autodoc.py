@@ -15,7 +15,7 @@ import logging, logging.handlers
 class AutoDoc(object):
 
   ## Module version
-  __version__ = '0.1.0'
+  __version__ = '0.1.1'
 
   ## Constructor.
   #
@@ -357,26 +357,6 @@ class AutoDoc(object):
       return False
 
 
-  ## Demo mode: remove a couple of tags to see the difference, and revert the
-  #  repository back to the past to see if pull works.
-  def demo(self):
-    for tag in [ 'vAN-20150118', 'vAN-20150115', 'vAN-20150117', 'v5-06-02', 'v5-06-03' ]:
-      cmd = [ 'git', 'tag', '--delete', tag ]
-      with open(os.devnull, 'w') as dev_null:
-        sp = subprocess.Popen(cmd, stderr=dev_null, stdout=dev_null, shell=False, cwd=self._git_clone)
-      rc = sp.wait()
-      if rc != 0:
-        self._log.error('Problem removing %s: %d' % (tag, rc))
-
-    sha1 = 'a9eacf03772d8587d41641e6849632ce25e474b3'
-    cmd = [ 'git', 'reset', '--hard', sha1 ]
-    with open(os.devnull, 'w') as dev_null:
-      sp = subprocess.Popen(cmd, stderr=dev_null, stdout=dev_null, shell=False, cwd=self._git_clone)
-    rc = sp.wait()
-    if rc != 0:
-      self._log.error('Problem resetting repo: %d' % (rc))
-
-
   ## Generate documentation for new tags found.
   #
   #  @return False on failure, True on success
@@ -499,8 +479,6 @@ class AutoDoc(object):
   def run(self):
 
     self._log.info('This is AutoDoc v%s' % self.__version__)
-
-    self.demo()
 
     if self._new_tags:
       r = self.gen_doc_new_tags()
