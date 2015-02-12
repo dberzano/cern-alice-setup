@@ -228,6 +228,43 @@ class AutoDoc(object):
     return True
 
 
+  ## Deletes a list of local tags.
+  #
+  #  @param tags A single tag name, or a list of tags
+  #
+  #  @return Number of errors: 0 means all green
+  def delete_tags(self, tags):
+
+    # List or single element?
+    if not hasattr(tags, '__iter__'):
+      tags = [ tags ]
+
+    count_errs = 0
+
+    for tag in tags:
+
+      self._log.info('Deleting tag %s' % tag)
+
+      cmd = [ 'git', 'tag', '-d', tag ]
+
+      with open(os.devnull, 'w') as dev_null:
+        if not self._show_cmd_output:
+          redirect = dev_null
+        else:
+          redirect = None
+        sp = subprocess.Popen(cmd, shell=False, stderr=redirect, stdout=redirect, cwd=self._git_clone)
+
+      rc = sp.wait()
+
+      if rc == 0:
+        self._log.debug('Tag %s deleted' % tag)
+      else:
+        self._log.error('Error deleting tag %s' % tag)
+        count_errs = count_errs + 1
+
+    return count_errs
+
+
   ## Creates Doxygen documentation for the current working directory of Git.
   #
   #  @param output_path_subdir Subdir of output path where to store the generated documentation
@@ -380,17 +417,25 @@ class AutoDoc(object):
       self._log.info('New tags found: %s' % ' '.join(tags_new))
 
     # Generate doc
+    tags_failed = []
     for tag in tags_new:
       if not self.checkout_ref(tag):
         self._log.fatal('Cannot switch to tag %s: aborting' % tag)
         return False
 
       if not self.gen_doc(output_path_subdir=tag):
-        self._log.fatal('Cannot generate documentation for tag %s: aborting' % tag)
-        return False
+        self._log.error('Cannot generate documentation for tag %s' % tag)
+        tags_failed.append(tag)
       else:
         self._log.info('Generated documentation for tag %s' % tag)
 
+    # Removing failed tags
+    if len(tags_failed) > 0:
+      self.delete_tags(tags_failed)
+      self._log.error('Errors were encountered for some tags: %s' % ' '.join(tags_failed))
+      return False
+
+    # No errors
     return True
 
 
