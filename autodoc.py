@@ -439,10 +439,28 @@ class AutoDoc(object):
       else:
         self._log.info('Generated documentation for tag %s' % tag)
 
+    if len(tags_new) > 0:
+      # If we have new tags, always send a notification
+      subject = 'Doc for new tags: '
+      if len(tags_failed) > 0:
+        subject += 'errors'
+      else:
+        subject += 'all OK'
+      msg = 'Documentation for new tags generated:\n'
+      for tag in tags_new:
+        if tag in tags_failed:
+          tag_status = 'ERROR'
+        else:
+          tag_status = 'OK'
+        msg += '\n - %s: %s' % (tag, tag_status)
+      msg += '\n\nLocal Git clone on the Server: %s' % self._git_clone
+      self.send_mail( subject=subject, message_body=msg )
+
     # Removing failed tags
     if len(tags_failed) > 0:
       self.delete_tags(tags_failed)
-      self._log.error('Errors were encountered for some tags: %s' % ' '.join(tags_failed))
+      tags_joined = ' '.join(tags_failed)
+      self._log.error('Errors were encountered for some tags: %s' % tags_joined)
       return False
 
     # No errors
@@ -457,6 +475,12 @@ class AutoDoc(object):
     self._log.info('Generating documentation for %s' % self._branch)
 
     if not self.checkout_ref(self._branch):
+      # Send email in case of checkout error
+      self.send_mail(
+        subject='Doc for %s: error checking out' % self._branch,
+        message_body='''Documentation for %s: cannot checkout branch.
+
+Local Git clone on the Server: %s''' % (self._branch, self._git_clone) )
       return False
 
     # This operation needs to be repeated several times in case of failures
@@ -481,12 +505,29 @@ class AutoDoc(object):
     if update_success == False:
       self._log.fatal('Cannot update after %d attempts: check Git remote and connectivity' % \
         failure_threshold)
+
+      # Send email in case of update error
+      self.send_mail(
+        subject='Doc for %s: error updating' % self._branch,
+        message_body='''Documentation for %s: cannot update branch.
+
+Local Git clone on the Server: %s''' % (self._branch, self._git_clone) )
       return False
 
-    return self.gen_doc(output_path_subdir=self._branch)
+    r = self.gen_doc(output_path_subdir=self._branch)
+    if r == False:
+
+      # Send email in case of generation error
+      self.send_mail(
+        subject='Doc for %s: error generating' % self._branch,
+        message_body='''Documentation for %s: cannot generate documentation.
+
+Local Git clone on the Server: %s''' % (self._branch, self._git_clone) )
+
+    return r
 
 
-  ## Sends a notification email.
+  ## Sends a notification email, if email configuration was provided.
   #
   # @param subject Email subject
   # @param message_body Email body
@@ -496,6 +537,11 @@ class AutoDoc(object):
   # @return True on success, False on failure
   def send_mail(self, subject, message_body,
     subject_prefix='[AliAutoDoc] ', sender='ALICE AutoDoc <noreply@cern.ch>'):
+
+    if not self._smtp_server or len(self._mail_to) == 0:
+      self._log.debug('Not sending notification email: not configured')
+      # Report success
+      return True
 
     self._log.info('Sending notification email to: %s' % ', '.join(self._mail_to))
     message_body = '''From: %s
