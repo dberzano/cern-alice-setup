@@ -288,6 +288,8 @@ class AutoDoc(object):
   #  @return True on success, False on error
   def gen_doc(self, output_path_subdir):
 
+    self._log.info('Generating Doxygen documentation')
+
     build_path = self._build_path
 
     if build_path is None:
