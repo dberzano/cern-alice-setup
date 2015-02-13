@@ -70,3 +70,7 @@ error.
   cron jobs)
 * `--always-purge`: delete temporary directory also in case of error *(this
   never applies to `--build-path` which is always retained)*
+* `--smtp-server`: if provided, sends notifications using the specified SMTP
+  server, in the form `server[:port]`
+* `--mail-to`: if provided, sends notifications via the specified SMTP server to
+  the comma-separated list of recipients

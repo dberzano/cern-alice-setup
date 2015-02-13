@@ -6,6 +6,8 @@ import subprocess
 import tempfile
 import shutil
 import logging, logging.handlers
+from smtplib import SMTP
+from socket import getfqdn
 
 ## @class AutoDoc
 #  @brief Generates documentation for new tags in a Git repository
@@ -27,8 +29,11 @@ class AutoDoc(object):
   #  @param build_path Uses the given path as CMake and Doxygen cache, instead of a disposable one
   #  @param syslog_only If True, log on syslog only and be quiet on stderr and stdout
   #  @param always_purge If True, always delete temp directory, even when doc generation fails
+  #  @param smtp_server Address of SMTP server: if provided, it is used to send emails
+  #  @param smtp_port Port of SMTP server
+  #  @param mail_to List of email addresses to send notifications to
   def __init__(self, git_clone, output_path, debug, new_tags, branch, build_path, \
-    syslog_only, always_purge):
+    syslog_only, always_purge, smtp_server, smtp_port, mail_to):
 
     ## Full path to the Git clone
     self._git_clone = git_clone
@@ -48,6 +53,12 @@ class AutoDoc(object):
       self._show_cmd_output = False
     ## Delete temp directory also when doc generation fails
     self._always_purge = always_purge
+    ## SMTP server for notifications
+    self._smtp_server = smtp_server
+    ## SMTP server port
+    self._smtp_port = smtp_port
+    ## List of email addresses to send notifications to
+    self._mail_to = mail_to
 
     self._init_log(debug, syslog_only)
 
@@ -473,6 +484,40 @@ class AutoDoc(object):
     return self.gen_doc(output_path_subdir=self._branch)
 
 
+  ## Sends a notification email.
+  #
+  # @param subject Email subject
+  # @param message_body Email body
+  # @param subject_prefix Prepend this string to the subject, e.g. "[MailingListName] "
+  # @param sender Emails appear as sent by this address
+  #
+  # @return True on success, False on failure
+  def send_mail(self, subject, message_body,
+    subject_prefix='[AliAutoDoc] ', sender='ALICE AutoDoc <noreply@cern.ch>'):
+
+    self._log.info('Sending notification email to: %s' % ', '.join(self._mail_to))
+    message_body = '''From: %s
+To: %s
+Subject: %s%s
+
+%s
+--
+ALICE AutoDoc Server @ %s
+Local time on the Server: %s
+''' % (sender, ', '.join(self._mail_to), subject_prefix, subject, \
+       message_body, getfqdn(), time.strftime('%b %-d, %Y %H:%M:%S %Z'))
+
+    try:
+      mailer = SMTP(self._smtp_server, self._smtp_port)
+      mailer.sendmail(sender, self._mail_to, message_body)
+    except Exception as e:
+      self._log.error('Error sending notification email: %s' % e)
+      return False
+
+    self._log.debug('Notification email sent')
+    return True
+
+
   ## Entry point for all operations.
   #
   #  @return 0 on success, nonzero on error
@@ -501,12 +546,15 @@ if __name__ == '__main__':
     'new-tags': None,
     'build-path': None,
     'syslog-only': False,
-    'always-purge': False
+    'always-purge': False,
+    'smtp-server': False,
+    'smtp-port': False,
+    'mail-to': []
   }
 
   opts, args = getopt.getopt(sys.argv[1:], '',
-    [ 'git-clone=', 'output-path=', 'debug', 'branch=',
-      'new-tags', 'build-path=', 'syslog-only', 'always-purge' ])
+    [ 'git-clone=', 'output-path=', 'debug', 'branch=', 'new-tags', 'build-path=',
+      'syslog-only', 'always-purge', 'smtp-server=', 'mail-to=' ])
   for o, a in opts:
     if o == '--git-clone':
       params['git-clone'] = a
@@ -524,6 +572,15 @@ if __name__ == '__main__':
       params['syslog-only'] = True
     elif o == '--always-purge':
       params['always-purge'] = True
+    elif o == '--smtp-server':
+      tok = a.split(':', 2)
+      params['smtp-server'] = tok[0]
+      if len(tok) == 1:
+        params['smtp-port'] = 25
+      else:
+        params['smtp-port'] = int( tok[1] )
+    elif o == '--mail-to':
+      params['mail-to'] = a.split(',')
     else:
       raise getopt.GetoptError('unknown parameter: %s' % o)
 
@@ -559,7 +616,10 @@ if __name__ == '__main__':
     branch=params['branch'],
     build_path=params['build-path'],
     syslog_only=params['syslog-only'],
-    always_purge=params['always-purge']
+    always_purge=params['always-purge'],
+    smtp_server=params['smtp-server'],
+    smtp_port=params['smtp-port'],
+    mail_to=params['mail-to']
   )
   r = autodoc.run()
   sys.exit(r)
