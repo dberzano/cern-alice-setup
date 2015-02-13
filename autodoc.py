@@ -453,7 +453,6 @@ class AutoDoc(object):
         else:
           tag_status = 'OK'
         msg += '\n - %s: %s' % (tag, tag_status)
-      msg += '\n\nLocal Git clone on the Server: %s' % self._git_clone
       self.send_mail( subject=subject, message_body=msg )
 
     # Removing failed tags
@@ -478,9 +477,8 @@ class AutoDoc(object):
       # Send email in case of checkout error
       self.send_mail(
         subject='Doc for %s: error checking out' % self._branch,
-        message_body='''Documentation for %s: cannot checkout branch.
-
-Local Git clone on the Server: %s''' % (self._branch, self._git_clone) )
+        message_body='Documentation for %s: cannot checkout branch.' % self._branch
+      )
       return False
 
     # This operation needs to be repeated several times in case of failures
@@ -509,9 +507,7 @@ Local Git clone on the Server: %s''' % (self._branch, self._git_clone) )
       # Send email in case of update error
       self.send_mail(
         subject='Doc for %s: error updating' % self._branch,
-        message_body='''Documentation for %s: cannot update branch.
-
-Local Git clone on the Server: %s''' % (self._branch, self._git_clone) )
+        message_body='Documentation for %s: cannot update branch.' % self._branch )
       return False
 
     r = self.gen_doc(output_path_subdir=self._branch)
@@ -520,9 +516,7 @@ Local Git clone on the Server: %s''' % (self._branch, self._git_clone) )
       # Send email in case of generation error
       self.send_mail(
         subject='Doc for %s: error generating' % self._branch,
-        message_body='''Documentation for %s: cannot generate documentation.
-
-Local Git clone on the Server: %s''' % (self._branch, self._git_clone) )
+        message_body='Documentation for %s: cannot generate documentation.' % self._branch )
 
     return r
 
@@ -550,10 +544,11 @@ Subject: %s%s
 
 %s
 --
-ALICE AutoDoc Server @ %s
+ALICE AutoDoc @ %s
 Local time on the Server: %s
+Git clone path on the Server: %s
 ''' % (sender, ', '.join(self._mail_to), subject_prefix, subject, \
-       message_body, getfqdn(), time.strftime('%b %-d, %Y %H:%M:%S %Z'))
+       message_body, getfqdn(), time.strftime('%b %-d, %Y %H:%M:%S %Z'), self._git_clone)
 
     try:
       mailer = SMTP(self._smtp_server, self._smtp_port)
