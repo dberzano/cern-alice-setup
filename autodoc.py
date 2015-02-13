@@ -17,7 +17,7 @@ from socket import getfqdn
 class AutoDoc(object):
 
   ## Module version
-  __version__ = '0.1.1'
+  __version__ = '0.1.2'
 
   ## Constructor.
   #
@@ -619,7 +619,7 @@ if __name__ == '__main__':
       tok = a.split(':', 2)
       params['smtp-server'] = tok[0]
       if len(tok) == 1:
-        params['smtp-port'] = 25
+        params['smtp-port'] = 25  # default for SMTP
       else:
         params['smtp-port'] = int( tok[1] )
     elif o == '--mail-to':
@@ -643,6 +643,10 @@ if __name__ == '__main__':
 
   else:
     raise getopt.GetoptError('one of --new-tags or --branch is mandatory')
+
+  if ( params['smtp-server'] and len(params['mail-to']) == 0 ) or \
+     ( len(params['mail-to']) > 0 and not params['smtp-server'] ):
+    raise getopt.GetoptError('specify both --smtp-server and --mail-to, not just one of them')
 
   for p in params:
     if params[p] is None:
