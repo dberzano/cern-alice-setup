@@ -690,6 +690,8 @@ function ModuleFastJet() {
 # Module to fetch, update and compile AliRoot
 function ModuleAliRoot() {
 
+  local GenerateDoc="$1"
+
   Banner 'Installing AliRoot Core...'
   Swallow -f 'Sourcing envvars' SourceEnvVars
 
@@ -839,6 +841,10 @@ function ModuleAliRoot() {
         rm -rf "${AliRootInst}"
       Swallow -f 'Legacy: symlinking AliRoot build directory to install' \
         ln -nfs "$(basename "$AliRootTmp")" "$AliRootInst"
+    fi
+
+    if [[ $GenerateDoc == 1 ]] ; then
+      SwallowProgress -f --pattern 'Generating Doxygen documentation' make install-doxygen
     fi
 
     Swallow -f 'Sourcing envvars' SourceEnvVars
@@ -1425,6 +1431,8 @@ function Main() {
   local N_INST_CLEAN=0
   local PARAM
 
+  local GenerateDoc=0
+
   # Look for debug
   for (( i=0 ; i<=$# ; i++ )) ; do
     if [[ ${!i} == '--verbose' ]] ; then
@@ -1596,6 +1604,10 @@ function Main() {
           DOWNLOAD_MODE='no'
         ;;
 
+        doc)
+          GenerateDoc=1
+        ;;
+
         *)
           Help "Unrecognized parameter: $1"
           exit 1
@@ -1674,7 +1686,7 @@ function Main() {
     [[ $DO_CLEAN_FASTJET    == 1 ]] && ModuleCleanFastJet
     [[ $DO_FASTJET          == 1 ]] && ModuleFastJet
     [[ $DO_CLEAN_ALICE      == 1 ]] && ModuleCleanAliRoot
-    [[ $DO_ALICE            == 1 ]] && ModuleAliRoot
+    [[ $DO_ALICE            == 1 ]] && ModuleAliRoot $GenerateDoc
     [[ $DO_CLEAN_ALIPHYSICS == 1 ]] && ModuleCleanAliPhysics
     [[ $DO_ALIPHYSICS       == 1 ]] && ModuleAliPhysics
   fi
