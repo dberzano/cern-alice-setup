@@ -26,10 +26,10 @@ def output_dot(dep_graph, out_file):
     for node,deps in dep_graph.iteritems():
       if node.startswith('T'):
         color = 'darkolivegreen2'
-      elif node.startswith('R'):
-        color = 'green3'
       elif node.startswith('Ali'):
         color = 'firebrick2'
+      elif node[0].isupper():
+        color = 'green3'
       else:
         color = 'gold1'
 
