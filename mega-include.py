@@ -6,14 +6,14 @@ import os
 import getopt
 
 # Main function
-def scan(source, include_paths):
+def scan(source, include_paths, output_file):
 
   print 'I-scanning file: %s' % source
   print 'I-using include paths (in order): %s' % ', '.join(include_paths)
 
   dep_graph = scan_recursive(source, include_paths)
 
-  output_dot(dep_graph, 'default.dot')
+  output_dot(dep_graph, output_file)
 
 
 # Output dot file
@@ -104,11 +104,14 @@ if __name__ == '__main__':
 
   include_paths = []
   exclude_re = []
+  output_file = 'default.dot'
 
-  opts, args = getopt.getopt( sys.argv[1:], 'I:', [ 'include=' ] )
+  opts, args = getopt.getopt( sys.argv[1:], 'I:o:', [ 'include=', 'output-dot=' ] )
   for o, a in opts:
     if o == '-I' or o == '--include':
       include_paths.append(a)
+    elif o == '-o' or o == '--output-dot':
+      output_file = a
     else:
       raise getopt.GetoptError('unknown parameter: %s (%s)' % (o,a))
 
@@ -117,6 +120,7 @@ if __name__ == '__main__':
 
   r = scan(
     source=args[0],
-    include_paths=include_paths
+    include_paths=include_paths,
+    output_file=output_file
   )
   sys.exit(r)
