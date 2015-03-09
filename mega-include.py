@@ -6,12 +6,17 @@ import os
 import getopt
 
 # Main function
-def scan(source, include_paths, output_file):
+def scan(source, include_paths, output_file, exclude_regexp, max_depth):
 
   print 'I-scanning file: %s' % source
   print 'I-using include paths (in order): %s' % ', '.join(include_paths)
 
-  dep_graph = scan_recursive(source, include_paths)
+  dep_graph = scan_recursive(
+    source=source,
+    include_paths=include_paths,
+    exclude_regexp=exclude_regexp,
+    max_depth=max_depth
+  )
 
   output_dot(dep_graph, output_file)
 
@@ -44,57 +49,80 @@ def output_dot(dep_graph, out_file):
 
 
 # Scans recursively. Prevents loops.
-def scan_recursive(source, include_paths, dep_graph={}, depth=0):
+def scan_recursive(source, include_paths, dep_graph={}, depth=0, exclude_regexp=None, max_depth=-1):
 
   # Init
   dep_graph[source] = []
 
-  # Look for file
-  if not os.path.isfile(source):
-    found = False
-    for d in include_paths:
-      new_source = d+'/'+source
-      if os.path.isfile(new_source):
-        source_full = new_source
-        found = True
-        break
+  # Maximum depth reached?
+  if max_depth != -1 and depth >= max_depth:
+    print 'D-not inspecting %s: depth limit' % source
+    return dep_graph
 
-    if not found:
-      print 'W-not found in curdir or any of the include paths: %s' % source
-      return dep_graph
+  # Look for file, with some possible extensions
+  found = False
+  for new_source in [ source, source+'.h', source+'.hh', source+'.cxx', source+'.cc' ]:
 
-  else:
-    source_full = './'+source
+    #print 'D-%s: attempting %s (curdir)' % (source, new_source)
+
+    if os.path.isfile(new_source):
+      # Found in current dir
+      new_source = './' + new_source
+      found = True
+
+    else:
+      # Not found: look in include paths
+      for d in include_paths:
+        new_source_with_dir = d+'/'+new_source
+        #print 'D-%s: attempting %s (incdir)' % (source, new_source_with_dir)
+        if os.path.isfile(new_source_with_dir):
+          new_source = new_source_with_dir
+          found = True
+          break
+
+    if found:
+      break
+
+  if not found:
+    print 'W-not found in curdir or any of the include paths: %s' % source
+    return dep_graph
 
   # Regexp
-  re_include = r'^\s*#include\s+("|<)(.*?)("|>)\s*$'
+  re_include = r'^\s*#include\s+("|<)(.*?)(\.[A-Za-z0-9]+)?("|>)\s*$'
 
   # Indent for messages
-  indent = ' '*depth
+  indent = ' ' * depth
 
   # Scan
-  with open(source_full, 'r') as fp:
+  with open(new_source, 'r') as fp:
 
     for line in fp:
       line = line.rstrip('\n')
       m_include = re.search(re_include, line)
       if m_include:
         dependency = m_include.group(2)
-        print 'I-found dependency: %s -> %s' % (source, dependency)
 
-        # Do not add duplicates
-        if not dependency in dep_graph[source]:
-          dep_graph[source].append(dependency)
+        if exclude_regexp is not None and re.search(exclude_regexp, dependency):
+          print 'D-found dependency (excluding): %s -> %s' % (source, dependency)
 
-        if not dependency in dep_graph:
-          dep_graph = scan_recursive(
-            source=dependency,
-            include_paths=include_paths,
-            dep_graph=dep_graph,
-            depth=depth+1
-          )
-        # else:
-        #   print 'D-scan skipped: %s' % dependency
+        else:
+          print 'I-found dependency: %s -> %s' % (source, dependency)
+
+          # Do not add duplicates
+          if not dependency in dep_graph[source]:
+            dep_graph[source].append(dependency)
+
+          if not dependency in dep_graph:
+            dep_graph = scan_recursive(
+              source=dependency,
+              include_paths=include_paths,
+              dep_graph=dep_graph,
+              depth=depth+1,
+              exclude_regexp=exclude_regexp,
+              max_depth=max_depth
+            )
+          # else:
+          #   print 'D-scan skipped: %s' % dependency
 
   return dep_graph
 
@@ -103,15 +131,21 @@ def scan_recursive(source, include_paths, dep_graph={}, depth=0):
 if __name__ == '__main__':
 
   include_paths = []
-  exclude_re = []
+  exclude_re = None
   output_file = 'default.dot'
+  max_depth = -1
 
-  opts, args = getopt.getopt( sys.argv[1:], 'I:o:', [ 'include=', 'output-dot=' ] )
+  opts, args = getopt.getopt(sys.argv[1:], 'I:o:',
+    [ 'include=', 'output-dot=', 'exclude-regex=', 'max-depth=' ])
   for o, a in opts:
     if o == '-I' or o == '--include':
       include_paths.append(a)
     elif o == '-o' or o == '--output-dot':
       output_file = a
+    elif o == '--exclude-regex':
+      exclude_re = re.compile(a)
+    elif o == '--max-depth':
+      max_depth = int(a)
     else:
       raise getopt.GetoptError('unknown parameter: %s (%s)' % (o,a))
 
@@ -121,6 +155,8 @@ if __name__ == '__main__':
   r = scan(
     source=args[0],
     include_paths=include_paths,
-    output_file=output_file
+    output_file=output_file,
+    exclude_regexp=exclude_re,
+    max_depth=max_depth
   )
   sys.exit(r)
