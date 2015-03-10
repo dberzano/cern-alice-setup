@@ -687,6 +687,22 @@ function ModuleFastJet() {
 
 }
 
+# Function to force-set a remote in a Git repository
+# $1: remote name
+# $2: URL
+# $3 (optional): push URL (in this case, $2 is the fetch URL)
+# Returns nonzero on error
+function GitForceSetRemote() (
+  gitFetchUrl="$2"
+  if [[ $3 != '' ]] ; then
+    gitPushUrl="$3"
+  else
+    gitPushUrl="$gitFetchUrl"
+  fi
+  git remote set-url "$1" "$gitFetchUrl" || git remote add "$1" "$gitFetchUrl"
+  git remote set-url --push "$1" "$gitPushUrl" || git remote add --push "$1" "$gitPushUrl"
+)
+
 # Module to fetch, update and compile AliRoot
 function ModuleAliRoot() {
 
@@ -704,6 +720,13 @@ function ModuleAliRoot() {
   local AliRootInst="$ALICE_ROOT"
   local AliRootSrc="${AliRootBase}/src"
   local AliRootTmp="${AliRootBase}/build"
+
+  # AliRoot remote name
+  local AliRootGitRemote='alicern'
+
+  # AliRoot Git private and public URLs
+  local AliRootGitUrlPub='http://git.cern.ch/pub/AliRoot'
+  local AliRootGitUrlPriv='https://git.cern.ch/reps/AliRoot'
 
   if [[ ! -d "$AliRootTmp" ]]; then
     Swallow -f "Creating AliRoot build directory" mkdir -p "$AliRootTmp"
@@ -725,13 +748,17 @@ function ModuleAliRoot() {
     if [[ ! -e "$AliRootGit/.git" ]] ; then
       SwallowProgress -f --pattern \
         'Cloning AliRoot Git repository (might take some time)' \
-        git clone http://git.cern.ch/pub/AliRoot .
+        git clone "$AliRootGitUrlPub" .
     fi
     AliRootGit=$(cd "$AliRootGit";pwd)
 
+    # Setting a public and private remote
+    Swallow -f 'Setting ALICE Git pull/push URLs' \
+      GitForceSetRemote "$AliRootGitRemote" "$AliRootGitUrlPub" "$AliRootGitUrlPriv"
+
     SwallowProgress -f --pattern \
       'Updating list of remote AliRoot Git branches' \
-      git remote update origin --prune
+      git remote update "$AliRootGitRemote" --prune
 
     # Source is ${AliRootSrc} his will be a Git directory on its own that shares
     # the object database, but with its own index. This is possible via the
@@ -755,7 +782,7 @@ function ModuleAliRoot() {
       # if we are working on a clone made with git-new-workdir, changes in the
       # git object database will be propagated to all the sibling clones
       SwallowProgress -f --pattern \
-        "Updating AliRoot $ALICE_VER from Git" git pull --rebase
+        "Updating AliRoot $ALICE_VER from public Git" git pull --rebase "$AliRootGitRemote" "$ALICE_VER"
     fi
 
   fi # end download
@@ -878,6 +905,13 @@ function ModuleAliPhysics() {
   local AliPhysicsSrc="${AliPhysicsBase}/src"
   local AliPhysicsTmp="${AliPhysicsBase}/build"
 
+  # AliPhysics remote name
+  local AliPhysicsGitRemote='alicern'
+
+  # AliPhysics Git private and public URLs
+  local AliPhysicsGitUrlPub='http://git.cern.ch/pub/AliPhysics'
+  local AliPhysicsGitUrlPriv='https://git.cern.ch/reps/AliPhysics'
+
   if [[ ! -d "$AliPhysicsTmp" ]]; then
     Swallow -f "Creating AliPhysics build directory" mkdir -p "$AliPhysicsTmp"
   fi
@@ -894,13 +928,17 @@ function ModuleAliPhysics() {
     if [[ ! -e "$AliPhysicsGit/.git" ]] ; then
       SwallowProgress -f --pattern \
         'Cloning AliPhysics Git repository (might take some time)' \
-        git clone http://git.cern.ch/pub/AliPhysics .
+        git clone "$AliPhysicsGitUrlPub" .
     fi
     AliPhysicsGit=$(cd "$AliPhysicsGit";pwd)
 
+    # Setting a public and private remote
+    Swallow -f 'Setting ALICE Git pull/push URLs' \
+      GitForceSetRemote "$AliPhysicsGitRemote" "$AliPhysicsGitUrlPub" "$AliPhysicsGitUrlPriv"
+
     SwallowProgress -f --pattern \
       'Updating list of remote AliPhysics Git branches' \
-      git remote update origin --prune
+      git remote update "$AliPhysicsGitRemote" --prune
 
     # Shallow copy with git-new-workdir
     if [[ ! -d "${AliPhysicsSrc}/.git" ]] ; then
@@ -917,7 +955,7 @@ function ModuleAliPhysics() {
     if [[ "$(git rev-parse --abbrev-ref HEAD)" != 'HEAD' ]] ; then
       # update only if on a branch: errors are fatal
       SwallowProgress -f --pattern \
-        "Updating AliPhysics $ALIPHYSICS_VER from Git" git pull --rebase
+        "Updating AliPhysics $ALIPHYSICS_VER from public Git" git pull --rebase "$AliPhysicsGitRemote" "$ALIPHYSICS_VER"
     fi
 
   fi # end download
