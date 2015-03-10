@@ -6,7 +6,7 @@ import os
 import getopt
 
 # Main function
-def scan(source, include_paths, output_file, exclude_regexp, max_depth):
+def scan(source, include_paths, output_file, exclude_regexp, max_depth, fwd_decl):
 
   print 'I-scanning file: %s' % source
   print 'I-using include paths (in order): %s' % ', '.join(include_paths)
@@ -15,7 +15,8 @@ def scan(source, include_paths, output_file, exclude_regexp, max_depth):
     source=source,
     include_paths=include_paths,
     exclude_regexp=exclude_regexp,
-    max_depth=max_depth
+    max_depth=max_depth,
+    fwd_decl=fwd_decl
   )
 
   output_dot(dep_graph, output_file)
@@ -49,7 +50,8 @@ def output_dot(dep_graph, out_file):
 
 
 # Scans recursively. Prevents loops.
-def scan_recursive(source, include_paths, dep_graph={}, depth=0, exclude_regexp=None, max_depth=-1):
+def scan_recursive(source, include_paths, dep_graph={}, depth=0, exclude_regexp=None, max_depth=-1,
+  fwd_decl=False):
 
   # Init
   dep_graph[source] = []
@@ -88,7 +90,7 @@ def scan_recursive(source, include_paths, dep_graph={}, depth=0, exclude_regexp=
     return dep_graph
 
   # Regexp
-  re_include = r'^\s*#include\s+("|<)(.*?)(\.[A-Za-z0-9]+)?("|>)\s*$'
+  re_include = r'^\s*(#include\s+("|<)(.*?)(\.[A-Za-z0-9]+)?("|>)|class\s*(.*?)\;)\s*$'
 
   # Indent for messages
   indent = ' ' * depth
@@ -99,14 +101,25 @@ def scan_recursive(source, include_paths, dep_graph={}, depth=0, exclude_regexp=
     for line in fp:
       line = line.rstrip('\n')
       m_include = re.search(re_include, line)
+      dependency = None
+      from_fwd_decl = False
       if m_include:
-        dependency = m_include.group(2)
+        dependency = m_include.group(3)  # from #include
+        if dependency is None and fwd_decl:
+          from_fwd_decl = True
+          dependency = m_include.group(6)  # from class (fwd decl)
+
+      if dependency is not None:
 
         if exclude_regexp is not None and re.search(exclude_regexp, dependency):
           print 'D-found dependency (excluding): %s -> %s' % (source, dependency)
 
         else:
-          print 'I-found dependency: %s -> %s' % (source, dependency)
+          if from_fwd_decl:
+            dep_source = 'forward decl'
+          else:
+            dep_source = 'include'
+          print 'I-found dependency: %s -> %s (from %s)' % (source, dependency, dep_source)
 
           # Do not add duplicates
           if not dependency in dep_graph[source]:
@@ -119,7 +132,8 @@ def scan_recursive(source, include_paths, dep_graph={}, depth=0, exclude_regexp=
               dep_graph=dep_graph,
               depth=depth+1,
               exclude_regexp=exclude_regexp,
-              max_depth=max_depth
+              max_depth=max_depth,
+              fwd_decl=fwd_decl
             )
           # else:
           #   print 'D-scan skipped: %s' % dependency
@@ -134,9 +148,10 @@ if __name__ == '__main__':
   exclude_re = None
   output_file = 'default.dot'
   max_depth = -1
+  fwd_decl = False
 
   opts, args = getopt.getopt(sys.argv[1:], 'I:o:',
-    [ 'include=', 'output-dot=', 'exclude-regex=', 'max-depth=' ])
+    [ 'include=', 'output-dot=', 'exclude-regex=', 'max-depth=', 'fwd-decl' ])
   for o, a in opts:
     if o == '-I' or o == '--include':
       include_paths.append(a)
@@ -146,6 +161,8 @@ if __name__ == '__main__':
       exclude_re = re.compile(a)
     elif o == '--max-depth':
       max_depth = int(a)
+    elif o == '--fwd-decl':
+      fwd_decl = True
     else:
       raise getopt.GetoptError('unknown parameter: %s (%s)' % (o,a))
 
@@ -157,6 +174,7 @@ if __name__ == '__main__':
     include_paths=include_paths,
     output_file=output_file,
     exclude_regexp=exclude_re,
-    max_depth=max_depth
+    max_depth=max_depth,
+    fwd_decl=fwd_decl
   )
   sys.exit(r)
