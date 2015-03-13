@@ -57,9 +57,10 @@ def cname_lib(cname, class_libs, libs_only):
 # Output dot file
 def output_dot(dep_graph, out_file, class_libs, libs_only):
 
-  with open(out_file, 'w') as fp:
+  map_color = {}
+  map_deps = {}
 
-    fp.write('digraph g {\n')
+  with open(out_file, 'w') as fp:
 
     for node,deps in dep_graph.iteritems():
       if node.startswith('T'):
@@ -72,14 +73,25 @@ def output_dot(dep_graph, out_file, class_libs, libs_only):
         color = 'gold1'
 
       node_lib = cname_lib(node, class_libs, libs_only)
-      fp.write('  "%s" [style=filled, color=%s]\n' % (node_lib, color))
+      if node_lib not in map_color:
+        map_color[node_lib] = color
 
     for node,deps in dep_graph.iteritems():
       node_lib = cname_lib(node, class_libs, libs_only)
       for d in deps:
         d_lib = cname_lib(d, class_libs, libs_only)
-        fp.write( '  "%s" -> "%s" ;\n' % (node_lib, d_lib) )
+        if node_lib not in map_deps:
+          map_deps[node_lib] = [ d_lib ]
+        elif d_lib not in map_deps[node_lib]:
+          map_deps[node_lib].append( d_lib )
 
+    fp.write('digraph g {\n')
+    for node,color in map_color.iteritems():
+      fp.write('  "%s" [style=filled, color=%s]\n' % (node, color))
+    fp.write('\n')
+    for node,deps in map_deps.iteritems():
+      for dep in deps:
+        fp.write( '  "%s" -> "%s" ;\n' % (node, dep) )
     fp.write('}\n')
 
   print 'I-dot file %s written' % out_file
@@ -104,9 +116,7 @@ def guess_libs(names, library_paths, upcase_only):
           for lib in next(os.walk(lib_path))[2]:
 
             if lib.endswith('.so') or lib.endswith('.dylib') or lib.endswith('.dll'):
-
               #print 'D-looking for %s into %s/%s' % (n, lib_path, lib)
-
               with open(os.devnull, 'w') as dev_null:
                 cmd = 'nm %s | grep -q "%s"' % (lib, search_defsym)  # TODO: unsafe and terrible hack
                 sp = subprocess.Popen(cmd, stderr=dev_null, stdout=dev_null,
