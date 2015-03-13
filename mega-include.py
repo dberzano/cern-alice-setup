@@ -9,7 +9,7 @@ import subprocess
 
 # Main function
 def scan(source, include_paths, library_paths, output_file, exclude_regexp, max_depth, fwd_decl,
-  find_libs):
+  find_libs, libs_only):
 
   print 'I-scanning file: %s' % source
   print 'I-using include paths (in order): %s' % ', '.join(include_paths)
@@ -31,13 +31,31 @@ def scan(source, include_paths, library_paths, output_file, exclude_regexp, max_
   else:
     class_libs = None
 
-  output_dot(dep_graph, output_file, class_libs)
+  output_dot(dep_graph, output_file, class_libs, libs_only)
+
+
+# Display class name with lib, or lib only, or class only
+def cname_lib(cname, class_libs, libs_only):
+
+  if class_libs is not None:
+    try:
+      if libs_only:
+        # only show library
+        cname_lib = class_libs[cname]
+      else:
+        # show class and library
+        cname_lib = '%s(%s)' % (cname, class_libs[cname])
+    except KeyError:
+      # if library is not found, always show class name
+      cname_lib = '%s(<lib?>)' % cname
+  else:
+    cname_lib = cname
+
+  return cname_lib
 
 
 # Output dot file
-def output_dot(dep_graph, out_file, class_libs):
-
-  unknown_lib = '?'
+def output_dot(dep_graph, out_file, class_libs, libs_only):
 
   with open(out_file, 'w') as fp:
 
@@ -53,41 +71,14 @@ def output_dot(dep_graph, out_file, class_libs):
       else:
         color = 'gold1'
 
-      if class_libs is not None:
-        try:
-          node_lib = class_libs[node]
-        except KeyError:
-          node_lib = unknown_lib
-        node_lib = '%s(%s)' % (node, node_lib)
-      else:
-        node_lib = node
-
+      node_lib = cname_lib(node, class_libs, libs_only)
       fp.write('  "%s" [style=filled, color=%s]\n' % (node_lib, color))
 
     for node,deps in dep_graph.iteritems():
-
-      if class_libs is not None:
-        try:
-          node_lib = class_libs[node]
-        except KeyError:
-          node_lib = unknown_lib
-        node_lib = '%s(%s)' % (node, node_lib)
-      else:
-        node_lib = node
-
+      node_lib = cname_lib(node, class_libs, libs_only)
       for d in deps:
-        if class_libs is not None:
-          try:
-            d_lib = class_libs[d]
-          except KeyError:
-            d_lib = unknown_lib
-          d_lib = '%s(%s)' % (d, d_lib)
-        else:
-          d_lib = d
-
+        d_lib = cname_lib(d, class_libs, libs_only)
         fp.write( '  "%s" -> "%s" ;\n' % (node_lib, d_lib) )
-
-
 
     fp.write('}\n')
 
@@ -241,10 +232,11 @@ if __name__ == '__main__':
   max_depth = -1
   fwd_decl = False
   find_libs = False
+  libs_only = False
 
   opts, args = getopt.getopt(sys.argv[1:], 'I:L:o:',
     [ 'include=', 'libpath=', 'output-dot=', 'exclude-regex=', 'max-depth=', 'fwd-decl',
-    'find-libs' ])
+    'find-libs', 'libs-only' ])
   for o, a in opts:
     if o == '-I' or o == '--include':
       include_paths.append(a)
@@ -260,6 +252,9 @@ if __name__ == '__main__':
       fwd_decl = True
     elif o == '--find-libs':
       find_libs = True
+    elif o == '--libs-only':
+      find_libs = True
+      libs_only = True
     else:
       raise getopt.GetoptError('unknown parameter: %s (%s)' % (o,a))
 
@@ -274,6 +269,7 @@ if __name__ == '__main__':
     exclude_regexp=exclude_re,
     max_depth=max_depth,
     fwd_decl=fwd_decl,
-    find_libs=find_libs
+    find_libs=find_libs,
+    libs_only=libs_only
   )
   sys.exit(r)
