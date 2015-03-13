@@ -9,7 +9,7 @@ import subprocess
 
 # Main function
 def scan(source, include_paths, library_paths, output_file, exclude_regexp, max_depth, fwd_decl,
-  find_libs, libs_only):
+  find_libs, libs_only, suppress_unknown_libs):
 
   print 'I-scanning file: %s' % source
   print 'I-using include paths (in order): %s' % ', '.join(include_paths)
@@ -31,11 +31,12 @@ def scan(source, include_paths, library_paths, output_file, exclude_regexp, max_
   else:
     class_libs = None
 
-  output_dot(dep_graph, output_file, class_libs, libs_only)
+  output_dot(dep_graph, output_file, class_libs, libs_only, suppress_unknown_libs)
 
 
-# Display class name with lib, or lib only, or class only
-def cname_lib(cname, class_libs, libs_only):
+# Display class name with lib, or lib only, or class only. None is optionally returned if lib is
+# unknown.
+def cname_lib(cname, class_libs, libs_only, suppress_unknown_libs):
 
   if class_libs is not None:
     try:
@@ -46,8 +47,11 @@ def cname_lib(cname, class_libs, libs_only):
         # show class and library
         cname_lib = '%s(%s)' % (cname, class_libs[cname])
     except KeyError:
-      # if library is not found, always show class name
-      cname_lib = '%s(<lib?>)' % cname
+      if suppress_unknown_libs:
+        cname_lib = None
+      else:
+        # if library is not found, always show class name
+        cname_lib = '%s(<lib?>)' % cname
   else:
     cname_lib = cname
 
@@ -70,19 +74,20 @@ def output_dot(dep_graph, out_file, class_libs, libs_only, suppress_unknown_libs
     else:
       color = 'gold1'
 
-    node_lib = cname_lib(node, class_libs, libs_only)
-    if node_lib not in map_color:
+    node_lib = cname_lib(node, class_libs, libs_only, suppress_unknown_libs)
+    if node_lib is not None and node_lib not in map_color:
       map_color[node_lib] = color
 
   for node,deps in dep_graph.iteritems():
-    node_lib = cname_lib(node, class_libs, libs_only)
-    for d in deps:
-      d_lib = cname_lib(d, class_libs, libs_only)
-      if d_lib != node_lib:
-        if node_lib not in map_deps:
-          map_deps[node_lib] = [ d_lib ]
-        elif d_lib not in map_deps[node_lib]:
-          map_deps[node_lib].append( d_lib )
+    node_lib = cname_lib(node, class_libs, libs_only, suppress_unknown_libs)
+    if node_lib is not None:
+      for d in deps:
+        d_lib = cname_lib(d, class_libs, libs_only, suppress_unknown_libs)
+        if d_lib is not None and d_lib != node_lib:
+          if node_lib not in map_deps:
+            map_deps[node_lib] = [ d_lib ]
+          elif d_lib not in map_deps[node_lib]:
+            map_deps[node_lib].append( d_lib )
 
   with open(out_file, 'w') as fp:
 
@@ -98,7 +103,7 @@ def output_dot(dep_graph, out_file, class_libs, libs_only, suppress_unknown_libs
   print 'I-dot file %s written' % out_file
 
 
-# Finds symbols in libraries. Returns a dictionary: class => lib (no ext).
+# Finds symbols in libraries. Returns a dictionary: class => lib (no ext)
 def guess_libs(names, library_paths, upcase_only):
 
   class_lib = {}
@@ -244,10 +249,11 @@ if __name__ == '__main__':
   fwd_decl = False
   find_libs = False
   libs_only = False
+  suppress_unknown_libs = False
 
   opts, args = getopt.getopt(sys.argv[1:], 'I:L:o:',
     [ 'include=', 'libpath=', 'output-dot=', 'exclude-regex=', 'max-depth=', 'fwd-decl',
-    'find-libs', 'libs-only' ])
+    'find-libs', 'libs-only', 'suppress-unknown-libs' ])
   for o, a in opts:
     if o == '-I' or o == '--include':
       include_paths.append(a)
@@ -266,6 +272,8 @@ if __name__ == '__main__':
     elif o == '--libs-only':
       find_libs = True
       libs_only = True
+    elif o == '--suppress-unknown-libs':
+      suppress_unknown_libs = True
     else:
       raise getopt.GetoptError('unknown parameter: %s (%s)' % (o,a))
 
@@ -281,6 +289,7 @@ if __name__ == '__main__':
     max_depth=max_depth,
     fwd_decl=fwd_decl,
     find_libs=find_libs,
-    libs_only=libs_only
+    libs_only=libs_only,
+    suppress_unknown_libs=suppress_unknown_libs
   )
   sys.exit(r)
