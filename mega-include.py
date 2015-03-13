@@ -4,9 +4,12 @@ import re
 import sys
 import os
 import getopt
+import subprocess
+
 
 # Main function
-def scan(source, include_paths, output_file, exclude_regexp, max_depth, fwd_decl):
+def scan(source, include_paths, library_paths, output_file, exclude_regexp, max_depth, fwd_decl,
+  find_libs):
 
   print 'I-scanning file: %s' % source
   print 'I-using include paths (in order): %s' % ', '.join(include_paths)
@@ -19,11 +22,22 @@ def scan(source, include_paths, output_file, exclude_regexp, max_depth, fwd_decl
     fwd_decl=fwd_decl
   )
 
-  output_dot(dep_graph, output_file)
+  if find_libs:
+    class_libs = guess_libs(
+      names=dep_graph.keys(),
+      library_paths=library_paths,
+      upcase_only=True
+    )
+  else:
+    class_libs = None
+
+  output_dot(dep_graph, output_file, class_libs)
 
 
 # Output dot file
-def output_dot(dep_graph, out_file):
+def output_dot(dep_graph, out_file, class_libs):
+
+  unknown_lib = '?'
 
   with open(out_file, 'w') as fp:
 
@@ -39,17 +53,93 @@ def output_dot(dep_graph, out_file):
       else:
         color = 'gold1'
 
-      fp.write('  "%s" [style=filled, color=%s]\n' % (node, color))
+      if class_libs is not None:
+        try:
+          node_lib = class_libs[node]
+        except KeyError:
+          node_lib = unknown_lib
+        node_lib = '%s(%s)' % (node, node_lib)
+      else:
+        node_lib = node
+
+      fp.write('  "%s" [style=filled, color=%s]\n' % (node_lib, color))
 
     for node,deps in dep_graph.iteritems():
+
+      if class_libs is not None:
+        try:
+          node_lib = class_libs[node]
+        except KeyError:
+          node_lib = unknown_lib
+        node_lib = '%s(%s)' % (node, node_lib)
+      else:
+        node_lib = node
+
       for d in deps:
-        fp.write( '  "%s" -> "%s" ;\n' % (node, d) )
+        if class_libs is not None:
+          try:
+            d_lib = class_libs[d]
+          except KeyError:
+            d_lib = unknown_lib
+          d_lib = '%s(%s)' % (d, d_lib)
+        else:
+          d_lib = d
+
+        fp.write( '  "%s" -> "%s" ;\n' % (node_lib, d_lib) )
+
+
+
     fp.write('}\n')
 
   print 'I-dot file %s written' % out_file
 
 
-# Scans recursively. Prevents loops.
+# Finds symbols in libraries. Returns a dictionary: class => lib (no ext).
+def guess_libs(names, library_paths, upcase_only):
+
+  class_lib = {}
+
+  for n in names:
+    found = False
+
+    if not upcase_only or n[0].isupper():
+
+      # search string
+      search_defsym = ' T _ZN%d%s' % (len(n), n)  # TODO: name mangling varies across platforms
+
+      for lib_path in library_paths:
+        if os.path.isdir(lib_path):
+
+          for lib in next(os.walk(lib_path))[2]:
+
+            if lib.endswith('.so') or lib.endswith('.dylib') or lib.endswith('.dll'):
+
+              #print 'D-looking for %s into %s/%s' % (n, lib_path, lib)
+
+              with open(os.devnull, 'w') as dev_null:
+                cmd = 'nm %s | grep -q "%s"' % (lib, search_defsym)  # TODO: unsafe and terrible hack
+                sp = subprocess.Popen(cmd, stderr=dev_null, stdout=dev_null,
+                  shell=True, cwd=lib_path)
+                rc = sp.wait()
+                if rc == 0:
+                  found = True
+                  break
+
+          if found:
+            # do not look in other libpaths
+            break
+
+    if found:
+      lib = lib[0:lib.rindex('.')]
+      class_lib[n] = lib
+      print 'I-%s found in %s' % (n, lib)
+    else:
+      print 'W-%s not found in any lib' % n
+
+  return class_lib
+
+
+# Scans recursively. Prevents infinite loops.
 def scan_recursive(source, include_paths, dep_graph={}, depth=0, exclude_regexp=None, max_depth=-1,
   fwd_decl=False):
 
@@ -145,16 +235,21 @@ def scan_recursive(source, include_paths, dep_graph={}, depth=0, exclude_regexp=
 if __name__ == '__main__':
 
   include_paths = []
+  library_paths = []
   exclude_re = None
   output_file = 'default.dot'
   max_depth = -1
   fwd_decl = False
+  find_libs = False
 
-  opts, args = getopt.getopt(sys.argv[1:], 'I:o:',
-    [ 'include=', 'output-dot=', 'exclude-regex=', 'max-depth=', 'fwd-decl' ])
+  opts, args = getopt.getopt(sys.argv[1:], 'I:L:o:',
+    [ 'include=', 'libpath=', 'output-dot=', 'exclude-regex=', 'max-depth=', 'fwd-decl',
+    'find-libs' ])
   for o, a in opts:
     if o == '-I' or o == '--include':
       include_paths.append(a)
+    elif o == '-L' or o == '--libpath':
+      library_paths.append(a)
     elif o == '-o' or o == '--output-dot':
       output_file = a
     elif o == '--exclude-regex':
@@ -163,6 +258,8 @@ if __name__ == '__main__':
       max_depth = int(a)
     elif o == '--fwd-decl':
       fwd_decl = True
+    elif o == '--find-libs':
+      find_libs = True
     else:
       raise getopt.GetoptError('unknown parameter: %s (%s)' % (o,a))
 
@@ -172,9 +269,11 @@ if __name__ == '__main__':
   r = scan(
     source=args[0],
     include_paths=include_paths,
+    library_paths=library_paths,
     output_file=output_file,
     exclude_regexp=exclude_re,
     max_depth=max_depth,
-    fwd_decl=fwd_decl
+    fwd_decl=fwd_decl,
+    find_libs=find_libs
   )
   sys.exit(r)
