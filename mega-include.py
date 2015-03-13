@@ -80,10 +80,11 @@ def output_dot(dep_graph, out_file, class_libs, libs_only):
       node_lib = cname_lib(node, class_libs, libs_only)
       for d in deps:
         d_lib = cname_lib(d, class_libs, libs_only)
-        if node_lib not in map_deps:
-          map_deps[node_lib] = [ d_lib ]
-        elif d_lib not in map_deps[node_lib]:
-          map_deps[node_lib].append( d_lib )
+        if d_lib != node_lib:
+          if node_lib not in map_deps:
+            map_deps[node_lib] = [ d_lib ]
+          elif d_lib not in map_deps[node_lib]:
+            map_deps[node_lib].append( d_lib )
 
     fp.write('digraph g {\n')
     for node,color in map_color.iteritems():
