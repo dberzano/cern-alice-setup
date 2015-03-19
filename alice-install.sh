@@ -896,7 +896,7 @@ function ModuleAliRoot() {
 # Module to fetch, update and compile AliPhysics
 function ModuleAliPhysics() {
 
-  local GenerateDoc="$1"  # ignored for the moment
+  local GenerateDoc="$1"
   local ForceHardReset="$2"
 
   Banner 'Installing AliPhysics...'
@@ -1002,6 +1002,10 @@ function ModuleAliPhysics() {
 
     SwallowProgress -f --percentage 'Building AliPhysics' make -j$MJ
     SwallowProgress -f --percentage 'Installing AliPhysics' make -j$MJ install
+
+    if [[ $GenerateDoc == 1 ]] ; then
+      SwallowProgress -f --pattern 'Generating Doxygen documentation' make install-doxygen
+    fi
 
   fi # end build
 
