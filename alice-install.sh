@@ -707,6 +707,7 @@ function GitForceSetRemote() (
 function ModuleAliRoot() {
 
   local GenerateDoc="$1"
+  local ForceHardReset="$2"
 
   Banner 'Installing AliRoot Core...'
   Swallow -f 'Sourcing envvars' SourceEnvVars
@@ -776,6 +777,11 @@ function ModuleAliRoot() {
     Swallow -f 'Moving to local clone' cd "$AliRootSrc"
     Swallow -f "Checking out AliRoot version $ALICE_VER" \
       git checkout "$ALICE_VER"
+
+    if [[ $ForceHardReset == 1 ]] ; then
+      Swallow -f 'Forcing hard reset to HEAD' git reset --hard HEAD
+      Swallow -f 'Forcing cleanup of working directory' git clean -f -d
+    fi
 
     if [[ "$(git rev-parse --abbrev-ref HEAD)" != 'HEAD' ]] ; then
       # update only if on a branch: errors are fatal
@@ -890,6 +896,9 @@ function ModuleAliRoot() {
 # Module to fetch, update and compile AliPhysics
 function ModuleAliPhysics() {
 
+  local GenerateDoc="$1"  # ignored for the moment
+  local ForceHardReset="$2"
+
   Banner 'Installing AliPhysics...'
   Swallow -f 'Sourcing envvars' SourceEnvVars
 
@@ -951,6 +960,11 @@ function ModuleAliPhysics() {
     Swallow -f 'Moving to local clone' cd "$AliPhysicsSrc"
     Swallow -f "Checking out AliPhysics version $ALIPHYSICS_VER" \
       git checkout "$ALIPHYSICS_VER"
+
+    if [[ $ForceHardReset == 1 ]] ; then
+      Swallow -f 'Forcing hard reset to HEAD' git reset --hard HEAD
+      Swallow -f 'Forcing cleanup of working directory' git clean -f -d
+    fi
 
     if [[ "$(git rev-parse --abbrev-ref HEAD)" != 'HEAD' ]] ; then
       # update only if on a branch: errors are fatal
@@ -1470,6 +1484,7 @@ function Main() {
   local PARAM
 
   local GenerateDoc=0
+  local ForceHardReset=0
 
   # Look for debug
   for (( i=0 ; i<=$# ; i++ )) ; do
@@ -1646,6 +1661,10 @@ function Main() {
           GenerateDoc=1
         ;;
 
+        force-hard-reset)
+          ForceHardReset=1
+        ;;
+
         *)
           Help "Unrecognized parameter: $1"
           exit 1
@@ -1724,9 +1743,9 @@ function Main() {
     [[ $DO_CLEAN_FASTJET    == 1 ]] && ModuleCleanFastJet
     [[ $DO_FASTJET          == 1 ]] && ModuleFastJet
     [[ $DO_CLEAN_ALICE      == 1 ]] && ModuleCleanAliRoot
-    [[ $DO_ALICE            == 1 ]] && ModuleAliRoot $GenerateDoc
+    [[ $DO_ALICE            == 1 ]] && ModuleAliRoot $GenerateDoc $ForceHardReset
     [[ $DO_CLEAN_ALIPHYSICS == 1 ]] && ModuleCleanAliPhysics
-    [[ $DO_ALIPHYSICS       == 1 ]] && ModuleAliPhysics
+    [[ $DO_ALIPHYSICS       == 1 ]] && ModuleAliPhysics $GenerateDoc $ForceHardReset
   fi
 
   # Remove logs: if we are here, everything went right, so no need to see the
