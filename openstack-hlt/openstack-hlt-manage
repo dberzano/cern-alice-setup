@@ -104,6 +104,7 @@ function disableHypervisor() (
 
   local host="$1"
   local err_count=0
+  local nova_tmp
 
   # Disable the OpenStack service
   wrap "Disabling hypervisor ${host}" \
@@ -114,17 +115,27 @@ function disableHypervisor() (
   fi
 
   # Get IDs of the instances running on $host
-  exec 3< <( nova hypervisor-servers "$host" | \
-    grep -E '\|\s*instance-' | \
-    sed -e 's/|//g' | \
-    awk '{ print $1 }' 2> /dev/null )
+  nova_tmp=$(mktemp)
+  nova hypervisor-servers "$host" 2> /dev/null > "$nova_tmp"
+  if [[ $? == 0 ]] ; then
 
-  # Delete instances
-  while read -u 3 iid ; do
-    #wrap nova reset-state "$iid"
-    wrap "Deleting VM ${iid} on hypervisor ${host}" nova delete "$iid"
-    [[ $? == 0 ]] || err_count=$((err_count+1))
-  done
+    exec 3< <( cat "$nova_tmp" 2> /dev/null | \
+      grep -E '\|\s*instance-' | \
+      sed -e 's/|//g' | \
+      awk '{ print $1 }' ; return ${PIPESTATUS[0]} )
+
+    # Delete instances
+    while read -u 3 iid ; do
+      wrap "Deleting VM ${iid} on hypervisor ${host}" nova delete "$iid"
+      [[ $? == 0 ]] || err_count=$((err_count+1))
+    done
+
+  else
+    echo -e "${Cr}Cannot read the list of VMs!${Cz}"
+    err_count=1
+  fi
+
+  rm -f "$nova_tmp"
 
   [[ $err_count == 0 ]] && return 0
   return 1
