@@ -24,23 +24,49 @@ function pr() (
 # Wrap a command, prints it on screen before executing it. Execute it for real
 # only if dry=0. Preserve its exit state.
 #
-# Usage: wrap <cmd> [param1 [param2 [param3...]]]
+# Usage: wrap <msg> <cmd> [param1 [param2 [param3...]]]
 function wrap() {
   local r
-  echo -e "${Cm}> ${Cc}${@}${Cz}"
+  local err=$(mktemp)
+  local out=$(mktemp)
+  local msg="$1"
+  shift
+
+  echo -e -n "[....] ${Cc}${msg}${Cz}"
+
+  # Dry run?
   if [[ $dry == 0 ]] ; then
-    "$@"
+    "$@" > "$out" 2> "$err"
     r=$?
   else
-    echo -e "${Cm}! ${Cy}Dry run: not executing${Cz}"
     r=0
   fi
 
-  if [[ $r == 0 ]] ; then
-    echo -e "${Cm}> ${Cg}OK${Cz}"
+  if [[ $dry == 1 ]] ; then
+    echo -e "\r[${Cy}FAKE${Cz}]"
+  elif [[ $r == 0 ]] ; then
+    echo -e "\r[ ${Cg}OK${Cz} ]"
   else
-    echo -e "${Cm}> ${Cr}Error ${r}${Cz}"
+    echo -e "\r[${Cr}FAIL${Cz}]"
+
+    echo -e "\n${Cy}=== COMMAND FAILED === ${Cz}"
+    echo -e "${Cm}Command: ${Cr}${@}${Cz}"
+    echo -e "${Cm}Exit code: ${Cr}${r}${Cz}"
+
+    if [[ -s $out ]] ; then
+      echo -e "\n${Cy}=== STDOUT === ${Cz}"
+      cat "$out"
+    fi
+
+    if [[ -s $err ]] ; then
+      echo -e "\n${Cy}=== STDERR === ${Cz}"
+      cat "$err"
+    fi
+
+    echo ''
   fi
+
+  rm -f "$err" "$out"
 
   return $r
 }
@@ -52,12 +78,15 @@ function wrap() {
 function disableHypervisor() (
 
   local host="$1"
-  local errcount=0
+  local err_count=0
 
   # Disable the OpenStack service
-  wrap nova-manage service disable --host="$host" --service=nova-compute
-  #if [[ $? != 0 ]] ; then
-  #fi
+  wrap "Disabling hypervisor ${host}" \
+    nova-manage service disable --host="$host" --service=nova-compute
+  if [[ $? != 0 ]] ; then
+    echo -e "${Cr}Cannot procede with deletion of VMs on ${host}!"
+    return 1
+  fi
 
   # Get IDs of the instances running on $host
   exec 3< <( nova hypervisor-servers "$host" | \
@@ -67,10 +96,13 @@ function disableHypervisor() (
 
   # Delete instances
   while read -u 3 iid ; do
-    wrap nova reset-state "$iid"
-    wrap nova delete "$iid"
+    #wrap nova reset-state "$iid"
+    wrap "Deleting VM ${iid} on hypervisor ${host}" nova delete "$iid"
+    [[ $? == 0 ]] || err_count=$((err_count+1))
   done
 
+  [[ $err_count == 0 ]] && return 0
+  return 1
 )
 
 # Reenables an hypervisor: it will be available again to accept new virtual
@@ -79,7 +111,9 @@ function disableHypervisor() (
 # Usage: enableHypervisor <full_host_name>
 function enableHypervisor() (
   local host="$1"
-  wrap nova-manage service enable --host="$host" --service=nova-compute 
+  wrap "Enabling hypervisor ${host}" \
+    nova-manage service enable --host="$host" --service=nova-compute
+  return $?
 )
 
 # Prints the status of all hypervisors.
