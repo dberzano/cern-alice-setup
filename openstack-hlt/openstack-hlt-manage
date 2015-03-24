@@ -16,11 +16,6 @@ export Cz="\033[m"
 # Set to 0 to enable commands
 export dry=1
 
-# Colored echo
-function pr() (
-  echo -e "${Cm}* ${Cb}${@}${Cz}"
-)
-
 # Wrap a command, prints it on screen before executing it. Execute it for real
 # only if dry=0. Preserve its exit state.
 #
@@ -90,10 +85,12 @@ function forEach() (
   done
 
   if [[ $err_count == 0 ]] ; then
-    echo -e "${Cg}All commands executed successfully${Cz}"
+    echo
+    echo -e "${Cg}All commands executed successfully.${Cz}"
     return 0
   else
-    echo -e "${Cr}There were errors${Cz}"
+    echo
+    echo -e "${Cr}There were errors.${Cz}"
     return 1
   fi
 
@@ -211,6 +208,9 @@ function main() (
  local action
  local r
  local nvms=0
+ local prog=$(basename "$0")
+ local print_help=0
+ local print_dry_notice=0
 
   while [[ $# -gt 0 ]] ; do
     case "$1" in
@@ -232,23 +232,49 @@ function main() (
   shift
 
   case "$action" in
-    enable)
-      forEach enableHypervisor "$@"
-      r=$?
-    ;;
-    disable)
-      forEach disableHypervisor "$@"
-      r=$?
+    enable|disable)
+      if [[ "$@" != '' ]] ; then
+        forEach "${action}Hypervisor" "$@"
+        r=$?
+        print_dry_notice=1
+      else
+        print_help=1
+      fi
     ;;
     status)
       statusHypervisors "$nvms"
       r=$?
     ;;
     *)
-      pr "Unknown action: ${action}"
+      [[ $action != '' ]] && echo -e "${Cr}Unknown action: ${Cc}${action}${Cz}"
+      print_help=1
       r=1
     ;;
   esac
+
+  if [[ $print_help == 1 ]] ; then
+    echo -e "\n${Cm}Usage: ${Cc}${prog}${Cz} " \
+      "[${Cc}--for-real${Cz}] [${Cc}--no-colors${Cz}] [${Cc}--nvms${Cz}]" \
+      "[${Cg}enable${Cz}|${Cr}disable${Cz}|${Cy}status${Cz}]" \
+      "[${Cc}node1${Cz} [${Cc}node2${Cz}...]]${Cz}\n"
+
+    echo -e "         ${Cc}--for-real${Cz}   without this flag, ${Cg}enable${Cz} and" \
+      "${Cr}disable${Cz} are just simulated and not executed"
+    echo -e "         ${Cc}--no-colors${Cz}  turn off colors"
+    echo -e "         ${Cc}--nvms${Cz}       report num of VMs running on each host when" \
+      "executing ${Cy}status${Cz} (slow)"
+
+    echo
+  fi
+
+  if [[ $dry == 1 && $print_dry_notice == 1 ]] ; then
+    echo
+    echo -e "${Cy}Note:${Cc} the command was not executed for real: it was a dry run.${Cz}"
+    echo -e "${Cy}Use ${Cc}--for-real${Cy} to execute it, i.e.:${Cz}"
+    echo
+    echo -e "  ${Cm}${prog} --for-real ${action} ${@}${Cz}"
+    echo
+  fi
 
   return $?
 )
