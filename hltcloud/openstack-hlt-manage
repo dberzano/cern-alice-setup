@@ -1,0 +1,300 @@
+#!/bin/bash
+
+# openstack-hlt-manage -- by Dario Berzano <dario.berzano@cern.ch>
+#
+# Control which HLT nodes are part of the OpenStack cluster.
+
+# Color definitions
+export Cc="\033[36m"
+export Cm="\033[35m"
+export Cy="\033[33m"
+export Cb="\033[34m"
+export Cr="\033[31m"
+export Cg="\033[32m"
+export Cz="\033[m"
+
+# Set to 0 to enable commands
+export dry=1
+
+# Wrap a command, prints it on screen before executing it. Execute it for real
+# only if dry=0. Preserve its exit state.
+#
+# Usage: wrap <msg> <cmd> [param1 [param2 [param3...]]]
+function wrap() {
+  local r
+  local err=$(mktemp)
+  local out=$(mktemp)
+  local msg="$1"
+  shift
+
+  echo -e -n "[....] ${Cc}${msg}${Cz}"
+
+  # Dry run?
+  if [[ $dry == 0 ]] ; then
+    "$@" > "$out" 2> "$err"
+    r=$?
+  else
+    r=0
+  fi
+
+  if [[ $dry == 1 ]] ; then
+    echo -e "\r[${Cy}FAKE${Cz}]"
+  elif [[ $r == 0 ]] ; then
+    echo -e "\r[ ${Cg}OK${Cz} ]"
+  else
+    echo -e "\r[${Cr}FAIL${Cz}]"
+
+    echo -e "\n${Cy}=== COMMAND FAILED === ${Cz}"
+    echo -e "${Cm}Command: ${Cr}${@}${Cz}"
+    echo -e "${Cm}Exit code: ${Cr}${r}${Cz}"
+
+    if [[ -s $out ]] ; then
+      echo -e "\n${Cy}=== STDOUT === ${Cz}"
+      cat "$out"
+    fi
+
+    if [[ -s $err ]] ; then
+      echo -e "\n${Cy}=== STDERR === ${Cz}"
+      cat "$err"
+    fi
+
+    echo ''
+  fi
+
+  rm -f "$err" "$out"
+
+  return $r
+}
+
+# Executes the given command for each of the hypervisors given as last
+# parameters.
+#
+# Executes all commands, even if they fail, and return 0 only if no command
+# failed.
+#
+# Usage: forEach <command> [hyp1 [hyp2 [hyp3...]]]
+function forEach() (
+  local cmd="$1"
+  local err_count=0
+  local hyp
+  shift
+
+  for hyp in "$@" ; do
+    "$cmd" "$hyp"
+    [[ $? == 0 ]] || err_count=$((err_count+1))
+  done
+
+  if [[ $err_count == 0 ]] ; then
+    echo
+    echo -e "${Cg}All commands executed successfully.${Cz}"
+    return 0
+  else
+    echo
+    echo -e "${Cr}There were errors.${Cz}"
+    return 1
+  fi
+
+)
+
+# Deletes all virtual machines running on the specified hypervisor and disables
+# it: no new virtual machine will land there.
+#
+# Usage: disableHypervisor <full_host_name>
+function disableHypervisor() (
+
+  local host="$1"
+  local err_count=0
+  local nova_tmp
+
+  # Disable the OpenStack service
+  wrap "Disabling hypervisor ${host}" \
+    nova-manage service disable --host="$host" --service=nova-compute
+  if [[ $? != 0 ]] ; then
+    echo -e "${Cr}Cannot procede with deletion of VMs on ${host}!"
+    return 1
+  fi
+
+  # Get IDs of the instances running on $host
+  nova_tmp=$(mktemp)
+  nova hypervisor-servers "$host" 2> /dev/null > "$nova_tmp"
+  if [[ $? == 0 ]] ; then
+
+    exec 3< <( cat "$nova_tmp" 2> /dev/null | \
+      grep -E '\|\s*instance-' | \
+      sed -e 's/|//g' | \
+      awk '{ print $1 }' ; return ${PIPESTATUS[0]} )
+
+    # Delete instances
+    while read -u 3 iid ; do
+      wrap "Deleting VM ${iid} on hypervisor ${host}" nova delete "$iid"
+      [[ $? == 0 ]] || err_count=$((err_count+1))
+    done
+
+  else
+    echo -e "${Cr}Cannot read the list of VMs!${Cz}"
+    err_count=1
+  fi
+
+  rm -f "$nova_tmp"
+
+  [[ $err_count == 0 ]] && return 0
+  return 1
+)
+
+# Reenables an hypervisor: it will be available again to accept new virtual
+# machines.
+#
+# Usage: enableHypervisor <full_host_name>
+function enableHypervisor() (
+  local host="$1"
+  wrap "Enabling hypervisor ${host}" \
+    nova-manage service enable --host="$host" --service=nova-compute
+  return $?
+)
+
+# Prints the status of all hypervisors. Parameter tells whether to turn on or
+# off the query which displays the number of virtual machines.
+#
+# Usage: statusHypervisors [0|1]
+function statusHypervisors() (
+  local host
+  local status status_str
+  local alive alive_str
+  local qnvms="$1"
+  local hdr_txt='| Hypervisor           | Runs VMs? | Alive? |'
+  local hdr_sep='+----------------------+-----------+--------+'
+
+  if [[ $qnvms == 1 ]] ; then
+    hdr_txt="${hdr_txt} #VMs |"
+    hdr_sep="${hdr_sep}------+"
+  fi
+
+  echo -e "${hdr_sep}\n${hdr_txt}\n${hdr_sep}"
+
+  exec 3< <( nova-manage service list 2> /dev/null | grep ^nova-compute )
+  while read -u 3 rawline ; do
+    host=$( echo "$rawline" | awk '{print $2}' )    # hypervisor's name
+    status=$( echo "$rawline" | awk '{print $4}' )  # enabled/disabled
+    alive=$( echo "$rawline" | awk '{print $5}' )   # :-) / XXX
+
+    if [[ $qnvms == 1 ]] ; then
+      nvms=$( nova hypervisor-show "$host" 2> /dev/null | \
+        grep '|\s*running_vms' | sed -s 's/|//g' | awk '{print $2}' )
+    fi
+
+    if [[ $status == enabled ]] ; then
+      status=1
+      status_str="${Cg}yes${Cz}"
+    elif [[ $status == disabled ]] ; then
+      status=0
+      status_str="${Cr}no ${Cz}"
+    else
+      die 'Status is neither enabled nor disabled'
+    fi
+
+    if [[ $alive == ':-)' ]] ; then
+      alive=1
+      alive_str="${Cg}alive${Cz}"
+    elif [[ $alive == 'XXX' ]] ; then
+      alive=0
+      alive_str="${Cr}dead ${Cz}"
+    else
+      die 'Host state is neither :-) nor XXX'
+    fi
+
+    printf "| %-20s | " "$host"
+    echo -e -n "   ${status_str}    | "
+    echo -e -n "${alive_str}  |"
+    [[ $qnvms == 1 ]] && printf " %4d | " $nvms
+    echo ''
+
+  done
+
+  echo "${hdr_sep}"
+)
+
+# Entry point
+function main() (
+
+ local action
+ local r
+ local nvms=0
+ local prog=$(basename "$0")
+ local print_help=0
+ local print_dry_notice=0
+
+  while [[ $# -gt 0 ]] ; do
+    case "$1" in
+      --for-real)
+        dry=0
+        shift
+      ;;
+      --no-colors)
+        for v in Cc Cm Cy Cb Cr Cg Cz ; do
+          eval "export $v=''"
+        done
+        shift
+      ;;
+      --nvms)
+        nvms=1
+        shift
+      ;;
+      *)
+        break;
+      ;;
+    esac
+  done
+
+  action="$1"
+  shift
+
+  case "$action" in
+    enable|disable)
+      if [[ "$@" != '' ]] ; then
+        forEach "${action}Hypervisor" "$@"
+        r=$?
+        print_dry_notice=1
+      else
+        print_help=1
+      fi
+    ;;
+    status)
+      statusHypervisors "$nvms"
+      r=$?
+    ;;
+    *)
+      [[ $action != '' ]] && echo -e "${Cr}Unknown action: ${Cc}${action}${Cz}"
+      print_help=1
+      r=1
+    ;;
+  esac
+
+  if [[ $print_help == 1 ]] ; then
+    echo -e "\n${Cm}Usage: ${Cc}${prog}${Cz} " \
+      "[${Cc}--for-real${Cz}] [${Cc}--no-colors${Cz}] [${Cc}--nvms${Cz}]" \
+      "[${Cg}enable${Cz}|${Cr}disable${Cz}|${Cy}status${Cz}]" \
+      "[${Cc}node1${Cz} [${Cc}node2${Cz}...]]${Cz}\n"
+
+    echo -e "         ${Cc}--for-real${Cz}   without this flag, ${Cg}enable${Cz} and" \
+      "${Cr}disable${Cz} are just simulated and not executed"
+    echo -e "         ${Cc}--no-colors${Cz}  turn off colors"
+    echo -e "         ${Cc}--nvms${Cz}       report num of VMs running on each host when" \
+      "executing ${Cy}status${Cz} (slow)"
+
+    echo
+  fi
+
+  if [[ $dry == 1 && $print_dry_notice == 1 ]] ; then
+    echo
+    echo -e "${Cy}Note:${Cc} the command was not executed for real: it was a dry run.${Cz}"
+    echo -e "${Cy}Use ${Cc}--for-real${Cy} to execute it, i.e.:${Cz}"
+    echo
+    echo -e "  ${Cm}${prog} --for-real ${action} ${@}${Cz}"
+    echo
+  fi
+
+  return $?
+)
+
+# Entry point
+main "$@" || return $?
