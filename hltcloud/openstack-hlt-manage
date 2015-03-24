@@ -1,0 +1,176 @@
+#!/bin/bash
+
+# openstack-hlt-manage -- by Dario Berzano <dario.berzano@cern.ch>
+#
+# Control which HLT nodes are part of the OpenStack cluster.
+
+# Color definitions
+export Cc="\033[36m"
+export Cm="\033[35m"
+export Cy="\033[33m"
+export Cb="\033[34m"
+export Cr="\033[31m"
+export Cg="\033[32m"
+export Cz="\033[m"
+
+# Set to 0 to enable commands
+export dry=1
+
+# Colored echo
+function pr() (
+  echo -e "${Cm}* ${Cb}${@}${Cz}"
+)
+
+# Wrap a command, prints it on screen before executing it. Execute it for real
+# only if dry=0. Preserve its exit state.
+#
+# Usage: wrap <cmd> [param1 [param2 [param3...]]]
+function wrap() {
+  local r
+  echo -e "${Cm}> ${Cc}${@}${Cz}"
+  if [[ $dry == 0 ]] ; then
+    "$@"
+    r=$?
+  else
+    echo -e "${Cm}! ${Cy}Dry run: not executing${Cz}"
+    r=0
+  fi
+
+  if [[ $r == 0 ]] ; then
+    echo -e "${Cm}> ${Cg}OK${Cz}"
+  else
+    echo -e "${Cm}> ${Cr}Error ${r}${Cz}"
+  fi
+
+  return $r
+}
+
+# Deletes all virtual machines running on the specified hypervisor and disables
+# it: no new virtual machine will land there.
+#
+# Usage: disableHypervisor <full_host_name>
+function disableHypervisor() (
+
+  local host="$1"
+  local errcount=0
+
+  # Disable the OpenStack service
+  wrap nova-manage service disable --host="$host" --service=nova-compute
+  #if [[ $? != 0 ]] ; then
+  #fi
+
+  # Get IDs of the instances running on $host
+  exec 3< <( nova hypervisor-servers "$host" | \
+    grep -E '\|\s*instance-' | \
+    sed -e 's/|//g' | \
+    awk '{ print $1 }' 2> /dev/null )
+
+  # Delete instances
+  while read -u 3 iid ; do
+    wrap nova reset-state "$iid"
+    wrap nova delete "$iid"
+  done
+
+)
+
+# Reenables an hypervisor: it will be available again to accept new virtual
+# machines.
+#
+# Usage: enableHypervisor <full_host_name>
+function enableHypervisor() (
+  local host="$1"
+  wrap nova-manage service enable --host="$host" --service=nova-compute 
+)
+
+# Prints the status of all hypervisors.
+#
+# Usage: statusHypervisors
+function statusHypervisors() (
+  local host
+  local status status_str
+  local alive alive_str
+  local hdr_txt='| Hypervisor           | Runs VMs? | Alive? |'
+  local hdr_sep='+----------------------+-----------+--------+'
+
+  echo -e "${hdr_sep}\n${hdr_txt}\n${hdr_sep}"
+
+  exec 3< <( nova-manage service list 2> /dev/null | grep ^nova-compute )
+  while read -u 3 rawline ; do
+    host=$( echo "$rawline" | awk '{print $2}' )    # hypervisor's name
+    status=$( echo "$rawline" | awk '{print $4}' )  # enabled/disabled
+    alive=$( echo "$rawline" | awk '{print $5}' )   # :-) / XXX
+
+    if [[ $status == enabled ]] ; then
+      status=1
+      status_str="${Cg}yes${Cz}"
+    elif [[ $status == disabled ]] ; then
+      status=0
+      status_str="${Cr}no ${Cz}"
+    else
+      die 'Status is neither enabled nor disabled'
+    fi
+
+    if [[ $alive == ':-)' ]] ; then
+      alive=1
+      alive_str="${Cg}alive${Cz}"
+    elif [[ $alive == 'XXX' ]] ; then
+      alive=0
+      alive_str="${Cr}dead ${Cz}"
+    else
+      die 'Host state is neither :-) nor XXX'
+    fi
+
+    printf "| %-20s | " "$host"
+    echo -e -n "   ${status_str}    | "
+    echo -e "${alive_str}  |"
+
+  done
+
+  echo "${hdr_sep}"
+)
+
+# Entry point
+function main() (
+
+ local action
+ local r
+
+  while [[ $# -gt 0 ]] ; do
+    case "$1" in
+      --for-real)
+        dry=0
+        shift
+      ;;
+      *)
+        break;
+      ;;
+    esac
+  done
+
+  action="$1"
+  shift
+
+  case "$action" in
+    enable)
+      forEach enableHypervisor "$@"
+      r=$?
+    ;;
+    disable)
+      forEach disableHypervisor "$@"
+      r=$?
+    ;;
+    status)
+      statusHypervisors
+      r=$?
+    ;;
+    *)
+      pr "Unknown action: ${action}"
+      r=1
+    ;;
+  esac
+
+  return $?
+)
+
+# Entry point
+main "$@" || return $?
