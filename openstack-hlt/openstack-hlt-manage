@@ -144,15 +144,22 @@ function enableHypervisor() (
   return $?
 )
 
-# Prints the status of all hypervisors.
+# Prints the status of all hypervisors. Parameter tells whether to turn on or
+# off the query which displays the number of virtual machines.
 #
-# Usage: statusHypervisors
+# Usage: statusHypervisors [0|1]
 function statusHypervisors() (
   local host
   local status status_str
   local alive alive_str
-  local hdr_txt='| Hypervisor           | Runs VMs? | #VMs | Alive? |'
-  local hdr_sep='+----------------------+-----------+------+--------+'
+  local qnvms="$1"
+  local hdr_txt='| Hypervisor           | Runs VMs? | Alive? |'
+  local hdr_sep='+----------------------+-----------+--------+'
+
+  if [[ $qnvms == 1 ]] ; then
+    hdr_txt="${hdr_txt} #VMs |"
+    hdr_sep="${hdr_sep}------+"
+  fi
 
   echo -e "${hdr_sep}\n${hdr_txt}\n${hdr_sep}"
 
@@ -161,8 +168,11 @@ function statusHypervisors() (
     host=$( echo "$rawline" | awk '{print $2}' )    # hypervisor's name
     status=$( echo "$rawline" | awk '{print $4}' )  # enabled/disabled
     alive=$( echo "$rawline" | awk '{print $5}' )   # :-) / XXX
-    nvms=$( nova hypervisor-show "$host" 2> /dev/null | \
-      grep '|\s*running_vms' | sed -s 's/|//g' | awk '{print $2}' )
+
+    if [[ $qnvms == 1 ]] ; then
+      nvms=$( nova hypervisor-show "$host" 2> /dev/null | \
+        grep '|\s*running_vms' | sed -s 's/|//g' | awk '{print $2}' )
+    fi
 
     if [[ $status == enabled ]] ; then
       status=1
@@ -186,8 +196,9 @@ function statusHypervisors() (
 
     printf "| %-20s | " "$host"
     echo -e -n "   ${status_str}    | "
-    printf "%4d | " $nvms
-    echo -e "${alive_str}  |"
+    echo -e -n "${alive_str}  |"
+    [[ $qnvms == 1 ]] && printf " %4d | " $nvms
+    echo ''
 
   done
 
@@ -199,11 +210,16 @@ function main() (
 
  local action
  local r
+ local nvms=0
 
   while [[ $# -gt 0 ]] ; do
     case "$1" in
       --for-real)
         dry=0
+        shift
+      ;;
+      --nvms)
+        nvms=1
         shift
       ;;
       *)
@@ -225,7 +241,7 @@ function main() (
       r=$?
     ;;
     status)
-      statusHypervisors
+      statusHypervisors "$nvms"
       r=$?
     ;;
     *)
