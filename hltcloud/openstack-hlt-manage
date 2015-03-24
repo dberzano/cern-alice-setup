@@ -229,6 +229,12 @@ function main() (
         dry=0
         shift
       ;;
+      --no-colors)
+        for v in Cc Cm Cy Cb Cr Cg Cz ; do
+          eval "export $v=''"
+        done
+        shift
+      ;;
       --nvms)
         nvms=1
         shift
