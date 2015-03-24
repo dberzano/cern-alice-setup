@@ -71,6 +71,34 @@ function wrap() {
   return $r
 }
 
+# Executes the given command for each of the hypervisors given as last
+# parameters.
+#
+# Executes all commands, even if they fail, and return 0 only if no command
+# failed.
+#
+# Usage: forEach <command> [hyp1 [hyp2 [hyp3...]]]
+function forEach() (
+  local cmd="$1"
+  local err_count=0
+  local hyp
+  shift
+
+  for hyp in "$@" ; do
+    "$cmd" "$hyp"
+    [[ $? == 0 ]] || err_count=$((err_count+1))
+  done
+
+  if [[ $err_count == 0 ]] ; then
+    echo -e "${Cg}All commands executed successfully${Cz}"
+    return 0
+  else
+    echo -e "${Cr}There were errors${Cz}"
+    return 1
+  fi
+
+)
+
 # Deletes all virtual machines running on the specified hypervisor and disables
 # it: no new virtual machine will land there.
 #
