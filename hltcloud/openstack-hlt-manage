@@ -151,8 +151,8 @@ function statusHypervisors() (
   local host
   local status status_str
   local alive alive_str
-  local hdr_txt='| Hypervisor           | Runs VMs? | Alive? |'
-  local hdr_sep='+----------------------+-----------+--------+'
+  local hdr_txt='| Hypervisor           | Runs VMs? | #VMs | Alive? |'
+  local hdr_sep='+----------------------+-----------+------+--------+'
 
   echo -e "${hdr_sep}\n${hdr_txt}\n${hdr_sep}"
 
@@ -161,6 +161,8 @@ function statusHypervisors() (
     host=$( echo "$rawline" | awk '{print $2}' )    # hypervisor's name
     status=$( echo "$rawline" | awk '{print $4}' )  # enabled/disabled
     alive=$( echo "$rawline" | awk '{print $5}' )   # :-) / XXX
+    nvms=$( nova hypervisor-show "$host" 2> /dev/null | \
+      grep '|\s*running_vms' | sed -s 's/|//g' | awk '{print $2}' )
 
     if [[ $status == enabled ]] ; then
       status=1
@@ -184,6 +186,7 @@ function statusHypervisors() (
 
     printf "| %-20s | " "$host"
     echo -e -n "   ${status_str}    | "
+    printf "%4d | " $nvms
     echo -e "${alive_str}  |"
 
   done
