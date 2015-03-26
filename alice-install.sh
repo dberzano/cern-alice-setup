@@ -811,6 +811,16 @@ function ModuleAliRoot() {
 
     Swallow -f 'Moving into AliRoot build directory' cd "$AliRootTmp"
 
+    # Before building AliRoot Core, make sure ROOT has AliEn and OpenGL
+    Swallow --fatal --error-msg \
+      'Current ROOT has no OpenGL support: install your OpenGL libraries and rebuild it!' \
+      'Ensuring current ROOT has OpenGL support' \
+      RootConfiguredWithFeature opengl
+    Swallow --fatal --error-msg \
+      'Current ROOT has no AliEn support: install AliEn then rebuild ROOT!' \
+      'Ensuring current ROOT has AliEn support' \
+      RootConfiguredWithFeature alien
+
     # Assemble cmake command
     if [[ ! -e 'Makefile' ]]; then
 
