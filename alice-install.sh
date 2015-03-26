@@ -465,6 +465,16 @@ function ModuleRoot() {
 
     SwallowProgress -f --pattern 'Configuring ROOT' ./configure $ConfigOpts
 
+    # Before building ROOT, make sure we have some required features enabled
+    Swallow --fatal --error-msg \
+      'ROOT was configured with no OpenGL support: check you have the OpenGL libraries installed.' \
+      'Ensuring ROOT will be built with OpenGL support' \
+      RootConfiguredWithFeature opengl
+    Swallow --fatal --error-msg \
+      'ROOT did not find AliEn: make sure it is installed before compiling ROOT.' \
+      'Ensuring ROOT will be built with AliEn support' \
+      RootConfiguredWithFeature alien
+
     local AppendLDFLAGS AppendCPATH
     [[ "$BUILDOPT_LDFLAGS" != '' ]] && AppendLDFLAGS="LDFLAGS=$BUILDOPT_LDFLAGS"
     [[ "$BUILDOPT_CPATH" != '' ]] && AppendCPATH="CPATH=$BUILDOPT_CPATH"
@@ -800,7 +810,16 @@ function ModuleAliRoot() {
     #
 
     Swallow -f 'Moving into AliRoot build directory' cd "$AliRootTmp"
-    Swallow -f 'Checking if ROOT has OpenGL enabled' RootHasOpenGl
+
+    # Before building AliRoot Core, make sure ROOT has AliEn and OpenGL
+    Swallow --fatal --error-msg \
+      'Current ROOT has no OpenGL support: install your OpenGL libraries and rebuild it!' \
+      'Ensuring current ROOT has OpenGL support' \
+      RootConfiguredWithFeature opengl
+    Swallow --fatal --error-msg \
+      'Current ROOT has no AliEn support: install AliEn then rebuild ROOT!' \
+      'Ensuring current ROOT has AliEn support' \
+      RootConfiguredWithFeature alien
 
     # Assemble cmake command
     if [[ ! -e 'Makefile' ]]; then
@@ -1376,9 +1395,9 @@ function Help() {
 
 }
 
-# Check if ROOT has OpenGL
-function RootHasOpenGl() {
-  root-config --features | grep -q opengl
+# Check if ROOT has a certain feature (case-insensitive match)
+function RootConfiguredWithFeature() {
+  "${ROOTSYS}/bin/root-config" --features | grep -qi "$1"
 }
 
 # Detects proper build options based on the current operating system
