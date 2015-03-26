@@ -122,7 +122,7 @@ function disableHypervisor() (
     exec 3< <( cat "$nova_tmp" 2> /dev/null | \
       grep -E '\|\s*instance-' | \
       sed -e 's/|//g' | \
-      awk '{ print $1 }' ; return ${PIPESTATUS[0]} )
+      awk '{ print $1 }' )
 
     # Delete instances
     while read -u 3 iid ; do
