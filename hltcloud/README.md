@@ -9,7 +9,7 @@ on top of the [ALICE](http://alice.cern.ch/) HLT Cluster.
 The HLT Cloud is meant for opportunistic computing. HLT operators might, at any
 time, add and remove nodes to the Cloud.
 
-Such operations are facilitated by the control script `openstack-hlt-manage`.
+Such operations are facilitated by the control script `openstack-hlt-manage`.
 
 To use the script, one must log in to the OpenStack head node, and enter the
 administrative environment first:
@@ -124,6 +124,17 @@ $> openstack-hlt-manage --no-colors disable cn43.internal cn44.internal
 All commands executed successfully.
 ```
 
+Please note that OpenStack takes care of some cleanup (disk- and network-wise)
+after issuing the delete command: this takes some time (usually less than one
+minute), therefore issuing:
+
+```bash
+openstack-hlt-manage --nvms status
+```
+
+right after running `disable` may show a number of virtual machines greater than
+zero for the disabled hosts for a short while. If you reissue the command after
+some time, the number will correctly display zero.
 
 ### Common parameters
 
