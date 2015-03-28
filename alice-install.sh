@@ -527,7 +527,7 @@ function ModuleGeant3() {
       git remote update --prune
 
     # Updating from the former installation schema (no inst and build dir)
-    if [[ -e "${Geant3Base}/Makefile" ]] ; then
+    if [[ -e "${Geant3Base}/README" ]] ; then
       Swallow -f 'Clean up directory from the old installation schema' rm -rf "${Geant3Base}"
     fi
 
