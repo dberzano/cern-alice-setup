@@ -1190,10 +1190,26 @@ function ModuleCleanAliEn() {
 
 # Clean up ROOT
 function ModuleCleanRoot() {
-  Banner "Cleaning ROOT..."
-  Swallow -f "Sourcing envvars" SourceEnvVars
-  Swallow "Checking if ROOT is really installed" [ -f "$ROOTSYS"/Makefile ] || return 0
-  Swallow -f "Removing ROOT $ROOT_VER" rm -rf "$ROOTSYS"
+  Banner 'Cleaning ROOT...'
+  Swallow -f 'Sourcing envvars' SourceEnvVars
+
+  local RootBase=$( dirname "${ROOTSYS}" )
+  local RootInst="$ROOTSYS"
+  local RootSrc="${RootBase}/src"
+  local RootTmp="${RootBase}/build"
+
+  Swallow 'Checking if ROOT is really installed (old schema)' [ -f "${RootBase}/LICENSE" ]
+  if [[ $? == 0 ]] ; then
+    Swallow -f "Removing ROOT ${ROOT_VER} (old schema)" rm -rf "${RootBase}"
+  fi
+
+  Swallow 'Checking if ROOT is really installed (new schema)' [ -d "${RootTmp}" ]
+  if [[ $? == 0 ]] ; then
+    Swallow -f "Removing ROOT ${ROOT_VER} installation directory" rm -rf "${RootInst}"
+    Swallow -f "Removing ROOT ${ROOT_VER} build directory" rm -rf "${RootTmp}"
+  fi
+
+  return 0
 }
 
 # Clean up Geant3
