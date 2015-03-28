@@ -515,8 +515,8 @@ function AliPrintVars() {
   fi
 
   # detect Geant3 installation path
-  if [[ -x "$GEANT3DIR/lib/tgt_$ROOT_ARCH/libgeant321.so" ]] ; then
-    WHERE_IS_G3="$GEANT3DIR"
+  if [[ -f "$ALICE_PREFIX/geant3/$G3_SUBDIR/inst/lib/libgeant321.so" ]] ; then
+    WHERE_IS_G3="$ALICE_PREFIX/geant3/$G3_SUBDIR"
   else
     WHERE_IS_G3="$NOTFOUND"
   fi
