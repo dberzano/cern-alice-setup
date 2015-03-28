@@ -400,8 +400,8 @@ function AliExportVars() {
 
       geant3)
         if [[ $G3_VER != '' ]] ; then
-          export GEANT3DIR="${ALICE_PREFIX}/geant3/${G3_SUBDIR}"
-          export LD_LIBRARY_PATH="${GEANT3DIR}/lib/tgt_${ROOT_ARCH}:${LD_LIBRARY_PATH}"
+          export GEANT3DIR="${ALICE_PREFIX}/geant3/${G3_SUBDIR}/inst"
+          export LD_LIBRARY_PATH="${GEANT3DIR}/lib:${LD_LIBRARY_PATH}"
         else
           unset G3_VER G3_SUBDIR
         fi
