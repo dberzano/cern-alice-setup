@@ -565,7 +565,7 @@ function ModuleGeant3() {
     if [[ -e Makefile ]] ; then
 
       # Prior to version ~v2-0: no CMake, only make
-      Swallow -f 'Preparing build directory' rsync -ca "$Geant3Src"/ "$Geant3Tmp"/
+      Swallow -f 'Preparing build directory' rsync -ca --exclude '**/.git' "$Geant3Src"/ "$Geant3Tmp"/
       Swallow -f 'Move to the temporary build directory' cd "$Geant3Tmp"
       SwallowProgress -f --pattern 'Building Geant3' make -j$MJ
 
