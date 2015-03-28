@@ -495,37 +495,61 @@ function ModuleRoot() {
 # Module to fetch and compile Geant3
 function ModuleGeant3() {
 
-  Banner "Installing Geant3..."
-  Swallow -f "Sourcing envvars" SourceEnvVars
+  local ForceHardReset="$1"
 
-  Swallow "Checking if Geant3 support has been requested" [ "$G3_VER" != '' ] || return
+  Banner 'Installing Geant3...'
+  Swallow -f 'Sourcing envvars' SourceEnvVars
 
-  if [ "$DOWNLOAD_MODE" == '' ] || [ "$DOWNLOAD_MODE" == 'only' ] ; then
+  Swallow 'Checking if Geant3 support has been requested' [ "$G3_VER" != '' ] || return
+
+  # Geant3 variables: only ${ALICE_PREFIX} and ${G3_VER} needed
+  local Geant3Git="${ALICE_PREFIX}/geant3/git"
+  local Geant3Base="${ALICE_PREFIX}/geant3/${G3_SUBDIR}"
+  local Geant3Inst="${Geant3Base}/inst"
+  local Geant3Src="${Geant3Base}/src"
+  local Geant3Tmp="${Geant3Base}/build"
+
+  if [[ "$DOWNLOAD_MODE" == '' || "$DOWNLOAD_MODE" == 'only' ]] ; then
 
     #
     # Git clone of Geant3
     #
 
-    Swallow -f "Creating Geant3 Git clone directory" mkdir -p $ALICE_PREFIX/geant3/git
-    Swallow -f "Moving to the Geant3 Git clone directory" cd $ALICE_PREFIX/geant3/git
+    Swallow -f "Creating Geant3 Git clone directory" mkdir -p "$Geant3Git"
+    Swallow -f "Moving to the Geant3 Git clone directory" cd "$Geant3Git"
 
-    if [[ ! -d "$ALICE_PREFIX/geant3/git/.git" ]] ; then
-      SwallowProgress -f --pattern "Cloning Geant3 Git repository" git clone http://root.cern.ch/git/geant3.git .
+    if [[ ! -d "${Geant3Git}/.git" ]] ; then
+      SwallowProgress -f --pattern 'Cloning Geant3 Git repository' \
+        git clone http://root.cern.ch/git/geant3.git .
     fi
 
-    SwallowProgress -f --pattern "Updating the list of Git references" git remote update --prune
+    SwallowProgress -f --pattern 'Updating the list of Git references' \
+      git remote update --prune
 
-    if [[ ! -d "$GEANT3DIR/.git" ]] ; then
-      Swallow -f "Cleaning up leftovers on the local clone for $G3_VER" rm -rf "$GEANT3DIR"
-      SwallowProgress -f --pattern "Creating a local Git clone for Geant3 version $G3_VER" git-new-workdir "$ALICE_PREFIX/geant3/git" "$GEANT3DIR" "$G3_VER"
+    # Updating from the former installation schema (no inst and build dir)
+    if [[ -e "${Geant3Base}/Makefile" ]] ; then
+      Swallow -f 'Clean up directory from the old installation schema' rm -rf "${Geant3Base}"
     fi
 
-    Swallow -f "Moving to the local Git clone for Geant3 version $G3_VER" cd "$GEANT3DIR"
-    Swallow -f "Checking out Geant3 version $G3_VER" git checkout "$G3_VER"
+    # Shallow copy with git-new-workdir
+    if [[ ! -d "${Geant3Src}/.git" ]] ; then
+      rmdir "$Geant3Src" > /dev/null 2>&1
+      SwallowProgress -f --pattern \
+        "Creating a local clone for version ${G3_VER}" \
+        git-new-workdir "$Geant3Git" "$Geant3Src" "$G3_VER"
+    fi
+
+    Swallow -f "Moving to local clone for version ${G3_VER}" cd "$Geant3Src"
+    Swallow -f "Checking out Geant3 version ${G3_VER}" git checkout "$G3_VER"
+
+    if [[ $ForceHardReset == 1 ]] ; then
+      Swallow -f 'Forcing hard reset to HEAD' git reset --hard HEAD
+      Swallow -f 'Forcing cleanup of working directory' git clean -f -d
+    fi
 
     if [[ "$(git rev-parse --abbrev-ref HEAD)" != 'HEAD' ]] ; then
       # update only if on a branch: errors are fatal
-      SwallowProgress -f --pattern "Updating Geant3 branch $G3_VER from Git" git pull --rebase
+      SwallowProgress -f --pattern "Updating Geant3 branch ${G3_VER}" git pull --rebase
     fi
 
   fi # end download
@@ -536,8 +560,29 @@ function ModuleGeant3() {
     # Build Geant3
     #
 
-    Swallow -f "Moving to the local Git clone for Geant3 version $G3_VER" cd "$GEANT3DIR"
-    SwallowProgress -f --pattern "Building Geant3" make -j$MJ
+    Swallow -f "Moving to the local Git clone for Geant3 version $G3_VER" cd "$Geant3Src"
+
+    if [[ -e Makefile ]] ; then
+
+      # Prior to version ~v2-0: no CMake, only make
+      Swallow -f 'Preparing build directory' rsync -ca "$Geant3Src"/ "$Geant3Tmp"/
+      Swallow -f 'Move to the temporary build directory' cd "$Geant3Tmp"
+      SwallowProgress -f --pattern 'Building Geant3' make -j$MJ
+
+      # Fake installation
+      Swallow -f 'Cleaning up installation path' rm -rf "$Geant3Inst"
+      Swallow -f 'Creating installation directory' mkdir -p "${Geant3Inst}/include/TGeant3/"
+      Swallow -f 'Installing header files' \
+        cp "${Geant3Tmp}/TGeant3/"*.h "${Geant3Inst}/include/TGeant3/"
+      Swallow -f 'Installing libraries' \
+        rsync -a "${Geant3Tmp}/lib/tgt_$(root-config --arch)/" "${Geant3Inst}/lib/"
+
+    else
+
+      # From ~v2-0: CMake
+      Swallow -f 'CMake: not implemented yet' false
+
+    fi
 
   fi
 
@@ -1762,7 +1807,7 @@ function Main() {
     [[ $DO_CLEAN_ROOT       == 1 ]] && ModuleCleanRoot
     [[ $DO_ROOT             == 1 ]] && ModuleRoot
     [[ $DO_CLEAN_G3         == 1 ]] && ModuleCleanGeant3
-    [[ $DO_G3               == 1 ]] && ModuleGeant3
+    [[ $DO_G3               == 1 ]] && ModuleGeant3 $ForceHardReset
     [[ $DO_CLEAN_FASTJET    == 1 ]] && ModuleCleanFastJet
     [[ $DO_FASTJET          == 1 ]] && ModuleFastJet
     [[ $DO_CLEAN_ALICE      == 1 ]] && ModuleCleanAliRoot
