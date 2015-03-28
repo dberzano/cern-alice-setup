@@ -580,7 +580,16 @@ function ModuleGeant3() {
     else
 
       # From ~v2-0: CMake
-      Swallow -f 'CMake: not implemented yet' false
+      Swallow -f 'Creating build directory' mkdir -p "$Geant3Tmp"
+      Swallow -f 'Moving to the temporary build directory' cd "$Geant3Tmp"
+
+      # Note: ROOTSYS can be also passed as -DROOT_DIR, but ROOT paths must be set in the env :-(
+      SwallowProgress -f --pattern 'Bootstrapping Geant3' \
+        cmake "$Geant3Src" -DCMAKE_INSTALL_PREFIX="$Geant3Inst"
+
+      SwallowProgress -f --percentage "Building Geant3 ${G3_VER}" make -j$MJ
+      Swallow -f 'Removing previous installation directory' rm -rf "$Geant3Inst"
+      SwallowProgress -f --percentage "Installing Geant3 ${G3_VER}" make -j$MJ install
 
     fi
 
