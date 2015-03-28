@@ -1209,13 +1209,14 @@ function ModuleCleanGeant3() {
   Swallow 'Checking if Geant3 is really installed (old schema)' [ -f "${Geant3Base}/README" ]
   if [[ $? == 0 ]] ; then
     Swallow -f "Removing Geant3 ${G3_VER} (old schema)" rm -rf "${Geant3Base}"
-  else
-    Swallow 'Checking if Geant3 is really installed (new schema)' [ -d "${Geant3Tmp}" ]
-    if [[ $? == 0 ]] ; then
-      Swallow -f "Removing Geant3 ${G3_VER} installation directory" rm -rf "${Geant3Inst}"
-      Swallow -f "Removing Geant3 ${G3_VER} build directory" rm -rf "${Geant3Tmp}"
-    fi
   fi
+
+  Swallow 'Checking if Geant3 is really installed (new schema)' [ -d "${Geant3Tmp}" ]
+  if [[ $? == 0 ]] ; then
+    Swallow -f "Removing Geant3 ${G3_VER} installation directory" rm -rf "${Geant3Inst}"
+    Swallow -f "Removing Geant3 ${G3_VER} build directory" rm -rf "${Geant3Tmp}"
+  fi
+
   return 0
 }
 
