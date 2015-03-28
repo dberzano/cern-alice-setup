@@ -384,7 +384,7 @@ function AliExportVars() {
 
       root)
         if [[ $ROOT_VER != '' ]] ; then
-          export ROOTSYS="${ALICE_PREFIX}/root/${ROOT_SUBDIR}"
+          export ROOTSYS="${ALICE_PREFIX}/root/${ROOT_SUBDIR}/inst"
           export PATH="${ROOTSYS}/bin:${PATH}"
           export LD_LIBRARY_PATH="${ROOTSYS}/lib:${LD_LIBRARY_PATH}"
           export ROOT_VER

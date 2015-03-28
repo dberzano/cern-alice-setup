@@ -344,56 +344,74 @@ function ShowBugReportInfo() {
 # Module to fetch and compile ROOT
 function ModuleRoot() {
 
-  Banner "Installing ROOT..."
-  Swallow -f "Sourcing envvars" SourceEnvVars
+  local ForceHardReset="$1"
+
+  Banner 'Installing ROOT...'
+  Swallow -f 'Sourcing envvars' SourceEnvVars
 
   Swallow --fatal \
     --error-msg "ROOT $ROOT_VER is not supported on your platform: use at least $MIN_ROOT_VER_STR." \
     "Ensuring ROOT $ROOT_VER is OK for your platform" \
     [ $( ConvertVersionStringToNumber "$ROOT_VER" ) -ge $MIN_ROOT_VER_NUM ]
 
-  if [ ! -d "$ROOTSYS" ]; then
-    Swallow -f "Creating ROOT directory" mkdir -p "$ROOTSYS"
-  fi
+  # ROOT variables: only ${ALICE_PREFIX} and ${ROOTSYS} needed
 
-  Swallow -f "Moving into ROOT directory" cd "$ROOTSYS"
+  local RootGit="${ALICE_PREFIX}/root/git"
+  local RootBase=$( dirname "${ROOTSYS}" )
+  local RootInst="$ROOTSYS"
+  local RootSrc="${RootBase}/src"
+  local RootTmp="${RootBase}/build"
 
-  if [ "$DOWNLOAD_MODE" == '' ] || [ "$DOWNLOAD_MODE" == 'only' ] ; then
+  Swallow -f 'Creating ROOT directory' mkdir -p "$RootBase"
+
+  if [[ "$DOWNLOAD_MODE" == '' || "$DOWNLOAD_MODE" == 'only' ]] ; then
 
     #
     # Downloading ROOT from Git
     #
 
-    local ROOTGit="${ROOTSYS}/../git"
-
-    Swallow -f 'Creating ROOT Git local directory' mkdir -p "$ROOTGit"
-    Swallow -f 'Moving into ROOT Git local directory' cd "$ROOTGit"
-    [ ! -e "$ROOTGit/.git" ] && \
+    Swallow -f 'Creating ROOT Git local directory' mkdir -p "$RootGit"
+    Swallow -f 'Moving into ROOT Git local directory' cd "$RootGit"
+    [ ! -e "$RootGit/.git" ] && \
       SwallowProgress -f --pattern 'Cloning ROOT Git repository (might take some time)' \
         git clone http://root.cern.ch/git/root.git .
 
     Swallow -f 'Updating list of remote ROOT Git branches' \
       git remote update origin --prune
 
-    Swallow -f "Checking out ROOT $ROOT_VER" git checkout "$ROOT_VER"
+    # Updating from the former installation schema (no inst and build dir)
+    if [[ -e "${RootBase}/LICENSE" ]] ; then
+      Swallow -f 'Clean up directory from the old installation schema' rm -rf "${RootBase}"
+    fi
+
+    # Shallow copy with git-new-workdir
+    if [[ ! -d "${RootSrc}/.git" ]] ; then
+      rmdir "$RootSrc" > /dev/null 2>&1
+      SwallowProgress -f --pattern \
+        "Creating a local clone for version ${ROOT_VER}" \
+        git-new-workdir "$RootGit" "$RootSrc" "$ROOT_VER"
+    fi
+
+    Swallow -f "Moving to local clone for version ${ROOT_VER}" cd "$RootSrc"
+    Swallow -f "Checking out ROOT version ${ROOT_VER}" git checkout "$ROOT_VER"
+
+    if [[ $ForceHardReset == 1 ]] ; then
+      Swallow -f 'Forcing hard reset to HEAD' git reset --hard HEAD
+      Swallow -f 'Forcing cleanup of working directory' git clean -f -d
+    fi
 
     if [[ "$(git rev-parse --abbrev-ref HEAD)" != 'HEAD' ]] ; then
       # update only if on a branch: errors are fatal
-      SwallowProgress -f --pattern "Updating ROOT $ROOT_VER from Git" git pull --rebase
+      SwallowProgress -f --pattern "Updating ROOT branch ${ROOT_VER}" git pull --rebase
     fi
-
-    SwallowProgress -f --pattern 'Staging ROOT source in build directory' \
-      rsync -avc --exclude '**/.git' "$ROOTGit"/ "$ROOTSYS"
 
   fi # end download
 
-  if [ "$DOWNLOAD_MODE" == '' ] || [ "$DOWNLOAD_MODE" == 'no' ] ; then
+  if [[ "$DOWNLOAD_MODE" == '' || "$DOWNLOAD_MODE" == 'no' ]] ; then
 
     #
     # Build ROOT
     #
-
-    Swallow -f 'Moving into ROOT build directory' cd "$ROOTSYS"
 
     # Build type. Note that ROOT, if configured with ./configure (and not CMake), does not allow us
     # to be flexible with respect to build options. We will need to override them when running make
@@ -414,18 +432,23 @@ function ModuleRoot() {
       ;;
     esac
 
-    # Choose correct configuration
+    # Configuration options (including installation prefixes)
     local ConfigOpts="--with-pythia6-uscore=SINGLE \
-      --with-alien-incdir=$GSHELL_ROOT/include \
-      --with-alien-libdir=$GSHELL_ROOT/lib \
-      --with-monalisa-incdir="$GSHELL_ROOT/include" \
-      --with-monalisa-libdir="$GSHELL_ROOT/lib" \
-      --with-xrootd=$GSHELL_ROOT \
+      --with-alien-incdir=${GSHELL_ROOT}/include \
+      --with-alien-libdir=${GSHELL_ROOT}/lib \
+      --with-monalisa-incdir="${GSHELL_ROOT}/include" \
+      --with-monalisa-libdir="${GSHELL_ROOT}/lib" \
+      --with-xrootd=${GSHELL_ROOT} \
       --enable-minuit2 \
       --enable-roofit \
       --enable-soversion \
       --disable-bonjour \
-      --enable-builtin-freetype $BuildCfgFlags"
+      --enable-builtin-freetype $BuildCfgFlags \
+      --prefix=${RootInst} \
+      --incdir=${RootInst}/include \
+      --libdir=${RootInst}/lib \
+      --datadir=${RootInst} \
+      --etcdir=${RootInst}/etc"
 
     # Are --disable-fink and --enable-cocoa available (OS X only)?
     if [[ "`uname`" == 'Darwin' ]] ; then
@@ -463,7 +486,10 @@ function ModuleRoot() {
 
     esac
 
-    SwallowProgress -f --pattern 'Configuring ROOT' ./configure $ConfigOpts
+    # Building out-of-source with configure (no CMake)
+    Swallow -f 'Creating build directory' mkdir -p "$RootTmp"
+    Swallow -f 'Moving into build directory' cd "$RootTmp"
+    SwallowProgress -f --pattern 'Configuring ROOT' "${RootSrc}/configure" $ConfigOpts
 
     # Before building ROOT, make sure we have some required features enabled
     Swallow --fatal --error-msg \
@@ -482,11 +508,8 @@ function ModuleRoot() {
     SwallowProgress -f --pattern 'Building ROOT' \
       make -j$MJ $AppendLDFLAGS $AppendCPATH OPT="$BuildMakeFlags"
 
-    # To fix some problems during the creation of PARfiles in AliRoot
-    if [ -e "$ROOTSYS/test/Makefile.arch" ]; then
-      Swallow -f "Linking Makefile.arch" \
-        ln -nfs "$ROOTSYS/test/Makefile.arch" "$ROOTSYS/etc/Makefile.arch"
-    fi
+    Swallow -f 'Cleaning ROOT installation directory' rm -rf "${RootInst}"
+    SwallowProgress -f --pattern 'Installing ROOT' make -j$MJ install
 
   fi # end build
 
@@ -1466,7 +1489,11 @@ function Help() {
 
 # Check if ROOT has a certain feature (case-insensitive match)
 function RootConfiguredWithFeature() {
-  "${ROOTSYS}/bin/root-config" --features | grep -qi "$1"
+  if [[ -x "${ROOTSYS}/bin/root-config" ]] ; then
+    "${ROOTSYS}/bin/root-config" --features | grep -qi "$1"
+    return $?
+  fi
+  "$(dirname "$ROOTSYS")"/build/bin/root-config --features | grep -qi "$1"
 }
 
 # Detects proper build options based on the current operating system
@@ -1829,7 +1856,7 @@ function Main() {
     [[ $DO_CLEAN_ALIEN      == 1 ]] && ModuleCleanAliEn
     [[ $DO_ALIEN            == 1 ]] && ModuleAliEn
     [[ $DO_CLEAN_ROOT       == 1 ]] && ModuleCleanRoot
-    [[ $DO_ROOT             == 1 ]] && ModuleRoot
+    [[ $DO_ROOT             == 1 ]] && ModuleRoot $ForceHardReset
     [[ $DO_CLEAN_G3         == 1 ]] && ModuleCleanGeant3
     [[ $DO_G3               == 1 ]] && ModuleGeant3 $ForceHardReset
     [[ $DO_CLEAN_FASTJET    == 1 ]] && ModuleCleanFastJet
