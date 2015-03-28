@@ -1168,8 +1168,23 @@ function ModuleCleanRoot() {
 function ModuleCleanGeant3() {
   Banner "Cleaning Geant3..."
   Swallow -f "Sourcing envvars" SourceEnvVars
-  Swallow "Checking if Geant3 is really installed" [ -f "$GEANT3DIR"/Makefile ] || return 0
-  Swallow -f "Removing Geant3 $G3_VER" rm -rf "$GEANT3DIR"
+
+  local Geant3Base="${ALICE_PREFIX}/geant3/${G3_SUBDIR}"
+  local Geant3Inst="${Geant3Base}/inst"
+  local Geant3Src="${Geant3Base}/src"
+  local Geant3Tmp="${Geant3Base}/build"
+
+  Swallow 'Checking if Geant3 is really installed (old schema)' [ -f "${Geant3Base}/README" ]
+  if [[ $? == 0 ]] ; then
+    Swallow -f "Removing Geant3 ${G3_VER} (old schema)" rm -rf "${Geant3Base}"
+  else
+    Swallow 'Checking if Geant3 is really installed (new schema)' [ -d "${Geant3Tmp}" ]
+    if [[ $? == 0 ]] ; then
+      Swallow -f "Removing Geant3 ${G3_VER} installation directory" rm -rf "${Geant3Inst}"
+      Swallow -f "Removing Geant3 ${G3_VER} build directory" rm -rf "${Geant3Tmp}"
+    fi
+  fi
+  return 0
 }
 
 # Clean up Fastjet
