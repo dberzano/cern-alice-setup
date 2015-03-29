@@ -440,7 +440,7 @@ function AliExportVars() {
 
       fastjet)
         if [[ $FASTJET_VER != '' ]] ; then
-          export FASTJET="${ALICE_PREFIX}/fastjet/${FASTJET_SUBDIR}"
+          export FASTJET="${ALICE_PREFIX}/fastjet/${FASTJET_SUBDIR}/inst"
           export FASTJET_VER
           if [[ -d "${FASTJET}/bin" && -d "${FASTJET}/lib" ]] ; then
             export PATH="${FASTJET}/bin:${PATH}"

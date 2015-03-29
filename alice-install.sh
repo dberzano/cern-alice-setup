@@ -630,14 +630,14 @@ function ModuleFastJet() {
   local FASTJET_URL_PATTERN='http://fastjet.fr/repo/fastjet-%s.tar.gz'
   local FASTJET_TARBALL='source.tar.gz'
 
-  # FastJet contrib (optional)
+  # FastJet contrib
   local FJCONTRIB_URL_PATTERN='http://fastjet.hepforge.org/contrib/downloads/fjcontrib-%s.tar.gz'
   local FJCONTRIB_TARBALL='contrib.tar.gz'
 
-  Banner "Installing FastJet..."
-  Swallow -f "Sourcing envvars" SourceEnvVars
+  Banner 'Installing FastJet...'
+  Swallow -f 'Sourcing envvars' SourceEnvVars
 
-  Swallow "Checking if FastJet support has been requested" [ "$FASTJET_VER" != '' ] || return
+  Swallow 'Checking if FastJet support has been requested' [ "$FASTJET_VER" != '' ] || return
 
   Swallow --fatal \
     --error-msg "FastJet $FASTJET_VER is not supported: use at least $MinFastJetVerStr." \
@@ -649,42 +649,53 @@ function ModuleFastJet() {
     'Ensuring FastJet contrib is enabled' \
     [ "$FJCONTRIB_VER" != '' ]
 
-  Swallow -f "Creating FastJet directory" mkdir -p "$FASTJET/src"
-  Swallow -f "Moving into FastJet source directory" cd "$FASTJET/src"
+  # FastJet variables: from $FASTJET (no build directory)
+  local FastJetBase="$( dirname "$FASTJET" )"
+  local FastJetInst="$FASTJET"
+  local FastJetSrc="${FastJetBase}/src"
 
-  if [ "$DOWNLOAD_MODE" == '' ] || [ "$DOWNLOAD_MODE" == 'only' ]; then
+  Swallow -f 'Creating FastJet directory' mkdir -p "$FastJetSrc"
+
+  if [[ -d "${FastJetBase}/bin" || -d "${FastJetBase}/lib" || -d "${FastJetBase}/include" ]] ; then
+    Swallow -f 'Removing FastJet from old installation schema' \
+      rm -rf "$FastJetBase"/{bin,lib,include}
+  fi
+
+  if [[ "$DOWNLOAD_MODE" == '' || "$DOWNLOAD_MODE" == 'only' ]] ; then
 
     #
     # Download, unpack and patch FastJet tarball
     #
 
-    if [ ! -e "$FASTJET_TARBALL" ]; then
+    Swallow -f 'Moving into FastJet source directory' cd "$FastJetSrc"
+
+    if [[ ! -e "$FASTJET_TARBALL" ]] ; then
       SwallowProgress -f --percentage "Downloading FastJet v$FASTJET_VER" \
         Dl $( printf "$FASTJET_URL_PATTERN" "$FASTJET_VER" ) "$FASTJET_TARBALL"
     fi
 
-    if [ ! -d fastjet-"$FASTJET_VER" ]; then
-      SwallowProgress -f --pattern "Unpacking FastJet tarball" \
+    if [[ ! -d fastjet-"$FASTJET_VER" ]] ; then
+      SwallowProgress -f --pattern 'Unpacking FastJet tarball' \
         tar xzvvf "$FASTJET_TARBALL"
     fi
 
-    if [ "$FJCONTRIB_VER" != '' ] ; then
+    if [[ $FJCONTRIB_VER != '' ]] ; then
 
       # Optional FastJet contrib
 
-      if [ ! -e "$FJCONTRIB_TARBALL" ]; then
+      if [[ ! -e "$FJCONTRIB_TARBALL" ]] ; then
         SwallowProgress -f --percentage "Downloading FastJet contrib v$FJCONTRIB_VER" \
           Dl $( printf "$FJCONTRIB_URL_PATTERN" "$FJCONTRIB_VER" ) "$FJCONTRIB_TARBALL"
       fi
 
-      if [ ! -d fjcontrib-"$FJCONTRIB_VER" ]; then
-        SwallowProgress -f --pattern "Unpacking FastJet contrib tarball" \
+      if [[ ! -d fjcontrib-"$FJCONTRIB_VER" ]] ; then
+        SwallowProgress -f --pattern 'Unpacking FastJet contrib tarball' \
           tar xzvvf "$FJCONTRIB_TARBALL"
       fi
 
     fi
 
-    if [ "$FASTJET_PATCH_HEADERS" == 1 ]; then
+    if [[ $FASTJET_PATCH_HEADERS == 1 ]]; then
 
       # Patching FastJet headers: libc++ fixup
 
@@ -697,7 +708,7 @@ function ModuleFastJet() {
           done
       }
 
-      Swallow -f "Patching FastJet headers: libc++ workaround" FastJetPatchLibcpp
+      Swallow -f 'Patching FastJet headers: libc++ workaround' FastJetPatchLibcpp
       unset FastJetPatchLibcpp
 
     fi
@@ -710,8 +721,7 @@ function ModuleFastJet() {
     # Build FastJet
     #
 
-    Swallow -f "Moving into FastJet build directory" \
-      cd "$FASTJET/src/fastjet-$FASTJET_VER"
+    Swallow -f 'Moving into FastJet build directory' cd "${FastJetSrc}/fastjet-$FASTJET_VER"
 
     case "$BUILD_MODE" in
       gcc)
@@ -742,10 +752,12 @@ function ModuleFastJet() {
     # it directly from the environment
     export CXXFLAGS="${BUILDOPT_LDFLAGS} ${FastJetOptDbgFlags} -lgmp"
 
-    SwallowProgress -f --pattern "Configuring FastJet" \
-      ./configure --enable-cgal --prefix=$FASTJET
+    SwallowProgress -f --pattern 'Configuring FastJet' \
+      ./configure --enable-cgal --prefix="$FastJetInst"
 
-    SwallowProgress -f --pattern "Building FastJet" make -j$MJ install
+    SwallowProgress -f --pattern 'Building FastJet' make -j$MJ
+    Swallow -f 'Removing old FastJet installation' rm -rf "$FastJetInst"
+    SwallowProgress -f --pattern 'Installing FastJet' make -j$MJ install
 
     if [[ "$FJCONTRIB_VER" != '' ]] ; then
 
@@ -755,14 +767,18 @@ function ModuleFastJet() {
 
       Swallow -f 'Sourcing envvars' SourceEnvVars
       Swallow -f 'Moving into FastJet contrib build directory' \
-        cd "$FASTJET/src/fjcontrib-$FJCONTRIB_VER"
+        cd "${FastJetSrc}/fjcontrib-$FJCONTRIB_VER"
 
       SwallowProgress -f --pattern 'Configuring FastJet contrib' \
         ./configure CXX="$CXX" CXXFLAGS="$CXXFLAGS"
+
       SwallowProgress --pattern 'Building FastJet contrib' make -j$MJ
-      SwallowProgress --pattern 'Installing FastJet contrib' make install
       SwallowProgress -f --pattern 'Building FastJet contrib shared library' \
         make -j$MJ fragile-shared
+
+      # No need to clean up old installation: already done for FastJet base package
+
+      SwallowProgress --pattern 'Installing FastJet contrib' make install
       SwallowProgress -f --pattern 'Installing FastJet contrib shared library' \
         make fragile-shared-install
 
@@ -1238,10 +1254,22 @@ function ModuleCleanGeant3() {
 
 # Clean up Fastjet
 function ModuleCleanFastJet() {
-  Banner "Cleaning FastJet..."
-  Swallow -f "Sourcing envvars" SourceEnvVars
-  Swallow "Checking if FastJet is really installed" [ -f "$FASTJET/src/fastjet-$FASTJET_VER/configure" ] || return 0
-  Swallow -f "Removing FastJet $FASTJET_VER" rm -rf "$FASTJET"
+  Banner 'Cleaning FastJet...'
+  Swallow -f 'Sourcing envvars' SourceEnvVars
+
+  local FastJetBase="$( dirname "$FASTJET" )"
+  local FastJetInst="$FASTJET"
+  local FastJetSrc="${FastJetBase}/src"
+
+  Swallow 'Checking if FastJet is really installed (old schema)' [ -f "${FastJetBase}/lib" ]
+  if [[ $? == 0 ]] ; then
+    Swallow -f "Removing FastJet $FASTJET_VER (old schema)" rm -rf "$FastJetBase"/{bin,lib,include,src}
+  fi
+
+  Swallow 'Checking if FastJet is really installed (new schema)' [ -d "${FastJetSrc}" ]
+  if [[ $? == 0 ]] ; then
+    Swallow -f "Removing FastJet $FASTJET_VER (new schema)" rm -rf "$FastJetSrc" "$FastJetInst"
+  fi
 }
 
 # Clean up AliRoot
