@@ -344,56 +344,74 @@ function ShowBugReportInfo() {
 # Module to fetch and compile ROOT
 function ModuleRoot() {
 
-  Banner "Installing ROOT..."
-  Swallow -f "Sourcing envvars" SourceEnvVars
+  local ForceHardReset="$1"
+
+  Banner 'Installing ROOT...'
+  Swallow -f 'Sourcing envvars' SourceEnvVars
 
   Swallow --fatal \
     --error-msg "ROOT $ROOT_VER is not supported on your platform: use at least $MIN_ROOT_VER_STR." \
     "Ensuring ROOT $ROOT_VER is OK for your platform" \
     [ $( ConvertVersionStringToNumber "$ROOT_VER" ) -ge $MIN_ROOT_VER_NUM ]
 
-  if [ ! -d "$ROOTSYS" ]; then
-    Swallow -f "Creating ROOT directory" mkdir -p "$ROOTSYS"
-  fi
+  # ROOT variables: only ${ALICE_PREFIX} and ${ROOTSYS} needed
 
-  Swallow -f "Moving into ROOT directory" cd "$ROOTSYS"
+  local RootGit="${ALICE_PREFIX}/root/git"
+  local RootBase=$( dirname "${ROOTSYS}" )
+  local RootInst="$ROOTSYS"
+  local RootSrc="${RootBase}/src"
+  local RootTmp="${RootBase}/build"
 
-  if [ "$DOWNLOAD_MODE" == '' ] || [ "$DOWNLOAD_MODE" == 'only' ] ; then
+  Swallow -f 'Creating ROOT directory' mkdir -p "$RootBase"
+
+  if [[ "$DOWNLOAD_MODE" == '' || "$DOWNLOAD_MODE" == 'only' ]] ; then
 
     #
     # Downloading ROOT from Git
     #
 
-    local ROOTGit="${ROOTSYS}/../git"
-
-    Swallow -f 'Creating ROOT Git local directory' mkdir -p "$ROOTGit"
-    Swallow -f 'Moving into ROOT Git local directory' cd "$ROOTGit"
-    [ ! -e "$ROOTGit/.git" ] && \
+    Swallow -f 'Creating ROOT Git local directory' mkdir -p "$RootGit"
+    Swallow -f 'Moving into ROOT Git local directory' cd "$RootGit"
+    [ ! -e "$RootGit/.git" ] && \
       SwallowProgress -f --pattern 'Cloning ROOT Git repository (might take some time)' \
         git clone http://root.cern.ch/git/root.git .
 
     Swallow -f 'Updating list of remote ROOT Git branches' \
       git remote update origin --prune
 
-    Swallow -f "Checking out ROOT $ROOT_VER" git checkout "$ROOT_VER"
+    # Updating from the former installation schema (no inst and build dir)
+    if [[ -e "${RootBase}/LICENSE" ]] ; then
+      Swallow -f 'Clean up directory from the old installation schema' rm -rf "${RootBase}"
+    fi
+
+    # Shallow copy with git-new-workdir
+    if [[ ! -d "${RootSrc}/.git" ]] ; then
+      rmdir "$RootSrc" > /dev/null 2>&1
+      SwallowProgress -f --pattern \
+        "Creating a local clone for version ${ROOT_VER}" \
+        git-new-workdir "$RootGit" "$RootSrc" "$ROOT_VER"
+    fi
+
+    Swallow -f "Moving to local clone for version ${ROOT_VER}" cd "$RootSrc"
+    Swallow -f "Checking out ROOT version ${ROOT_VER}" git checkout "$ROOT_VER"
+
+    if [[ $ForceHardReset == 1 ]] ; then
+      Swallow -f 'Forcing hard reset to HEAD' git reset --hard HEAD
+      Swallow -f 'Forcing cleanup of working directory' git clean -f -d
+    fi
 
     if [[ "$(git rev-parse --abbrev-ref HEAD)" != 'HEAD' ]] ; then
       # update only if on a branch: errors are fatal
-      SwallowProgress -f --pattern "Updating ROOT $ROOT_VER from Git" git pull --rebase
+      SwallowProgress -f --pattern "Updating ROOT branch ${ROOT_VER}" git pull --rebase
     fi
-
-    SwallowProgress -f --pattern 'Staging ROOT source in build directory' \
-      rsync -avc --exclude '**/.git' "$ROOTGit"/ "$ROOTSYS"
 
   fi # end download
 
-  if [ "$DOWNLOAD_MODE" == '' ] || [ "$DOWNLOAD_MODE" == 'no' ] ; then
+  if [[ "$DOWNLOAD_MODE" == '' || "$DOWNLOAD_MODE" == 'no' ]] ; then
 
     #
     # Build ROOT
     #
-
-    Swallow -f 'Moving into ROOT build directory' cd "$ROOTSYS"
 
     # Build type. Note that ROOT, if configured with ./configure (and not CMake), does not allow us
     # to be flexible with respect to build options. We will need to override them when running make
@@ -414,18 +432,23 @@ function ModuleRoot() {
       ;;
     esac
 
-    # Choose correct configuration
+    # Configuration options (including installation prefixes)
     local ConfigOpts="--with-pythia6-uscore=SINGLE \
-      --with-alien-incdir=$GSHELL_ROOT/include \
-      --with-alien-libdir=$GSHELL_ROOT/lib \
-      --with-monalisa-incdir="$GSHELL_ROOT/include" \
-      --with-monalisa-libdir="$GSHELL_ROOT/lib" \
-      --with-xrootd=$GSHELL_ROOT \
+      --with-alien-incdir=${GSHELL_ROOT}/include \
+      --with-alien-libdir=${GSHELL_ROOT}/lib \
+      --with-monalisa-incdir="${GSHELL_ROOT}/include" \
+      --with-monalisa-libdir="${GSHELL_ROOT}/lib" \
+      --with-xrootd=${GSHELL_ROOT} \
       --enable-minuit2 \
       --enable-roofit \
       --enable-soversion \
       --disable-bonjour \
-      --enable-builtin-freetype $BuildCfgFlags"
+      --enable-builtin-freetype $BuildCfgFlags \
+      --prefix=${RootInst} \
+      --incdir=${RootInst}/include \
+      --libdir=${RootInst}/lib \
+      --datadir=${RootInst} \
+      --etcdir=${RootInst}/etc"
 
     # Are --disable-fink and --enable-cocoa available (OS X only)?
     if [[ "`uname`" == 'Darwin' ]] ; then
@@ -463,7 +486,10 @@ function ModuleRoot() {
 
     esac
 
-    SwallowProgress -f --pattern 'Configuring ROOT' ./configure $ConfigOpts
+    # Building out-of-source with configure (no CMake)
+    Swallow -f 'Creating build directory' mkdir -p "$RootTmp"
+    Swallow -f 'Moving into build directory' cd "$RootTmp"
+    SwallowProgress -f --pattern 'Configuring ROOT' "${RootSrc}/configure" $ConfigOpts
 
     # Before building ROOT, make sure we have some required features enabled
     Swallow --fatal --error-msg \
@@ -482,11 +508,8 @@ function ModuleRoot() {
     SwallowProgress -f --pattern 'Building ROOT' \
       make -j$MJ $AppendLDFLAGS $AppendCPATH OPT="$BuildMakeFlags"
 
-    # To fix some problems during the creation of PARfiles in AliRoot
-    if [ -e "$ROOTSYS/test/Makefile.arch" ]; then
-      Swallow -f "Linking Makefile.arch" \
-        ln -nfs "$ROOTSYS/test/Makefile.arch" "$ROOTSYS/etc/Makefile.arch"
-    fi
+    Swallow -f 'Cleaning ROOT installation directory' rm -rf "${RootInst}"
+    SwallowProgress -f --pattern 'Installing ROOT' make -j$MJ install
 
   fi # end build
 
@@ -495,37 +518,61 @@ function ModuleRoot() {
 # Module to fetch and compile Geant3
 function ModuleGeant3() {
 
-  Banner "Installing Geant3..."
-  Swallow -f "Sourcing envvars" SourceEnvVars
+  local ForceHardReset="$1"
 
-  Swallow "Checking if Geant3 support has been requested" [ "$G3_VER" != '' ] || return
+  Banner 'Installing Geant3...'
+  Swallow -f 'Sourcing envvars' SourceEnvVars
 
-  if [ "$DOWNLOAD_MODE" == '' ] || [ "$DOWNLOAD_MODE" == 'only' ] ; then
+  Swallow 'Checking if Geant3 support has been requested' [ "$G3_VER" != '' ] || return
+
+  # Geant3 variables: only ${ALICE_PREFIX} and ${G3_VER} needed
+  local Geant3Git="${ALICE_PREFIX}/geant3/git"
+  local Geant3Base="${ALICE_PREFIX}/geant3/${G3_SUBDIR}"
+  local Geant3Inst="${Geant3Base}/inst"
+  local Geant3Src="${Geant3Base}/src"
+  local Geant3Tmp="${Geant3Base}/build"
+
+  if [[ "$DOWNLOAD_MODE" == '' || "$DOWNLOAD_MODE" == 'only' ]] ; then
 
     #
     # Git clone of Geant3
     #
 
-    Swallow -f "Creating Geant3 Git clone directory" mkdir -p $ALICE_PREFIX/geant3/git
-    Swallow -f "Moving to the Geant3 Git clone directory" cd $ALICE_PREFIX/geant3/git
+    Swallow -f "Creating Geant3 Git clone directory" mkdir -p "$Geant3Git"
+    Swallow -f "Moving to the Geant3 Git clone directory" cd "$Geant3Git"
 
-    if [[ ! -d "$ALICE_PREFIX/geant3/git/.git" ]] ; then
-      SwallowProgress -f --pattern "Cloning Geant3 Git repository" git clone http://root.cern.ch/git/geant3.git .
+    if [[ ! -d "${Geant3Git}/.git" ]] ; then
+      SwallowProgress -f --pattern 'Cloning Geant3 Git repository' \
+        git clone http://root.cern.ch/git/geant3.git .
     fi
 
-    SwallowProgress -f --pattern "Updating the list of Git references" git remote update --prune
+    SwallowProgress -f --pattern 'Updating the list of Git references' \
+      git remote update --prune
 
-    if [[ ! -d "$GEANT3DIR/.git" ]] ; then
-      Swallow -f "Cleaning up leftovers on the local clone for $G3_VER" rm -rf "$GEANT3DIR"
-      SwallowProgress -f --pattern "Creating a local Git clone for Geant3 version $G3_VER" git-new-workdir "$ALICE_PREFIX/geant3/git" "$GEANT3DIR" "$G3_VER"
+    # Updating from the former installation schema (no inst and build dir)
+    if [[ -e "${Geant3Base}/README" ]] ; then
+      Swallow -f 'Clean up directory from the old installation schema' rm -rf "${Geant3Base}"
     fi
 
-    Swallow -f "Moving to the local Git clone for Geant3 version $G3_VER" cd "$GEANT3DIR"
-    Swallow -f "Checking out Geant3 version $G3_VER" git checkout "$G3_VER"
+    # Shallow copy with git-new-workdir
+    if [[ ! -d "${Geant3Src}/.git" ]] ; then
+      rmdir "$Geant3Src" > /dev/null 2>&1
+      SwallowProgress -f --pattern \
+        "Creating a local clone for version ${G3_VER}" \
+        git-new-workdir "$Geant3Git" "$Geant3Src" "$G3_VER"
+    fi
+
+    Swallow -f "Moving to local clone for version ${G3_VER}" cd "$Geant3Src"
+    Swallow -f "Checking out Geant3 version ${G3_VER}" git checkout "$G3_VER"
+
+    if [[ $ForceHardReset == 1 ]] ; then
+      Swallow -f 'Forcing hard reset to HEAD' git reset --hard HEAD
+      Swallow -f 'Forcing cleanup of working directory' git clean -f -d
+    fi
 
     if [[ "$(git rev-parse --abbrev-ref HEAD)" != 'HEAD' ]] ; then
       # update only if on a branch: errors are fatal
-      SwallowProgress -f --pattern "Updating Geant3 branch $G3_VER from Git" git pull --rebase
+      SwallowProgress -f --pattern "Updating Geant3 branch ${G3_VER}" git pull --rebase
     fi
 
   fi # end download
@@ -536,8 +583,38 @@ function ModuleGeant3() {
     # Build Geant3
     #
 
-    Swallow -f "Moving to the local Git clone for Geant3 version $G3_VER" cd "$GEANT3DIR"
-    SwallowProgress -f --pattern "Building Geant3" make -j$MJ
+    Swallow -f "Moving to the local Git clone for Geant3 version $G3_VER" cd "$Geant3Src"
+
+    if [[ -e Makefile ]] ; then
+
+      # Prior to version ~v2-0: no CMake, only make
+      Swallow -f 'Preparing build directory' rsync -ca --exclude '**/.git' "$Geant3Src"/ "$Geant3Tmp"/
+      Swallow -f 'Move to the temporary build directory' cd "$Geant3Tmp"
+      SwallowProgress -f --pattern 'Building Geant3' make -j$MJ
+
+      # Fake installation
+      Swallow -f 'Cleaning up installation path' rm -rf "$Geant3Inst"
+      Swallow -f 'Creating installation directory' mkdir -p "${Geant3Inst}/include/TGeant3/"
+      Swallow -f 'Installing header files' \
+        cp "${Geant3Tmp}/TGeant3/"*.h "${Geant3Inst}/include/TGeant3/"
+      Swallow -f 'Installing libraries' \
+        rsync -a "${Geant3Tmp}/lib/tgt_$(root-config --arch)/" "${Geant3Inst}/lib/"
+
+    else
+
+      # From ~v2-0: CMake
+      Swallow -f 'Creating build directory' mkdir -p "$Geant3Tmp"
+      Swallow -f 'Moving to the temporary build directory' cd "$Geant3Tmp"
+
+      # Note: ROOTSYS can be also passed as -DROOT_DIR, but ROOT paths must be set in the env :-(
+      SwallowProgress -f --pattern 'Bootstrapping Geant3' \
+        cmake "$Geant3Src" -DCMAKE_INSTALL_PREFIX="$Geant3Inst"
+
+      SwallowProgress -f --percentage "Building Geant3 ${G3_VER}" make -j$MJ
+      Swallow -f 'Removing previous installation directory' rm -rf "$Geant3Inst"
+      SwallowProgress -f --percentage "Installing Geant3 ${G3_VER}" make -j$MJ install
+
+    fi
 
   fi
 
@@ -553,14 +630,14 @@ function ModuleFastJet() {
   local FASTJET_URL_PATTERN='http://fastjet.fr/repo/fastjet-%s.tar.gz'
   local FASTJET_TARBALL='source.tar.gz'
 
-  # FastJet contrib (optional)
+  # FastJet contrib
   local FJCONTRIB_URL_PATTERN='http://fastjet.hepforge.org/contrib/downloads/fjcontrib-%s.tar.gz'
   local FJCONTRIB_TARBALL='contrib.tar.gz'
 
-  Banner "Installing FastJet..."
-  Swallow -f "Sourcing envvars" SourceEnvVars
+  Banner 'Installing FastJet...'
+  Swallow -f 'Sourcing envvars' SourceEnvVars
 
-  Swallow "Checking if FastJet support has been requested" [ "$FASTJET_VER" != '' ] || return
+  Swallow 'Checking if FastJet support has been requested' [ "$FASTJET_VER" != '' ] || return
 
   Swallow --fatal \
     --error-msg "FastJet $FASTJET_VER is not supported: use at least $MinFastJetVerStr." \
@@ -572,42 +649,53 @@ function ModuleFastJet() {
     'Ensuring FastJet contrib is enabled' \
     [ "$FJCONTRIB_VER" != '' ]
 
-  Swallow -f "Creating FastJet directory" mkdir -p "$FASTJET/src"
-  Swallow -f "Moving into FastJet source directory" cd "$FASTJET/src"
+  # FastJet variables: from $FASTJET (no build directory)
+  local FastJetBase="$( dirname "$FASTJET" )"
+  local FastJetInst="$FASTJET"
+  local FastJetSrc="${FastJetBase}/src"
 
-  if [ "$DOWNLOAD_MODE" == '' ] || [ "$DOWNLOAD_MODE" == 'only' ]; then
+  Swallow -f 'Creating FastJet directory' mkdir -p "$FastJetSrc"
+
+  if [[ -d "${FastJetBase}/bin" || -d "${FastJetBase}/lib" || -d "${FastJetBase}/include" ]] ; then
+    Swallow -f 'Removing FastJet from old installation schema' \
+      rm -rf "$FastJetBase"/{bin,lib,include}
+  fi
+
+  if [[ "$DOWNLOAD_MODE" == '' || "$DOWNLOAD_MODE" == 'only' ]] ; then
 
     #
     # Download, unpack and patch FastJet tarball
     #
 
-    if [ ! -e "$FASTJET_TARBALL" ]; then
+    Swallow -f 'Moving into FastJet source directory' cd "$FastJetSrc"
+
+    if [[ ! -e "$FASTJET_TARBALL" ]] ; then
       SwallowProgress -f --percentage "Downloading FastJet v$FASTJET_VER" \
         Dl $( printf "$FASTJET_URL_PATTERN" "$FASTJET_VER" ) "$FASTJET_TARBALL"
     fi
 
-    if [ ! -d fastjet-"$FASTJET_VER" ]; then
-      SwallowProgress -f --pattern "Unpacking FastJet tarball" \
+    if [[ ! -d fastjet-"$FASTJET_VER" ]] ; then
+      SwallowProgress -f --pattern 'Unpacking FastJet tarball' \
         tar xzvvf "$FASTJET_TARBALL"
     fi
 
-    if [ "$FJCONTRIB_VER" != '' ] ; then
+    if [[ $FJCONTRIB_VER != '' ]] ; then
 
       # Optional FastJet contrib
 
-      if [ ! -e "$FJCONTRIB_TARBALL" ]; then
+      if [[ ! -e "$FJCONTRIB_TARBALL" ]] ; then
         SwallowProgress -f --percentage "Downloading FastJet contrib v$FJCONTRIB_VER" \
           Dl $( printf "$FJCONTRIB_URL_PATTERN" "$FJCONTRIB_VER" ) "$FJCONTRIB_TARBALL"
       fi
 
-      if [ ! -d fjcontrib-"$FJCONTRIB_VER" ]; then
-        SwallowProgress -f --pattern "Unpacking FastJet contrib tarball" \
+      if [[ ! -d fjcontrib-"$FJCONTRIB_VER" ]] ; then
+        SwallowProgress -f --pattern 'Unpacking FastJet contrib tarball' \
           tar xzvvf "$FJCONTRIB_TARBALL"
       fi
 
     fi
 
-    if [ "$FASTJET_PATCH_HEADERS" == 1 ]; then
+    if [[ $FASTJET_PATCH_HEADERS == 1 ]]; then
 
       # Patching FastJet headers: libc++ fixup
 
@@ -620,7 +708,7 @@ function ModuleFastJet() {
           done
       }
 
-      Swallow -f "Patching FastJet headers: libc++ workaround" FastJetPatchLibcpp
+      Swallow -f 'Patching FastJet headers: libc++ workaround' FastJetPatchLibcpp
       unset FastJetPatchLibcpp
 
     fi
@@ -633,8 +721,7 @@ function ModuleFastJet() {
     # Build FastJet
     #
 
-    Swallow -f "Moving into FastJet build directory" \
-      cd "$FASTJET/src/fastjet-$FASTJET_VER"
+    Swallow -f 'Moving into FastJet build directory' cd "${FastJetSrc}/fastjet-$FASTJET_VER"
 
     case "$BUILD_MODE" in
       gcc)
@@ -665,10 +752,12 @@ function ModuleFastJet() {
     # it directly from the environment
     export CXXFLAGS="${BUILDOPT_LDFLAGS} ${FastJetOptDbgFlags} -lgmp"
 
-    SwallowProgress -f --pattern "Configuring FastJet" \
-      ./configure --enable-cgal --prefix=$FASTJET
+    SwallowProgress -f --pattern 'Configuring FastJet' \
+      ./configure --enable-cgal --prefix="$FastJetInst"
 
-    SwallowProgress -f --pattern "Building FastJet" make -j$MJ install
+    SwallowProgress -f --pattern 'Building FastJet' make -j$MJ
+    Swallow -f 'Removing old FastJet installation' rm -rf "$FastJetInst"
+    SwallowProgress -f --pattern 'Installing FastJet' make -j$MJ install
 
     if [[ "$FJCONTRIB_VER" != '' ]] ; then
 
@@ -678,14 +767,18 @@ function ModuleFastJet() {
 
       Swallow -f 'Sourcing envvars' SourceEnvVars
       Swallow -f 'Moving into FastJet contrib build directory' \
-        cd "$FASTJET/src/fjcontrib-$FJCONTRIB_VER"
+        cd "${FastJetSrc}/fjcontrib-$FJCONTRIB_VER"
 
       SwallowProgress -f --pattern 'Configuring FastJet contrib' \
         ./configure CXX="$CXX" CXXFLAGS="$CXXFLAGS"
+
       SwallowProgress --pattern 'Building FastJet contrib' make -j$MJ
-      SwallowProgress --pattern 'Installing FastJet contrib' make install
       SwallowProgress -f --pattern 'Building FastJet contrib shared library' \
         make -j$MJ fragile-shared
+
+      # No need to clean up old installation: already done for FastJet base package
+
+      SwallowProgress --pattern 'Installing FastJet contrib' make install
       SwallowProgress -f --pattern 'Installing FastJet contrib shared library' \
         make fragile-shared-install
 
@@ -1113,26 +1206,70 @@ function ModuleCleanAliEn() {
 
 # Clean up ROOT
 function ModuleCleanRoot() {
-  Banner "Cleaning ROOT..."
-  Swallow -f "Sourcing envvars" SourceEnvVars
-  Swallow "Checking if ROOT is really installed" [ -f "$ROOTSYS"/Makefile ] || return 0
-  Swallow -f "Removing ROOT $ROOT_VER" rm -rf "$ROOTSYS"
+  Banner 'Cleaning ROOT...'
+  Swallow -f 'Sourcing envvars' SourceEnvVars
+
+  local RootBase=$( dirname "${ROOTSYS}" )
+  local RootInst="$ROOTSYS"
+  local RootSrc="${RootBase}/src"
+  local RootTmp="${RootBase}/build"
+
+  Swallow 'Checking if ROOT is really installed (old schema)' [ -f "${RootBase}/LICENSE" ]
+  if [[ $? == 0 ]] ; then
+    Swallow -f "Removing ROOT ${ROOT_VER} (old schema)" rm -rf "${RootBase}"
+  fi
+
+  Swallow 'Checking if ROOT is really installed (new schema)' [ -d "${RootTmp}" ]
+  if [[ $? == 0 ]] ; then
+    Swallow -f "Removing ROOT ${ROOT_VER} installation directory" rm -rf "${RootInst}"
+    Swallow -f "Removing ROOT ${ROOT_VER} build directory" rm -rf "${RootTmp}"
+  fi
+
+  return 0
 }
 
 # Clean up Geant3
 function ModuleCleanGeant3() {
   Banner "Cleaning Geant3..."
   Swallow -f "Sourcing envvars" SourceEnvVars
-  Swallow "Checking if Geant3 is really installed" [ -f "$GEANT3DIR"/Makefile ] || return 0
-  Swallow -f "Removing Geant3 $G3_VER" rm -rf "$GEANT3DIR"
+
+  local Geant3Base="${ALICE_PREFIX}/geant3/${G3_SUBDIR}"
+  local Geant3Inst="${Geant3Base}/inst"
+  local Geant3Src="${Geant3Base}/src"
+  local Geant3Tmp="${Geant3Base}/build"
+
+  Swallow 'Checking if Geant3 is really installed (old schema)' [ -f "${Geant3Base}/README" ]
+  if [[ $? == 0 ]] ; then
+    Swallow -f "Removing Geant3 ${G3_VER} (old schema)" rm -rf "${Geant3Base}"
+  fi
+
+  Swallow 'Checking if Geant3 is really installed (new schema)' [ -d "${Geant3Tmp}" ]
+  if [[ $? == 0 ]] ; then
+    Swallow -f "Removing Geant3 ${G3_VER} installation directory" rm -rf "${Geant3Inst}"
+    Swallow -f "Removing Geant3 ${G3_VER} build directory" rm -rf "${Geant3Tmp}"
+  fi
+
+  return 0
 }
 
 # Clean up Fastjet
 function ModuleCleanFastJet() {
-  Banner "Cleaning FastJet..."
-  Swallow -f "Sourcing envvars" SourceEnvVars
-  Swallow "Checking if FastJet is really installed" [ -f "$FASTJET/src/fastjet-$FASTJET_VER/configure" ] || return 0
-  Swallow -f "Removing FastJet $FASTJET_VER" rm -rf "$FASTJET"
+  Banner 'Cleaning FastJet...'
+  Swallow -f 'Sourcing envvars' SourceEnvVars
+
+  local FastJetBase="$( dirname "$FASTJET" )"
+  local FastJetInst="$FASTJET"
+  local FastJetSrc="${FastJetBase}/src"
+
+  Swallow 'Checking if FastJet is really installed (old schema)' [ -f "${FastJetBase}/lib" ]
+  if [[ $? == 0 ]] ; then
+    Swallow -f "Removing FastJet $FASTJET_VER (old schema)" rm -rf "$FastJetBase"/{bin,lib,include,src}
+  fi
+
+  Swallow 'Checking if FastJet is really installed (new schema)' [ -d "${FastJetSrc}" ]
+  if [[ $? == 0 ]] ; then
+    Swallow -f "Removing FastJet $FASTJET_VER (new schema)" rm -rf "$FastJetSrc" "$FastJetInst"
+  fi
 }
 
 # Clean up AliRoot
@@ -1397,7 +1534,11 @@ function Help() {
 
 # Check if ROOT has a certain feature (case-insensitive match)
 function RootConfiguredWithFeature() {
-  "${ROOTSYS}/bin/root-config" --features | grep -qi "$1"
+  if [[ -x "${ROOTSYS}/bin/root-config" ]] ; then
+    "${ROOTSYS}/bin/root-config" --features | grep -qi "$1"
+    return $?
+  fi
+  "$(dirname "$ROOTSYS")"/build/bin/root-config --features | grep -qi "$1"
 }
 
 # Detects proper build options based on the current operating system
@@ -1760,9 +1901,9 @@ function Main() {
     [[ $DO_CLEAN_ALIEN      == 1 ]] && ModuleCleanAliEn
     [[ $DO_ALIEN            == 1 ]] && ModuleAliEn
     [[ $DO_CLEAN_ROOT       == 1 ]] && ModuleCleanRoot
-    [[ $DO_ROOT             == 1 ]] && ModuleRoot
+    [[ $DO_ROOT             == 1 ]] && ModuleRoot $ForceHardReset
     [[ $DO_CLEAN_G3         == 1 ]] && ModuleCleanGeant3
-    [[ $DO_G3               == 1 ]] && ModuleGeant3
+    [[ $DO_G3               == 1 ]] && ModuleGeant3 $ForceHardReset
     [[ $DO_CLEAN_FASTJET    == 1 ]] && ModuleCleanFastJet
     [[ $DO_FASTJET          == 1 ]] && ModuleFastJet
     [[ $DO_CLEAN_ALICE      == 1 ]] && ModuleCleanAliRoot

@@ -384,7 +384,7 @@ function AliExportVars() {
 
       root)
         if [[ $ROOT_VER != '' ]] ; then
-          export ROOTSYS="${ALICE_PREFIX}/root/${ROOT_SUBDIR}"
+          export ROOTSYS="${ALICE_PREFIX}/root/${ROOT_SUBDIR}/inst"
           export PATH="${ROOTSYS}/bin:${PATH}"
           export LD_LIBRARY_PATH="${ROOTSYS}/lib:${LD_LIBRARY_PATH}"
           export ROOT_VER
@@ -400,8 +400,8 @@ function AliExportVars() {
 
       geant3)
         if [[ $G3_VER != '' ]] ; then
-          export GEANT3DIR="${ALICE_PREFIX}/geant3/${G3_SUBDIR}"
-          export LD_LIBRARY_PATH="${GEANT3DIR}/lib/tgt_${ROOT_ARCH}:${LD_LIBRARY_PATH}"
+          export GEANT3DIR="${ALICE_PREFIX}/geant3/${G3_SUBDIR}/inst"
+          export LD_LIBRARY_PATH="${GEANT3DIR}/lib:${LD_LIBRARY_PATH}"
         else
           unset G3_VER G3_SUBDIR
         fi
@@ -440,7 +440,7 @@ function AliExportVars() {
 
       fastjet)
         if [[ $FASTJET_VER != '' ]] ; then
-          export FASTJET="${ALICE_PREFIX}/fastjet/${FASTJET_SUBDIR}"
+          export FASTJET="${ALICE_PREFIX}/fastjet/${FASTJET_SUBDIR}/inst"
           export FASTJET_VER
           if [[ -d "${FASTJET}/bin" && -d "${FASTJET}/lib" ]] ; then
             export PATH="${FASTJET}/bin:${PATH}"
@@ -515,8 +515,8 @@ function AliPrintVars() {
   fi
 
   # detect Geant3 installation path
-  if [[ -x "$GEANT3DIR/lib/tgt_$ROOT_ARCH/libgeant321.so" ]] ; then
-    WHERE_IS_G3="$GEANT3DIR"
+  if [[ -f "$ALICE_PREFIX/geant3/$G3_SUBDIR/inst/lib/libgeant321.so" ]] ; then
+    WHERE_IS_G3="$ALICE_PREFIX/geant3/$G3_SUBDIR"
   else
     WHERE_IS_G3="$NOTFOUND"
   fi
