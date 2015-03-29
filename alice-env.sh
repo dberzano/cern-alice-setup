@@ -1,3 +1,5 @@
+#!/bin/bash
+
 #
 # alice-env.sh -- by Dario Berzano <dario.berzano@cern.ch>
 #
@@ -794,7 +796,14 @@ function AliUpdate() {
   if [ $UpdDelta -ge $UpdDeltaThreshold ] || [ "$1" == 2 ] ; then
     \rm -f "$UpdTmp" || return 11
     curl -sL --max-time 5 "$UpdUrl" -o "$UpdTmp"
-    if [ $? == 0 ] ; then
+    if [[ $? == 0 ]] ; then
+
+      # Check the integrity of what we've downloaded: is it a Bash script?
+      if [[ "$(head -n1 "$UpdTmp")" != '#!/bin/bash' ]] ; then
+        return 15  # dl corrupted
+      fi
+
+      # File is a script
       echo $UpdNowUtc > "$UpdStatus"
       if ! cmp -s "$ALI_EnvScript" "$UpdTmp" ; then
         \cp -f "$ALI_EnvScript" "$UpdBackup" || return 12
@@ -803,6 +812,7 @@ function AliUpdate() {
       else
         return 1  # no change
       fi
+
     else
       return 14  # dl failed
     fi
@@ -887,7 +897,7 @@ function AliMain() {
       source "$ALI_EnvScript" "${ARGS[@]}" -k
       return $?
     elif [[ $ALI_rv -ge 10 ]] ; then
-      [[ "$OPT_QUIET" != 1 ]] && echo -e "${Cy}Warning:${Cz} automatic updater returned $ALI_rv"
+      [[ "$OPT_QUIET" != 1 ]] && echo -e "\n${Cy}Warning: automatic update failed ($ALI_rv)${Cz}"
     fi
   fi
 
