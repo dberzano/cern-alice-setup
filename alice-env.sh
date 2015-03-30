@@ -517,11 +517,13 @@ function AliPrintVars() {
   fi
 
   # detect Geant3 installation path
-  if [[ -f "$ALICE_PREFIX/geant3/$G3_SUBDIR/inst/lib/libgeant321.so" ]] ; then
+  G3LibBase="$ALICE_PREFIX/geant3/$G3_SUBDIR/inst/lib/libgeant321"
+  if [[ -f "${G3LibBase}.so" || -f "${G3LibBase}.dylib" ]] ; then
     WHERE_IS_G3="$ALICE_PREFIX/geant3/$G3_SUBDIR"
   else
     WHERE_IS_G3="$NOTFOUND"
   fi
+  unset G3LibBase
 
   # detect ROOT location
   WHERE_IS_ROOT="$NOTFOUND"
