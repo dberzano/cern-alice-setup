@@ -674,7 +674,8 @@ function ModuleFastJet() {
         Dl $( printf "$FASTJET_URL_PATTERN" "$FASTJET_VER" ) "$FASTJET_TARBALL"
     fi
 
-    if [[ ! -d fastjet-"$FASTJET_VER" ]] ; then
+    if [[ ! -f fastjet-"$FASTJET_VER"/configure ]] ; then
+      Swallow -f 'Removing old FastJet source directory' rm -rf fastjet-"$FJCONTRIB_VER"
       SwallowProgress -f --pattern 'Unpacking FastJet tarball' \
         tar xzvvf "$FASTJET_TARBALL"
     fi
@@ -688,7 +689,8 @@ function ModuleFastJet() {
           Dl $( printf "$FJCONTRIB_URL_PATTERN" "$FJCONTRIB_VER" ) "$FJCONTRIB_TARBALL"
       fi
 
-      if [[ ! -d fjcontrib-"$FJCONTRIB_VER" ]] ; then
+      if [[ ! -f fjcontrib-"$FJCONTRIB_VER"/configure ]] ; then
+        Swallow -f 'Removing old FastJet contrib source directory' rm -rf fjcontrib-"$FJCONTRIB_VER"
         SwallowProgress -f --pattern 'Unpacking FastJet contrib tarball' \
           tar xzvvf "$FJCONTRIB_TARBALL"
       fi
