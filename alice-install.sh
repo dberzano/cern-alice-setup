@@ -1078,13 +1078,13 @@ function ModuleAliPhysics() {
     if [[ ! -d "${AliPhysicsSrc}/.git" ]] ; then
       rmdir "$AliPhysicsSrc" > /dev/null 2>&1  # works if dir is empty
       SwallowProgress -f --pattern \
-        "Creating a local clone for version ${ALIPHYSICS_VER}" \
-        git-new-workdir "$AliPhysicsGit" "$AliPhysicsSrc" "$ALIPHYSICS_VER"
+        "Creating a shallow clone of AliPhysics" \
+        git-new-workdir "$AliPhysicsGit" "$AliPhysicsSrc"
     fi
 
-    Swallow -f 'Moving to local clone' cd "$AliPhysicsSrc"
-    Swallow -f "Checking out AliPhysics version $ALIPHYSICS_VER" \
-      git checkout "$ALIPHYSICS_VER"
+    Swallow -f 'Moving into local clone' cd "$AliPhysicsSrc"
+    Swallow -f "Checking out AliPhysics version ${ALIPHYSICS_VER}" \
+      GitCheckoutTrack "$ALIPHYSICS_VER" "$AliPhysicsGitRemote"
 
     if [[ $ForceHardReset == 1 ]] ; then
       Swallow -f 'Forcing hard reset to HEAD' git reset --hard HEAD
