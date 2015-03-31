@@ -808,6 +808,17 @@ function GitForceSetRemote() (
   git remote set-url --push "$1" "$gitPushUrl" || git remote add --push "$1" "$gitPushUrl"
 )
 
+# Function to checkout a local branch, if it exists. If it does not, create a
+# new one and track the corresponding one from the remote
+# $1: branch name
+# $2: remote name
+# Returns nonzero on error
+function GitCheckoutTrack() (
+  local branch="$1"
+  local remote="$2"
+  git checkout "$branch" || git checkout -b "$branch" --track "${remote}/${branch}"
+)
+
 # Module to fetch, update and compile AliRoot
 function ModuleAliRoot() {
 
@@ -875,13 +886,13 @@ function ModuleAliRoot() {
     if [[ ! -d "${AliRootSrc}/.git" ]] ; then
       rmdir "$AliRootSrc" > /dev/null 2>&1  # works if dir is empty
       SwallowProgress -f --pattern \
-        "Creating a local clone for version ${ALICE_VER}" \
-        git-new-workdir "$AliRootGit" "$AliRootSrc" "$ALICE_VER"
+        "Creating a shallow clone of AliRoot Core" \
+        git-new-workdir "$AliRootGit" "$AliRootSrc"
     fi
 
-    Swallow -f 'Moving to local clone' cd "$AliRootSrc"
-    Swallow -f "Checking out AliRoot version $ALICE_VER" \
-      git checkout "$ALICE_VER"
+    Swallow -f 'Moving into local clone' cd "$AliRootSrc"
+    Swallow -f "Checking out AliRoot version ${ALICE_VER}" \
+      GitCheckoutTrack "$ALICE_VER" "$AliRootGitRemote"
 
     if [[ $ForceHardReset == 1 ]] ; then
       Swallow -f 'Forcing hard reset to HEAD' git reset --hard HEAD
@@ -1067,13 +1078,13 @@ function ModuleAliPhysics() {
     if [[ ! -d "${AliPhysicsSrc}/.git" ]] ; then
       rmdir "$AliPhysicsSrc" > /dev/null 2>&1  # works if dir is empty
       SwallowProgress -f --pattern \
-        "Creating a local clone for version ${ALIPHYSICS_VER}" \
-        git-new-workdir "$AliPhysicsGit" "$AliPhysicsSrc" "$ALIPHYSICS_VER"
+        "Creating a shallow clone of AliPhysics" \
+        git-new-workdir "$AliPhysicsGit" "$AliPhysicsSrc"
     fi
 
-    Swallow -f 'Moving to local clone' cd "$AliPhysicsSrc"
-    Swallow -f "Checking out AliPhysics version $ALIPHYSICS_VER" \
-      git checkout "$ALIPHYSICS_VER"
+    Swallow -f 'Moving into local clone' cd "$AliPhysicsSrc"
+    Swallow -f "Checking out AliPhysics version ${ALIPHYSICS_VER}" \
+      GitCheckoutTrack "$ALIPHYSICS_VER" "$AliPhysicsGitRemote"
 
     if [[ $ForceHardReset == 1 ]] ; then
       Swallow -f 'Forcing hard reset to HEAD' git reset --hard HEAD
