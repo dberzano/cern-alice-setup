@@ -395,6 +395,10 @@ function AliExportVars() {
             export PYTHONPATH="${ROOTSYS}/lib:${PYTHONPATH}"
           fi
           export ROOT_ARCH=`root-config --arch 2> /dev/null`
+          if [[ $ROOT_ARCH == '' ]] ; then
+            # Take it from another directory
+            ROOT_ARCH=`$(dirname "$ROOTSYS")/bin/root-config --arch 2> /dev/null`
+          fi
         else
           unset ROOT_VER ROOT_SUBDIR
         fi
@@ -403,7 +407,10 @@ function AliExportVars() {
       geant3)
         if [[ $G3_VER != '' ]] ; then
           export GEANT3DIR="${ALICE_PREFIX}/geant3/${G3_SUBDIR}/inst"
-          export LD_LIBRARY_PATH="${GEANT3DIR}/lib:${LD_LIBRARY_PATH}"
+          export LD_LIBRARY_PATH="${GEANT3DIR}/lib:${GEANT3DIR}/lib64:${LD_LIBRARY_PATH}"
+          if [[ $ROOT_ARCH != '' ]] ; then
+            export LD_LIBRARY_PATH="${GEANT3DIR}/lib/tgt_${ROOT_ARCH}:${LD_LIBRARY_PATH}"
+          fi
         else
           unset G3_VER G3_SUBDIR
         fi
@@ -516,14 +523,23 @@ function AliPrintVars() {
     echo -e "${Br}${Cw}!!! ${MSG} !!!${Cz}"
   fi
 
-  # detect Geant3 installation path
-  G3LibBase="$ALICE_PREFIX/geant3/$G3_SUBDIR/inst/lib/libgeant321"
-  if [[ -f "${G3LibBase}.so" || -f "${G3LibBase}.dylib" ]] ; then
-    WHERE_IS_G3="$ALICE_PREFIX/geant3/$G3_SUBDIR"
-  else
-    WHERE_IS_G3="$NOTFOUND"
-  fi
-  unset G3LibBase
+
+  # detect Geant3 installation path (this is tricky)
+  G3PossibleLibs=(
+    "${GEANT3DIR}/lib/libgeant321.so"
+    "${GEANT3DIR}/lib64/libgeant321.so"
+    "${GEANT3DIR}/lib/libgeant321.dylib"
+    "${GEANT3DIR}/lib64/libgeant321.dylib"
+    "${GEANT3DIR}/lib/tgt_${ROOT_ARCH}/libgeant321.so"
+  )
+  WHERE_IS_G3="$NOTFOUND"
+  for G3Lib in "${G3PossibleLibs[@]}" ; do
+    if [[ -f "$G3Lib" ]] ; then
+      WHERE_IS_G3="${ALICE_PREFIX}/geant3/${G3_SUBDIR}"
+      break
+    fi
+  done
+  unset G3PossibleLibs G3Lib
 
   # detect ROOT location
   WHERE_IS_ROOT="$NOTFOUND"
