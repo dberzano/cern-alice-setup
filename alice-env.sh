@@ -520,8 +520,7 @@ function AliOldToNewSchema() (
     echo -e "${Cu} * NOTE: you NEED to recompile ALL FROM SCRATCH along with ROOT!"
     echo -e "${Cu} ==> ${autoInstall} --clean-all --all${Cz}"
     echo ''
-    mkdir -p "$ROOTSYS"
-    mv "${ROOTSYS}/../"* "${ROOTSYS}/" > /dev/null 2>&1
+    ln -nfs "$(dirname "$ROOTSYS")" "${ROOTSYS}"
   fi
 
   if [[ ! -e "${GEANT3DIR}/README" && -e "$(dirname "${GEANT3DIR}")/README" ]] ; then
@@ -534,8 +533,7 @@ function AliOldToNewSchema() (
     echo -e "${Cu} * ${warnMsg3}${Cz}"
     echo -e "${Cu} ==> ${autoInstall} --clean-geant3 --geant3${Cz}"
     echo ''
-    mkdir -p "$GEANT3DIR"
-    mv "${GEANT3DIR}/../"* "${GEANT3DIR}/" > /dev/null 2>&1
+    ln -nfs "$(dirname "$GEANT3DIR")" "${GEANT3DIR}"
   fi
 
   if [[ ! -e "${FASTJET}/bin/fastjet-config" && \
@@ -550,8 +548,7 @@ function AliOldToNewSchema() (
     echo -e "${Cu} * NOTE: you NEED to recompile AliRoot and AliPhysics FROM SCRATCH along with FastJet!"
     echo -e "${Cu} ==> ${autoInstall} --clean-fastjet --fastjet --clean-aliroot --aliroot --clean-aliphysics --aliphysics${Cz}"
     echo ''
-    mkdir -p "$FASTJET"
-    mv "${FASTJET}/../"* "${FASTJET}/" > /dev/null 2>&1
+    ln -nfs "$(dirname "$FASTJET")" "${FASTJET}"
   fi
 
 )
