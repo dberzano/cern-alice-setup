@@ -29,6 +29,7 @@ export LC_ALL=C
 export DebugSwallow=0
 export DebugDetectOs=0
 export BuildType='normal'
+export DontUpdateEnv=0
 
 #
 # Functions
@@ -1331,12 +1332,24 @@ function Dl() {
 # Check prerequisites
 function ModuleCheckPrereq() {
 
+  local aliUpdateMsg
+  local aliUpdateFlag
+
   Banner 'Checking prerequisites...'
   Swallow -f 'Checking if on a 64 bit machine' [ `uname -m` == 'x86_64' ]
   Swallow -f --error-msg 'Command "git-new-workdir" cannot be found in your $PATH. Follow the instructions on the web to install it.' \
     'Checking for git-new-workdir script in $PATH' which git-new-workdir
+
+  if [[ $DontUpdateEnv == 0 ]] ; then
+    aliUpdateMsg=' and updating alice-env.sh'
+    aliUpdateFlag='-u'
+  else
+    aliUpdateMsg=' (not updating alice-env.sh as requested)'
+    aliUpdateFlag='-k'
+  fi
+
   Swallow --fatal --error-msg 'You must source the alice-env.sh script and pick the tuple you wish to build first!' \
-    'Checking if ALICE environment works and updating alice-env.sh' SourceEnvVars -u
+    "Checking if ALICE environment works${aliUpdateMsg}" SourceEnvVars ${aliUpdateFlag}
 
 }
 
@@ -1840,6 +1853,10 @@ function Main() {
 
         force-hard-reset)
           ForceHardReset=1
+        ;;
+
+        dont-update-env)
+          DontUpdateEnv=1
         ;;
 
         *)
