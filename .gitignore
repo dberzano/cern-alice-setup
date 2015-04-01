@@ -1,1 +1,2 @@
-alice-env.conf
+/alice-env.conf
+/.alice-env.*

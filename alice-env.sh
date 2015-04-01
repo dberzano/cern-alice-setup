@@ -647,15 +647,33 @@ function AliConf() {
 # Note: FastJet and FJContrib are optional.
 #
 
-# No FastJet
-AliTuple[1]='root=v5-34-18 geant3=v1-15a aliroot=master aliphysics=master'
+# Default tuple with no FastJet
+AliTuple[1]='root=v5-34-26 \\
+             geant3=v2-0 \\
+             aliroot=master \\
+             aliphysics=master'
 
-# FastJet 3
-#AliTuple[2]='root=v5-34-18 geant3=v1-15a aliroot=master aliphysics=master \\
-#             fastjet=3.0.6 fjcontrib=1.012'
+# Default tuple with FastJet
+#AliTuple[2]='root=v5-34-26 \\
+#             geant3=v2-0 \\
+#             fastjet=3.0.6 \\
+#             fjcontrib=1.012 \\
+#             aliroot=master \\
+#             aliphysics=master'
 
-# You can add more tuples
-#AliTuple[3]='...'
+# Default tuple with FastJet and custom folders: for instance, AliRoot Core will
+# be installed under aliroot/master_r53426 but the version will simply be master
+# and it is indicated in brackets. For instance:
+#
+#   aliroot=master                --> directory=aliroot/master, version=master
+#   aliroot=master_r53426(master) --> directory=aliroot/master_r53426, version=master
+#
+#AliTuple[3]='root=v5-34-26 \\
+#             geant3=v2-0_r53426(v2-0) \\
+#             fastjet=3.0.6 \\
+#             fjcontrib=1.012 \\
+#             aliroot=master_r53426(master) \\
+#             aliphysics=master_r53426(master)'
 
 # Default software tuple (selected when running "source alice-env.sh -n")
 export nAliTuple=1
