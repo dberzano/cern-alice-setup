@@ -1721,6 +1721,14 @@ function Main() {
           DO_ALIPHYSICS=1
         ;;
 
+        all-but-alien)
+          DO_ROOT=1
+          DO_G3=1
+          DO_FASTJET=1
+          DO_ALICE=1
+          DO_ALIPHYSICS=1
+        ;;
+
         all)
           DO_ALIEN=1
           DO_ROOT=1
@@ -1760,6 +1768,14 @@ function Main() {
 
         clean-all)
           DO_CLEAN_ALIEN=1
+          DO_CLEAN_ROOT=1
+          DO_CLEAN_G3=1
+          DO_CLEAN_FASTJET=1
+          DO_CLEAN_ALICE=1
+          DO_CLEAN_ALIPHYSICS=1
+        ;;
+
+        clean-all-but-alien)
           DO_CLEAN_ROOT=1
           DO_CLEAN_G3=1
           DO_CLEAN_FASTJET=1
