@@ -493,6 +493,81 @@ function AliPrompt() {
   echo '[AliEnv] '
 }
 
+# Helper function: optionally, and interactively, migrate from the old to the new schema. Do not
+# take autonomous decision. Give the possibility to move, link or do nothing. This screen is not
+# presented in case the script is started non-interactively.
+# $1: software name
+# $2: current schema directory
+# $3: 1=non-interactive, 0=interactive
+# $@: optionso to automatic installation
+function AliOldToNewSchemaHelper() (
+
+  local Cu="\033[44m\033[1;33m"
+  local Cw="\033[43m"
+  local Cr="\033[41m"
+  local Cz="\033[m"
+  local swName="$1"
+  local oldSchemaDir="$( dirname "$2" )"
+  local newSchemaDir="$2"
+  local nonInteractive="$3"
+  local autoInstall='bash <(curl -fsSL http://alien.cern.ch/alice-installer)'
+  local what
+
+  shift 3
+
+  echo ''
+  echo -e "${Cu}Your current ${swName} installation has been found under:${Cz}"
+  echo -e "${Cu}  ${oldSchemaDir}${Cz}"
+  echo -e "${Cu}while the new installation schema wants it under:${Cz}"
+  echo -e "${Cu}  ${newSchemaDir}${Cz}"
+  echo -e "${Cu}You should recompile ${swName} and all the software depending on it with:${Cz}"
+  echo -e "${Cu}  ${autoInstall} ${*}${Cz}"
+  echo -e "${Cu}or by following the manual procedure, which has been updated accordingly.${Cz}"
+  echo -e "${Cu}If you want, you can keep using your current installation without recompiling.${Cz}"
+
+  if [[ $nonInteractive == 0 ]] ; then
+    echo -e "${Cu}To do so, choose one option:${Cz}"
+    echo -e "${Cu} * type \"mv\" to move ${oldSchemaDir} to ${newSchemaDir} (RECOMMENDED)${Cz}"
+    echo -e "${Cu} * type \"ln\" to make a symbolic link called ${newSchemaDir} pointing to ${oldSchemaDir}${Cz}"
+    echo -e "${Cu} * type \"no\" to do nothing and resolve the issue manually${Cz}"
+
+    while [[ 1 ]] ; do
+      echo -e -n "${Cw}==> What do you want to do (mv=move, ln=link, no=do nothing)?${Cz} "
+      read what
+      case "$what" in
+        mv)
+          mkdir -p "$newSchemaDir"
+          mv "${oldSchemaDir}/"* "${newSchemaDir}/" > /dev/null 2>&1
+          mv "${oldSchemaDir}/".* "${newSchemaDir}/" > /dev/null 2>&1
+          break
+        ;;
+        ln)
+          ln -nfs "$oldSchemaDir" "$newSchemaDir"
+          break
+        ;;
+        no)
+          echo ''
+          echo -e "${Cr}No migration for ${swName} will be performed, it's up to you now.${Cz}"
+          echo -e "${Cr}Note that for now software ${swName} will be indicated as <not found>.${Cz}"
+          echo -e "${Cr}Once you have updated your installation, re-source the environment.${Cz}"
+          break
+        ;;
+      esac
+      echo -e "${Cr}Invalid option, only mv, ln and no are accepted.${Cz}"
+      echo ''
+
+    done
+
+  else
+    echo -e "${Cr}You have started the script non-interactively (i.e. with the \"-n\" or \"-m\" option).${Cz}"
+    echo -e "${Cr}Re-source it with no \"-m\" or \"-n\" options for seeing the list of possibilities.${Cz}"
+    echo -e "${Cr}This has to be done only once.${Cz}"
+  fi
+
+  echo ''
+
+)
+
 # ROOT, Geant 3 and FastJet directories installed with the "old" schema, i.e. with build on-source
 # and no installation directory, are "temporarily" converted to a "new-compatible" schema, where
 # everything is moved to a "fake installation" directory. This enables users to keep working, but in
@@ -501,54 +576,21 @@ function AliPrompt() {
 # see https://dberzano.github.io/2015/03/29/new-g3-root-fj-install/
 function AliOldToNewSchema() (
 
-  local Cu="\033[44m\033[1;33m"
-  local Cz="\033[m"
-  local autoInstall='bash <(curl -fsSL http://alien.cern.ch/alice-installer)'
-  local warnMsg0='This message will appear only once'
-  local warnMsg1='This is a TEMPORARY fix! Update your installation PROPERLY as soon as possible!'
-  local warnMsg2='(You can do that when you have some spare time, no need to do it now)'
-  local warnMsg3="See https://dberzano.github.io/2015/03/29/new-g3-root-fj-install/ for more info!"
+  local nonInteractive="$1"
+
+  #local warnMsg3="See https://dberzano.github.io/2015/03/29/new-g3-root-fj-install/ for more info!"
 
   if [[ ! -e "${ROOTSYS}/bin/root.exe" && -e "$(dirname "${ROOTSYS}")/bin/root.exe" ]] ; then
-    echo ''
-    echo -e "${Cu}WARNING: ROOT still uses the OLD installation schema!${Cz}"
-    echo -e "${Cu} * Moved automatically to ${ROOTSYS}: you can continue your work now${Cz}"
-    echo -e "${Cu} * ${warnMsg0}${Cz}"
-    echo -e "${Cu} * ${warnMsg1}${Cz}"
-    echo -e "${Cu} * ${warnMsg2}${Cz}"
-    echo -e "${Cu} * ${warnMsg3}${Cz}"
-    echo -e "${Cu} * NOTE: you NEED to recompile ALL FROM SCRATCH along with ROOT!"
-    echo -e "${Cu} ==> ${autoInstall} --clean-all --all${Cz}"
-    echo ''
-    ln -nfs "$(dirname "$ROOTSYS")" "${ROOTSYS}"
+    AliOldToNewSchemaHelper 'ROOT' "$ROOTSYS" $nonInteractive --clean-all --all
   fi
 
   if [[ ! -e "${GEANT3DIR}/README" && -e "$(dirname "${GEANT3DIR}")/README" ]] ; then
-    echo ''
-    echo -e "${Cu}WARNING: Geant 3 still uses the OLD installation schema!${Cz}"
-    echo -e "${Cu} * Moved automatically to ${GEANT3DIR}: you can continue your work now${Cz}"
-    echo -e "${Cu} * ${warnMsg0}${Cz}"
-    echo -e "${Cu} * ${warnMsg1}${Cz}"
-    echo -e "${Cu} * ${warnMsg2}${Cz}"
-    echo -e "${Cu} * ${warnMsg3}${Cz}"
-    echo -e "${Cu} ==> ${autoInstall} --clean-geant3 --geant3${Cz}"
-    echo ''
-    ln -nfs "$(dirname "$GEANT3DIR")" "${GEANT3DIR}"
+    AliOldToNewSchemaHelper 'Geant 3' "$GEANT3DIR" $nonInteractive --clean-geant3 --geant3
   fi
 
   if [[ ! -e "${FASTJET}/bin/fastjet-config" && \
           -e "$(dirname "${FASTJET}")/bin/fastjet-config" ]] ; then
-    echo ''
-    echo -e "${Cu}WARNING: FastJet still uses the OLD installation schema!${Cz}"
-    echo -e "${Cu} * Moved automatically to ${FASTJET}: you can continue your work now${Cz}"
-    echo -e "${Cu} * ${warnMsg0}${Cz}"
-    echo -e "${Cu} * ${warnMsg1}${Cz}"
-    echo -e "${Cu} * ${warnMsg2}${Cz}"
-    echo -e "${Cu} * ${warnMsg3}${Cz}"
-    echo -e "${Cu} * NOTE: you NEED to recompile AliRoot and AliPhysics FROM SCRATCH along with FastJet!"
-    echo -e "${Cu} ==> ${autoInstall} --clean-fastjet --fastjet --clean-aliroot --aliroot --clean-aliphysics --aliphysics${Cz}"
-    echo ''
-    ln -nfs "$(dirname "$FASTJET")" "${FASTJET}"
+    AliOldToNewSchemaHelper 'FastJet' "$FASTJET" $nonInteractive --clean-fastjet --fastjet --clean-aliroot --aliroot --clean-aliphysics --aliphysics
   fi
 
 )
@@ -582,9 +624,6 @@ function AliPrintVars() {
     echo
     echo -e "${Br}${Cw}!!! ${MSG} !!!${Cz}"
   fi
-
-  # perform migration from old to new schema for ROOT, Geant 3 and AliPhysics
-  AliOldToNewSchema
 
   # detect Geant3 installation path (this is tricky)
   G3PossibleLibs=(
@@ -1034,6 +1073,9 @@ function AliMain() {
 
     # export all the needed variables
     AliExportVars "${AliTuple[$nAliTuple]}"
+
+    # perform migration from old to new schema for ROOT, Geant 3 and AliPhysics
+    AliOldToNewSchema $OPT_NONINTERACTIVE
 
     # prints out settings, if requested
     [[ "$OPT_QUIET" != 1 ]] && AliPrintVars
