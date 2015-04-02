@@ -1426,6 +1426,7 @@ function Help() (
   local Cmd='bash <(curl -fsSL http://alien.cern.ch/alice-installer)'
 
   local CErr=$( echo -e "\033[31m" )
+  local CWar=$( echo -e "\033[33m" )
   local CEmp=$( echo -e "\033[35m" )
   local COff=$( echo -e "\033[m" )
   local CTt=$( echo -e "\033[36m" )
@@ -1522,8 +1523,9 @@ _EoF_
 
     # alice-env.sh script is not loaded
     cat <<_EoF_
-Please load your alice-env.sh script and select the tuple you wish to install
-before running the automatic installation.
+${CWar}Please load your alice-env.sh script and select the tuple you wish to install
+before running the automatic installation.${COff}
+
 _EoF_
 
   elif [[ "$Rv" != 0 ]] ; then
@@ -1533,6 +1535,7 @@ _EoF_
 ${CErr}An unknown problem occurred while loading alice-env.sh with tuple ${ALI_nAliTuple}.${COff}
 Full path to the script:
   ${CTt}${ALI_EnvScript}${COff}
+
 _EoF_
 
   else
