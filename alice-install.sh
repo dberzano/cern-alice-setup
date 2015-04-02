@@ -1421,142 +1421,202 @@ function RemoveLogs() {
 }
 
 # Prints out a nice help
-function Help() {
+function Help() (
+
   local Cmd='bash <(curl -fsSL http://alien.cern.ch/alice-installer)'
-  local C="\033[1m"
-  local Z="\033[m"
-  local R="\033[31m"
-  local M="\033[35m"
-  local A="\033[36m"
-  echo ""
-  echo "alice-install.sh -- by Dario Berzano <dario.berzano@cern.ch>"
-  echo ""
-  echo "Tries to perform automatic installation of the ALICE framework."
-  echo "Installation procedure follows exactly the steps described on:"
-  echo ""
-  echo -e "  ${C}https://dberzano.github.io/alice/install-aliroot/manual${Z}"
-  echo ""
-  echo "Usage:"
-  echo ""
 
-  echo "  To create dirs (do it only the first time, as root if needed):"
-  echo -e "    ${C}[sudo|su -c] $Cmd --prepare${Z}"
-  echo ""
+  local CErr=$( echo -e "\033[31m" )
+  local CEmp=$( echo -e "\033[35m" )
+  local COff=$( echo -e "\033[m" )
+  local CTt=$( echo -e "\033[36m" )
 
-  echo "  To build/install/update something (multiple choices allowed):"
-  echo -e "    ${C}$Cmd \\ ${Z}"
-  echo -e "    ${C}  [--alien] [--root] [--geant3] [--fastjet] [--aliroot] [--aliphysics] \\ ${Z}"
-  echo -e "    ${C}  [--ncores <n>] \\ ${Z}"
-  echo -e "    ${C}  [--compiler [gcc|clang|/prefix/to/gcc]]${Z} \\"
-  echo -e "    ${C}  [--type [normal|optimized|debug]]${Z}"
-  echo ""
+  local errMsg="$1"
 
-  echo "  To build/install/update everything (do --prepare first):"
-  echo -e "    ${C}$Cmd --all${Z}"
-  echo ""
+  local urlManual='https://dberzano.github.io/alice/install-aliroot/manual'
+  local urlAuto='https://dberzano.github.io/alice/install-aliroot/auto'
 
-  echo "  To cleanup something (multiple choices allowed - data is erased!):"
-  echo -e "    ${C}$Cmd [--clean-root] [--clean-geant3] [--clean-fastjet] [--clean-aliroot] [--clean-aliphysics]${Z}"
-  echo ""
+  cat <<_EoF_
 
-  echo "  To cleanup everything:"
-  echo -e "    ${C}$Cmd --clean-all${Z}"
-  echo ""
+${CTt}alice-install.sh${COff} -- by Dario Berzano <dario.berzano@cern.ch>
 
-  echo "  You can cleanup then install like this:"
-  echo -e "    ${C}$Cmd --clean-root --root --ncores 2${Z}"
-  echo ""
+Automatic installation of the ALICE framework.
+The automatic installation follows exactly the same steps described on:
 
-  echo "  To prepare some debug information for your system:"
-  echo -e "    ${C}$Cmd --bugreport${Z}"
+  ${CEmp}${urlManual}${COff}
 
-  echo "  The --compiler option is not mandatory; you can either specify gcc or"
-  echo "  clang, or the prefix to a custom GCC installation."
-  echo ""
+Online manual of the automatic installation procedure:
 
-  echo "  Note that build/install/update as root user is disallowed."
-  echo "  With optional --ncores <n> you specify the number of parallel builds."
-  echo "  If nothing is specified, the default value (#cores + 1) is used."
-  echo ""
+  ${CEmp}${urlAuto}${COff}
 
-  echo "  You can also decide to download only, or build only (not for AliEn):"
-  echo -e "    ${C}$Cmd [--all|...] [--no-download|--download-only]${Z}"
-  echo ""
+To build, install, clean or update one or multiple components:
+
+  ${CTt}${Cmd} \\
+    [--alien] [--root] [--geant3] [--fastjet] [--aliroot] [--aliphysics] \\
+    [--all] [--all-but-alien] \\
+    [--clean-alien] [--clean-root] [--clean-geant3] [--clean-fastjet] \\
+    [--clean-aliroot] [--clean-aliphysics] \\
+    [--clean-all] [--clean-all-but-alien] \\
+    [--ncores <n>] \\
+    [--force-hard-reset] \\
+    [--dont-update-env] \\
+    [--verbose] \\
+    [--download-only|--no-download] \\
+    [--compiler [gcc|clang|/prefix/to/gcc]] \\
+    [--type [normal|optimized|debug]]${COff}
+
+Components will be processed in the correct dependency order, disregarding the
+order of the switches: for instance, ROOT is be always installed before Geant 3,
+and cleanup always occurs before installing it.
+
+If you just want to generate a summary to send as a bug report:
+
+  ${CTt}${Cmd} --bugreport${COff}
+
+For instance, to install all (including AliEn) using Clang as compiler in debug
+mode:
+
+  ${CTt}${Cmd} \\
+    --all --compiler clang --type debug${COff}
+
+Switches (all of them are optional):
+
+  ${CEmp}--ncores <n>${COff}        Build using <n> parallel threads, instead of automatically
+                      calculating the optimal number
+
+  ${CEmp}--force-hard-reset${COff}  (POTENTIALLY DANGEROUS!) Discard all your local changes in
+                      all source directories and sync with the remote ones. This
+                      is useful if you want a clean source, and you are 100%
+                      sure you are not going to lose your work
+
+  ${CEmp}--dont-update-env${COff}   (POTENTIALLY DANGEROUS!) Do not download updates of the
+                      environment script while installing. Note that the latest
+                      version of the installation script is in sync with the
+                      latest version of the environment one, so expect problems
+                      if you use this switch
+
+  ${CEmp}--verbose${COff}           Print out the commands being executed under the hood
+
+  ${CEmp}--compiler <comp>${COff}   Instead of picking the compiler automatically, choose a
+                      custom one. You can choose "gcc" or "clang", or specify
+                      the full path of your custom gcc installation
+
+  ${CEmp}--type <type>${COff}       Build type: choose between optimized, normal and debug.
+                      The default is normal. "debug" turns off all optimizations
+                      and enables debug symbols, while "optimized" generates no
+                      debug symbol and uses the maximum level of optimization.
+                      Those build options are applied to every component
+
+  ${CEmp}--download-only${COff}     Only download the specified components: don't build.
+                      Useful if you want to proceed manually to give special
+                      build options
+
+  ${CEmp}--no-download${COff}       Only build, don't download or update. Useful if you don't
+                      want to get the updates from the remote repositories, or
+                      if you are offline
+
+_EoF_
 
   SourceEnvVars > /dev/null 2>&1
   Rv=$?
   if [[ "$Rv" == 100 ]] ; then
-    echo -e "${R}Please load your alice-env.sh script selecting the tuple you wish to install first!${Z}"
-    echo -e "${R}Note: you might need to upgrade your alice-env.sh script before!${Z}"
+
+    # alice-env.sh script is not loaded
+    cat <<_EoF_
+Please load your alice-env.sh script and select the tuple you wish to install
+before running the automatic installation.
+_EoF_
+
   elif [[ "$Rv" != 0 ]] ; then
-    echo -e "${R}Problem loading ${ALI_EnvScript} with tuple ${ALI_nAliTuple}.${Z}"
+
+    # alice-env.sh script cannot be loaded: some error occurred
+    cat <<_EoF_
+${CErr}An unknown problem occurred while loading alice-env.sh with tuple ${ALI_nAliTuple}.${COff}
+Full path to the script:
+  ${CTt}${ALI_EnvScript}${COff}
+_EoF_
+
   else
 
-    local ROOT_STR="$ROOT_VER"
-    local G3_STR="$G3_VER"
-    local ALICE_STR="$ALICE_VER"
-    local FASTJET_STR="$FASTJET_VER"
-    local ALIPHYSICS_STR="$ALIPHYSICS_VER"
+    # alice-env.sh script was loaded but no action was provided
 
-    if [ "$ROOT_VER" != "$ROOT_SUBDIR" ]; then
-      ROOT_STR="$ROOT_VER (subdir: $ROOT_SUBDIR)"
+    local ROOT_STR="${CEmp}${ROOT_VER}${COff}"
+    local G3_STR="${CEmp}${G3_VER}${COff}"
+    local ALICE_STR="${CEmp}${ALICE_VER}${COff}"
+    local FASTJET_STR="${CEmp}${FASTJET_VER}${COff}"
+    local ALIPHYSICS_STR="${CEmp}${ALIPHYSICS_VER}${COff}"
+
+    if [[ $ROOT_VER != $ROOT_SUBDIR ]]; then
+      ROOT_STR="${CEmp}${ROOT_VER}${COff} (subdir: ${CTt}${ROOT_SUBDIR}${COff})"
     fi
 
-    if [ "$G3_VER" == '' ]; then
-      G3_STR="won't be installed"
-    elif [ "$G3_VER" != "$G3_SUBDIR" ]; then
-      G3_STR="$G3_VER (subdir: $G3_SUBDIR)"
+    if [[ $G3_VER == '' ]]; then
+      G3_STR='will not be installed'
+    elif [[ $G3_VER != $G3_SUBDIR ]]; then
+      G3_STR="${CEmp}${G3_VER}${COff} (subdir: ${CTt}${G3_SUBDIR}${COff})"
     fi
 
-    if [ "$FASTJET_VER" == '' ]; then
-      FASTJET_STR="won't be installed"
-    elif [ "$FASTJET_VER" != "$FASTJET_SUBDIR" ]; then
-      FASTJET_STR="$FASTJET_VER (subdir: $FASTJET_SUBDIR)"
+    if [[ $FASTJET_VER == '' ]]; then
+      FASTJET_STR='will not be installed'
+      FJCONTRIB_STR="${FASTJET_STR}"
+    else
+      FJCONTRIB_STR="${CEmp}${FJCONTRIB_VER}${COff} (same dir of FastJet)"
+      if [[ $FASTJET_VER != $FASTJET_SUBDIR ]]; then
+        FASTJET_STR="${CEmp}${FASTJET_VER}${COff} (subdir: ${CTt}${FASTJET_SUBDIR}${COff})"
+      fi
     fi
 
-    if [ "$ALICE_VER" != "$ALICE_SUBDIR" ]; then
-      ALICE_STR="$ALICE_VER (subdir: $ALICE_SUBDIR)"
+    if [[ $ALICE_VER != $ALICE_SUBDIR ]]; then
+      ALICE_STR="${CEmp}${ALICE_VER}${COff} (subdir: ${CTt}${ALICE_SUBDIR}${COff})"
     fi
 
-    if [ "$ALIPHYSICS_VER" == '' ]; then
-      ALIPHYSICS_STR="won't be installed"
-    elif [ "$ALIPHYSICS_VER" != "$ALIPHYSICS_SUBDIR" ]; then
-      ALIPHYSICS_STR="$ALIPHYSICS_VER (subdir: $ALIPHYSICS_SUBDIR)"
+    if [[ $ALIPHYSICS_VER == '' ]]; then
+      ALIPHYSICS_STR='will not be installed'
+    elif [[ $ALIPHYSICS_VER != $ALIPHYSICS_SUBDIR ]]; then
+      ALIPHYSICS_STR="${CEmp}${ALIPHYSICS_VER}${COff} (subdir: ${CTt}${ALIPHYSICS_SUBDIR}${COff})"
     fi
 
-    local BUILD_MODE_STR="$BUILD_MODE"
-    if [ "$BUILD_MODE" == "custom-gcc" ]; then
-      BUILD_MODE_STR="$BUILD_MODE (under $CUSTOM_GCC_PATH)"
+    local BUILD_MODE_STR="${CEmp}${BUILD_MODE}${COff}"
+    if [[ $BUILD_MODE == custom-gcc ]]; then
+      BUILD_MODE_STR="using custom gcc at ${CTt}${CUSTOM_GCC_PATH}${COff}"
     fi
 
-    echo -e "${R}Specify one or more actions among: ${M}--all, --alien, --aliroot, --aliphysics, --geant3, --root, --fastjet${Z}"
-    echo
-    echo -e "If you re-run this script with one or more actions now, the following configuration will be used:"
-    echo
-    echo -e "${M}ALICE environment script: ${A}${ALI_EnvScript}${Z}"
-    echo -e "${M}Software installation directory: ${A}${ALICE_PREFIX}${Z}"
-    echo
-    echo -e "${M}You have selected tuple ${A}#${ALI_nAliTuple}${M}:${Z}"
-    echo
-    echo -e "  ${M}AliEn:        ${A}always the latest version${Z}"
-    echo -e "  ${M}ROOT:         ${A}$ROOT_STR${M} (minimum supported version: ${A}${MIN_ROOT_VER_STR}${M})${Z}"
-    echo -e "  ${M}Geant3:       ${A}$G3_STR${Z}"
-    echo -e "  ${M}FastJet:      ${A}$FASTJET_STR${Z}"
-    echo -e "  ${M}AliRoot Core: ${A}$ALICE_STR${Z}"
-    echo -e "  ${M}AliPhysics:   ${A}$ALIPHYSICS_STR${Z}"
-    echo
-    echo -e "${M}Compiler: ${A}$BUILD_MODE_STR${M} (supported: ${A}${SUPPORTED_BUILD_MODES}${M})${Z}"
-    echo -e "${M}Build type: ${A}$BuildType${M} (supported: ${A}normal, optimized, debug${M})${Z}"
+    cat <<_EoF_
+If you re-run this script with one or more actions now, the following
+configuration will be used:
+
+ALICE Environment script:
+  ${CTt}${ALI_EnvScript}${COff}
+
+Software installation prefix (nothing will be installed outside it):
+  ${CTt}${ALICE_PREFIX}${COff}
+
+Compiler: ${BUILD_MODE_STR}
+(You can choose between $( echo ${SUPPORTED_BUILD_MODES} | sed -e 's/ /, /g'))
+
+Build type: ${CEmp}${BuildType}${COff}
+(You can choose between debug, normal, optimized)
+
+You have selected the tuple ${CEmp}number ${ALI_nAliTuple}${COff}. This corresponds to:
+
+  AliEn            always the latest version
+  ROOT             ${ROOT_STR}
+  Geant 3          ${G3_STR}
+  FastJet          ${FASTJET_STR}
+  FastJet Contrib  ${FJCONTRIB_STR}
+  AliRoot Core     ${ALICE_STR}
+  AliPhysics       ${ALIPHYSICS_STR}
+
+_EoF_
+
   fi
-  echo ""
 
   # Error message, if any
-  if [ "$1" != "" ]; then
-    echo -e '>> \033[31m'$1'\033[m'
-    echo ""
+  if [[ $errMsg != '' ]]; then
+    echo ">> ${CErr}${errMsg}${COff}" | cat
+    echo ''
   fi
 
-}
+)
 
 # Check if ROOT has a certain feature (case-insensitive match)
 function RootConfiguredWithFeature() {
@@ -1895,13 +1955,13 @@ function Main() {
 
   if [ $DO_PREP == 0 ] && [ $DO_BUGREPORT == 0 ] && \
      [ $N_INST_CLEAN == 0 ]; then
-    Help "Nothing to do"
+    Help 'Nothing to do: what software do you want to install?'
     exit 1
   elif [ $DO_PREP == 1 ] && [ $N_INST_CLEAN -gt 0 ]; then
-    Help "Can't prepare and update/build/clean something at the same time"
+    Help 'Cannot prepare and update/build/clean something at the same time'
     exit 1
   elif [ "$USER" == "root" ] && [ $N_INST_CLEAN -gt 0 ]; then
-    Help "I'm refusing to continue the installation as root user"
+    Help 'I am refusing to continue the installation as root user'
     exit 1
   fi
 
