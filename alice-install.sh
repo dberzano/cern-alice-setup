@@ -38,8 +38,20 @@ export DontUpdateEnv=0
 # Sources environment variables
 function SourceEnvVars() {
   local R UpdateFlag
-  [[ ! -r "$ALI_EnvScript" ]] && return 100
-  [[ "$1" == '-u' ]] && UpdateFlag='-u'
+
+  if [[ ! -r "$ALI_EnvScript" ]] ; then
+    return 100
+  fi
+
+  if [[ "$1" == '-u' ]] ; then
+    # Force the update now
+    UpdateFlag='-u'
+  else
+    # By default, stop auto updating. We don't want the script to accidentally
+    # self-update while installing!
+    UpdateFlag='-k'
+  fi
+
   source "$ALI_EnvScript" -n "$ALI_nAliTuple" $UpdateFlag
   R=$?
   [[ $NCORES -gt 0 ]] && MJ=$NCORES
