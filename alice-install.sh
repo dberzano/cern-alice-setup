@@ -362,6 +362,8 @@ function ModuleRoot() {
   Banner 'Installing ROOT...'
   Swallow -f 'Sourcing envvars' SourceEnvVars
 
+  Swallow 'Checking that we are not using an external ROOT' [ "$ROOT_VER" != EXTERNAL ] || return
+
   Swallow --fatal \
     --error-msg "ROOT $ROOT_VER is not supported on your platform: use at least $MIN_ROOT_VER_STR." \
     "Ensuring ROOT $ROOT_VER is OK for your platform" \
@@ -537,6 +539,7 @@ function ModuleGeant3() {
   Swallow -f 'Sourcing envvars' SourceEnvVars
 
   Swallow 'Checking if Geant3 support has been requested' [ "$G3_VER" != '' ] || return
+  Swallow 'Checking that we are not using an external Geant3' [ "$G3_VER" != EXTERNAL ] || return
 
   # Geant3 variables: only ${ALICE_PREFIX} and ${G3_VER} needed
   local Geant3Git="${ALICE_PREFIX}/geant3/git"
@@ -841,6 +844,9 @@ function ModuleAliRoot() {
   Banner 'Installing AliRoot Core...'
   Swallow -f 'Sourcing envvars' SourceEnvVars
 
+  Swallow 'Checking that we are not using an external AliRoot Core' \
+    [ "$ALICE_VER" != EXTERNAL ] || return
+
   # AliRoot variables: only ${ALICE_ROOT} needed
   # - ${ALICE_ROOT}: installation directory
   # - ${ALICE_ROOT}/../build: build directory
@@ -1041,6 +1047,8 @@ function ModuleAliPhysics() {
   Swallow -f 'Sourcing envvars' SourceEnvVars
 
   Swallow "Checking if AliPhysics support has been requested" [ "$ALIPHYSICS_VER" != '' ] || return
+  Swallow 'Checking that we are not using an external AliPhysics' \
+    [ "$ALIPHYSICS_VER" != EXTERNAL ] || return
 
   # AliPhysics variables: only ${ALICE_PHYSICS} needed
   # - ${ALICE_PHYSICS}: installation directory
