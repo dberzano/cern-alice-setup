@@ -349,7 +349,7 @@ function AliExportVars() {
   for sec in alien root geant3 aliroot aliphysics fastjet fjcontrib ; do
     skip=0
     case $sec in
-      alien) skip=1 ;;
+      alien)      vsubdir='ALIENEXT_SUBDIR'   ; vver='ALIENEXT_VER'   ;;
       root)       vsubdir='ROOT_SUBDIR'       ; vver='ROOT_VER'       ;;
       geant3)     vsubdir='G3_SUBDIR'         ; vver='G3_VER'         ;;
       aliroot)    vsubdir='ALICE_SUBDIR'      ; vver='ALICE_VER'      ;;
@@ -369,7 +369,13 @@ function AliExportVars() {
     case $sec in
 
       alien)
-        export ALIEN_DIR="${ALICE_PREFIX}/alien"
+        if [[ $ALIENEXT_VER == EXTERNAL ]] ; then
+          export ALIEN_DIR="$ALIENEXT_SUBDIR"
+        else
+          export ALIEN_DIR="${ALICE_PREFIX}/alien"
+        fi
+        unset ALIENEXT_SUBDIR
+
         export X509_CERT_DIR="${ALIEN_DIR}/globus/share/certificates"
 
         # AliEn source installation uses a different destination directory
@@ -386,10 +392,13 @@ function AliExportVars() {
 
       root)
         if [[ $ROOT_VER != '' ]] ; then
-          export ROOTSYS="${ALICE_PREFIX}/root/${ROOT_SUBDIR}/inst"
+          if [[ $ROOT_VER == EXTERNAL ]] ; then
+            export ROOTSYS="$ROOT_SUBDIR"
+          else
+            export ROOTSYS="${ALICE_PREFIX}/root/${ROOT_SUBDIR}/inst"
+          fi
           export PATH="${ROOTSYS}/bin:${PATH}"
           export LD_LIBRARY_PATH="${ROOTSYS}/lib:${LD_LIBRARY_PATH}"
-          export ROOT_VER
           if [[ -e "${ROOTSYS}/lib/ROOT.py" ]] ; then
             # PyROOT support
             export PYTHONPATH="${ROOTSYS}/lib:${PYTHONPATH}"
@@ -406,7 +415,11 @@ function AliExportVars() {
 
       geant3)
         if [[ $G3_VER != '' ]] ; then
-          export GEANT3DIR="${ALICE_PREFIX}/geant3/${G3_SUBDIR}/inst"
+          if [[ $G3_VER == EXTERNAL ]] ; then
+            export GEANT3DIR="$G3_SUBDIR"
+          else
+            export GEANT3DIR="${ALICE_PREFIX}/geant3/${G3_SUBDIR}/inst"
+          fi
           export LD_LIBRARY_PATH="${GEANT3DIR}/lib:${GEANT3DIR}/lib64:${LD_LIBRARY_PATH}"
           if [[ $ROOT_ARCH != '' ]] ; then
             export LD_LIBRARY_PATH="${GEANT3DIR}/lib/tgt_${ROOT_ARCH}:${LD_LIBRARY_PATH}"
@@ -418,10 +431,13 @@ function AliExportVars() {
 
       aliroot)
         if [[ $ALICE_VER != '' ]] ; then
-          export ALICE_VER
-
           # this is the only variable truly needed: it is set to the installation directory
-          export ALICE_ROOT="${ALICE_PREFIX}/aliroot/${ALICE_SUBDIR}/inst"
+          if [[ $ALICE_VER == EXTERNAL ]] ; then
+            export ALICE_ROOT="$ALICE_SUBDIR"
+          else
+            export ALICE_ROOT="${ALICE_PREFIX}/aliroot/${ALICE_SUBDIR}/inst"
+          fi
+          export ALICE_VER
 
           # set for compatibility and it will stay like this unless overridden by aliphysics
           export ALICE_PHYSICS="$ALICE_ROOT"
@@ -437,8 +453,12 @@ function AliExportVars() {
 
       aliphysics)
         if [[ $ALIPHYSICS_VER != '' ]] ; then
+          if [[ $ALIPHYSICS_VER == EXTERNAL ]] ; then
+            export ALICE_PHYSICS="$ALIPHYSICS_SUBDIR"
+          else
+            export ALICE_PHYSICS="${ALICE_PREFIX}/aliphysics/${ALIPHYSICS_SUBDIR}/inst"
+          fi
           export ALIPHYSICS_VER
-          export ALICE_PHYSICS="${ALICE_PREFIX}/aliphysics/${ALIPHYSICS_SUBDIR}/inst"
           export PATH="${ALICE_PHYSICS}/bin:${PATH}"
           export LD_LIBRARY_PATH="${ALICE_PHYSICS}/lib:${LD_LIBRARY_PATH}"
           export DYLD_LIBRARY_PATH="${ALICE_PHYSICS}/lib:${DYLD_LIBRARY_PATH}"
@@ -636,7 +656,7 @@ function AliPrintVars() {
   WHERE_IS_G3="$NOTFOUND"
   for G3Lib in "${G3PossibleLibs[@]}" ; do
     if [[ -f "$G3Lib" ]] ; then
-      WHERE_IS_G3="${ALICE_PREFIX}/geant3/${G3_SUBDIR}"
+      WHERE_IS_G3="${GEANT3DIR}"
       break
     fi
   done
@@ -659,14 +679,14 @@ function AliPrintVars() {
 
   # detect AliRoot Core location
   if [[ -x "${ALICE_ROOT}/bin/aliroot" || -x "${ALICE_ROOT}/bin/tgt_${ROOT_ARCH}/aliroot"  ]] ; then
-    WHERE_IS_ALIROOT=$( cd "${ALICE_ROOT}/.." && pwd || dirname "$ALICE_ROOT" )
+    WHERE_IS_ALIROOT="$ALICE_ROOT"
   else
     WHERE_IS_ALIROOT="$NOTFOUND"
   fi
 
   # detect AliPhysics location
   if [[ $( ls -1 "${ALICE_PHYSICS}/lib/"*.{so,dylib} 2>/dev/null | wc -l ) -gt 10 ]] ; then
-    WHERE_IS_ALIPHYSICS=$( cd "${ALICE_PHYSICS}/.." && pwd || dirname "$ALICE_PHYSICS" )
+    WHERE_IS_ALIPHYSICS="$ALICE_PHYSICS"
   else
     WHERE_IS_ALIPHYSICS="$NOTFOUND"
   fi
@@ -695,7 +715,9 @@ function AliParseVerDir() {
   local dirVar="$2"
   local verVar="$3"
   local cmd=''
-  if [[ $verAndDir =~ ^([^\(]+)\((.+)\)$ ]] ; then
+  if [[ ${verAndDir:0:1} == '/' ]] ; then
+    cmd="$dirVar='$verAndDir' ; $verVar='EXTERNAL'"
+  elif [[ $verAndDir =~ ^([^\(]+)\((.+)\)$ ]] ; then
     cmd="$dirVar='${BASH_REMATCH[1]}' ; $verVar='${BASH_REMATCH[2]}'"
   else
     cmd="$dirVar='$verAndDir' ; $verVar='$verAndDir'"
@@ -775,6 +797,23 @@ AliTuple[1]='root=v5-34-26 \\
 #             fjcontrib=1.012 \\
 #             aliroot=master_r53426(master) \\
 #             aliphysics=master_r53426(master)'
+
+# A tuple with ROOT, Geant 3 and AliRoot Core from external, pre-built packages:
+# this is possible if specifying the "prefix" of preinstalled packages (absolute
+# path) instead of the version name.
+#
+# Note that it is possible to "mix-and-match": in this example, everything comes
+# from a pre-compiled build, except AliPhysics, which is left to the user to
+# build.
+#
+# This is very useful on shared installations where only the "topmost" software
+# needs to be modified by end users, whereas the rest can be provided by admins.
+#
+#AliTuple[4]='alien=/cvmfs/alice.cern.ch/x86_64-2.6-gnu-4.1.2/Packages/AliEn/v2-19-276 \\
+#             root=/cvmfs/alice.cern.ch/x86_64-2.6-gnu-4.1.2/Packages/ROOT/v5-34-08-7 \\
+#             geant3=/cvmfs/alice.cern.ch/x86_64-2.6-gnu-4.1.2/Packages/GEANT3/v1-15a-1 \\
+#             aliroot=/cvmfs/alice.cern.ch/x86_64-2.6-gnu-4.1.2/Packages/AliRoot/v5-06-16 \\
+#             aliphysics=master-cvmfs(master)'
 
 # Default software tuple (selected when running "source alice-env.sh -n")
 export nAliTuple=1
@@ -1041,7 +1080,7 @@ function AliMain() {
   # print menu if non-interactive
   [[ "$OPT_NONINTERACTIVE" != 1 ]] && AliMenu
 
-  unset ROOT_VER G3_VER ALICE_VER ALIPHYSICS_VER FASTJET_VER FJCONTRIB_VER
+  unset ROOT_VER G3_VER ALICE_VER ALIENEXT_VER ALIPHYSICS_VER FASTJET_VER FJCONTRIB_VER
 
   # selection by query (-m <query>) has priority over by number (-n <ntuple>)
   [[ $queryAliTuple != '' ]] && nAliTuple=$( AliTupleNumberByQuery "$queryAliTuple" )
