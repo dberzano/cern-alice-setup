@@ -349,7 +349,7 @@ function AliExportVars() {
   for sec in alien root geant3 aliroot aliphysics fastjet fjcontrib ; do
     skip=0
     case $sec in
-      alien) skip=1 ;;
+      alien)      vsubdir='ALIENEXT_SUBDIR'   ; vver='ALIENEXT_VER'   ;;
       root)       vsubdir='ROOT_SUBDIR'       ; vver='ROOT_VER'       ;;
       geant3)     vsubdir='G3_SUBDIR'         ; vver='G3_VER'         ;;
       aliroot)    vsubdir='ALICE_SUBDIR'      ; vver='ALICE_VER'      ;;
@@ -369,7 +369,13 @@ function AliExportVars() {
     case $sec in
 
       alien)
-        export ALIEN_DIR="${ALICE_PREFIX}/alien"
+        if [[ $ALIENEXT_VER == EXTERNAL ]] ; then
+          export ALIEN_DIR="$ALIENEXT_SUBDIR"
+        else
+          export ALIEN_DIR="${ALICE_PREFIX}/alien"
+        fi
+        unset ALIENEXT_SUBDIR
+
         export X509_CERT_DIR="${ALIEN_DIR}/globus/share/certificates"
 
         # AliEn source installation uses a different destination directory
@@ -1057,7 +1063,7 @@ function AliMain() {
   # print menu if non-interactive
   [[ "$OPT_NONINTERACTIVE" != 1 ]] && AliMenu
 
-  unset ROOT_VER G3_VER ALICE_VER ALIPHYSICS_VER FASTJET_VER FJCONTRIB_VER
+  unset ROOT_VER G3_VER ALICE_VER ALIENEXT_VER ALIPHYSICS_VER FASTJET_VER FJCONTRIB_VER
 
   # selection by query (-m <query>) has priority over by number (-n <ntuple>)
   [[ $queryAliTuple != '' ]] && nAliTuple=$( AliTupleNumberByQuery "$queryAliTuple" )
