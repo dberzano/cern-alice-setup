@@ -798,6 +798,23 @@ AliTuple[1]='root=v5-34-26 \\
 #             aliroot=master_r53426(master) \\
 #             aliphysics=master_r53426(master)'
 
+# A tuple with ROOT, Geant 3 and AliRoot Core from external, pre-built packages:
+# this is possible if specifying the "prefix" of preinstalled packages (absolute
+# path) instead of the version name.
+#
+# Note that it is possible to "mix-and-match": in this example, everything comes
+# from a pre-compiled build, except AliPhysics, which is left to the user to
+# build.
+#
+# This is very useful on shared installations where only the "topmost" software
+# needs to be modified by end users, whereas the rest can be provided by admins.
+#
+#AliTuple[4]='alien=/cvmfs/alice.cern.ch/x86_64-2.6-gnu-4.1.2/Packages/AliEn/v2-19-276 \\
+#             root=/cvmfs/alice.cern.ch/x86_64-2.6-gnu-4.1.2/Packages/ROOT/v5-34-08-7 \\
+#             geant3=/cvmfs/alice.cern.ch/x86_64-2.6-gnu-4.1.2/Packages/GEANT3/v1-15a-1 \\
+#             aliroot=/cvmfs/alice.cern.ch/x86_64-2.6-gnu-4.1.2/Packages/AliRoot/v5-06-16 \\
+#             aliphysics=master-cvmfs(master)'
+
 # Default software tuple (selected when running "source alice-env.sh -n")
 export nAliTuple=1
 _EoF_
