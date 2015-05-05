@@ -1673,7 +1673,7 @@ function DetectOsBuildOpts() {
     fi
     if [[ $OsVer -ge 14 ]] ; then
       # 14 = Yosemite (10.10)
-      MIN_ROOT_VER_STR='v5-34-22'
+      MIN_ROOT_VER_STR='v5-34-30'
     fi
   elif [[ $KernelName == 'Linux' ]] ; then
     ALIEN_INSTALL_TYPE='compile'
