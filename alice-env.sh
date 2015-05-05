@@ -425,10 +425,13 @@ function AliExportVars() {
 
       aliroot)
         if [[ $ALICE_VER != '' ]] ; then
-          export ALICE_VER
-
           # this is the only variable truly needed: it is set to the installation directory
-          export ALICE_ROOT="${ALICE_PREFIX}/aliroot/${ALICE_SUBDIR}/inst"
+          if [[ $ALICE_VER == EXTERNAL ]] ; then
+            export ALICE_ROOT="$ALICE_SUBDIR"
+          else
+            export ALICE_ROOT="${ALICE_PREFIX}/aliroot/${ALICE_SUBDIR}/inst"
+          fi
+          export ALICE_VER
 
           # set for compatibility and it will stay like this unless overridden by aliphysics
           export ALICE_PHYSICS="$ALICE_ROOT"
@@ -444,8 +447,12 @@ function AliExportVars() {
 
       aliphysics)
         if [[ $ALIPHYSICS_VER != '' ]] ; then
+          if [[ $ALIPHYSICS_VER == EXTERNAL ]] ; then
+            export ALICE_PHYSICS="$ALIPHYSICS_SUBDIR"
+          else
+            export ALICE_PHYSICS="${ALICE_PREFIX}/aliphysics/${ALIPHYSICS_SUBDIR}/inst"
+          fi
           export ALIPHYSICS_VER
-          export ALICE_PHYSICS="${ALICE_PREFIX}/aliphysics/${ALIPHYSICS_SUBDIR}/inst"
           export PATH="${ALICE_PHYSICS}/bin:${PATH}"
           export LD_LIBRARY_PATH="${ALICE_PHYSICS}/lib:${LD_LIBRARY_PATH}"
           export DYLD_LIBRARY_PATH="${ALICE_PHYSICS}/lib:${DYLD_LIBRARY_PATH}"
@@ -666,14 +673,14 @@ function AliPrintVars() {
 
   # detect AliRoot Core location
   if [[ -x "${ALICE_ROOT}/bin/aliroot" || -x "${ALICE_ROOT}/bin/tgt_${ROOT_ARCH}/aliroot"  ]] ; then
-    WHERE_IS_ALIROOT=$( cd "${ALICE_ROOT}/.." && pwd || dirname "$ALICE_ROOT" )
+    WHERE_IS_ALIROOT="$ALICE_ROOT"
   else
     WHERE_IS_ALIROOT="$NOTFOUND"
   fi
 
   # detect AliPhysics location
   if [[ $( ls -1 "${ALICE_PHYSICS}/lib/"*.{so,dylib} 2>/dev/null | wc -l ) -gt 10 ]] ; then
-    WHERE_IS_ALIPHYSICS=$( cd "${ALICE_PHYSICS}/.." && pwd || dirname "$ALICE_PHYSICS" )
+    WHERE_IS_ALIPHYSICS="$ALICE_PHYSICS"
   else
     WHERE_IS_ALIPHYSICS="$NOTFOUND"
   fi
