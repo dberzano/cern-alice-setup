@@ -386,10 +386,13 @@ function AliExportVars() {
 
       root)
         if [[ $ROOT_VER != '' ]] ; then
-          export ROOTSYS="${ALICE_PREFIX}/root/${ROOT_SUBDIR}/inst"
+          if [[ $ROOT_VER == EXTERNAL ]] ; then
+            export ROOTSYS="$ROOT_SUBDIR"
+          else
+            export ROOTSYS="${ALICE_PREFIX}/root/${ROOT_SUBDIR}/inst"
+          fi
           export PATH="${ROOTSYS}/bin:${PATH}"
           export LD_LIBRARY_PATH="${ROOTSYS}/lib:${LD_LIBRARY_PATH}"
-          export ROOT_VER
           if [[ -e "${ROOTSYS}/lib/ROOT.py" ]] ; then
             # PyROOT support
             export PYTHONPATH="${ROOTSYS}/lib:${PYTHONPATH}"
@@ -406,7 +409,11 @@ function AliExportVars() {
 
       geant3)
         if [[ $G3_VER != '' ]] ; then
-          export GEANT3DIR="${ALICE_PREFIX}/geant3/${G3_SUBDIR}/inst"
+          if [[ $G3_VER == EXTERNAL ]] ; then
+            export GEANT3DIR="$G3_SUBDIR"
+          else
+            export GEANT3DIR="${ALICE_PREFIX}/geant3/${G3_SUBDIR}/inst"
+          fi
           export LD_LIBRARY_PATH="${GEANT3DIR}/lib:${GEANT3DIR}/lib64:${LD_LIBRARY_PATH}"
           if [[ $ROOT_ARCH != '' ]] ; then
             export LD_LIBRARY_PATH="${GEANT3DIR}/lib/tgt_${ROOT_ARCH}:${LD_LIBRARY_PATH}"
@@ -636,7 +643,7 @@ function AliPrintVars() {
   WHERE_IS_G3="$NOTFOUND"
   for G3Lib in "${G3PossibleLibs[@]}" ; do
     if [[ -f "$G3Lib" ]] ; then
-      WHERE_IS_G3="${ALICE_PREFIX}/geant3/${G3_SUBDIR}"
+      WHERE_IS_G3="${GEANT3DIR}"
       break
     fi
   done
@@ -695,7 +702,9 @@ function AliParseVerDir() {
   local dirVar="$2"
   local verVar="$3"
   local cmd=''
-  if [[ $verAndDir =~ ^([^\(]+)\((.+)\)$ ]] ; then
+  if [[ ${verAndDir:0:1} == '/' ]] ; then
+    cmd="$dirVar='$verAndDir' ; $verVar='EXTERNAL'"
+  elif [[ $verAndDir =~ ^([^\(]+)\((.+)\)$ ]] ; then
     cmd="$dirVar='${BASH_REMATCH[1]}' ; $verVar='${BASH_REMATCH[2]}'"
   else
     cmd="$dirVar='$verAndDir' ; $verVar='$verAndDir'"
