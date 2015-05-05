@@ -1227,8 +1227,12 @@ function SwallowProgress() {
 # Clean up AliEn
 function ModuleCleanAliEn() {
   local AliEnDir
-  Banner "Cleaning AliEn..."
+  Banner 'Cleaning AliEn...'
   Swallow -f "Sourcing envvars" SourceEnvVars
+
+  Swallow 'Checking that we are not using an external AliEn' \
+    [ "$ALIENEXT_VER" != EXTERNAL ] || return
+
   find "$ALICE_PREFIX" -maxdepth 1 -name 'alien.v*' -and -type d | \
   while read AliEnDir ; do
     AliEnVer=`basename "$AliEnDir"`
@@ -1242,6 +1246,8 @@ function ModuleCleanAliEn() {
 function ModuleCleanRoot() {
   Banner 'Cleaning ROOT...'
   Swallow -f 'Sourcing envvars' SourceEnvVars
+
+  Swallow 'Checking that we are not using an external ROOT' [ "$ROOT_VER" != EXTERNAL ] || return
 
   local RootBase=$( dirname "${ROOTSYS}" )
   local RootInst="$ROOTSYS"
@@ -1266,6 +1272,8 @@ function ModuleCleanRoot() {
 function ModuleCleanGeant3() {
   Banner "Cleaning Geant3..."
   Swallow -f "Sourcing envvars" SourceEnvVars
+
+  Swallow 'Checking that we are not using an external Geant3' [ "$G3_VER" != EXTERNAL ] || return
 
   local Geant3Base="${ALICE_PREFIX}/geant3/${G3_SUBDIR}"
   local Geant3Inst="${Geant3Base}/inst"
@@ -1309,13 +1317,16 @@ function ModuleCleanFastJet() {
 # Clean up AliRoot
 function ModuleCleanAliRoot() {
   Banner 'Cleaning AliRoot Core...'
+  Swallow -f 'Sourcing envvars' SourceEnvVars
+
+  Swallow 'Checking that we are not using an external AliRoot Core' \
+    [ "$ALICE_VER" != EXTERNAL ] || return
 
   local AliRootBase=$( dirname "${ALICE_ROOT}" )
   local AliRootInst="$ALICE_ROOT"
   local AliRootSrc="${AliRootBase}/src"
   local AliRootTmp="${AliRootBase}/build"
 
-  Swallow -f 'Sourcing envvars' SourceEnvVars
   Swallow 'Checking if AliRoot is really there' [ -d "$AliRootTmp" ] || return 0
   Swallow -f 'Removing AliRoot build directory' rm -rf "$AliRootTmp"
   Swallow -f "Removing AliRoot install directory" rm -rf "$AliRootInst"
@@ -1324,13 +1335,16 @@ function ModuleCleanAliRoot() {
 # Clean up AliPhysics
 function ModuleCleanAliPhysics() {
   Banner 'Cleaning AliPhysics...'
+  Swallow -f 'Sourcing envvars' SourceEnvVars
+
+  Swallow 'Checking that we are not using an external AliPhysics' \
+    [ "$ALIPHYSICS_VER" != EXTERNAL ] || return
 
   local AliPhysicsBase=$( dirname "${ALICE_PHYSICS}" )
   local AliPhysicsInst="$ALICE_PHYSICS"
   local AliPhysicsSrc="${AliPhysicsBase}/src"
   local AliPhysicsTmp="${AliPhysicsBase}/build"
 
-  Swallow -f 'Sourcing envvars' SourceEnvVars
   Swallow 'Checking if AliPhysics is really there' [ -d "$AliPhysicsTmp" ] || return 0
   Swallow -f 'Removing AliPhysics build directory' rm -rf "$AliPhysicsTmp"
   Swallow -f "Removing AliPhysics install directory" rm -rf "$AliPhysicsInst"
