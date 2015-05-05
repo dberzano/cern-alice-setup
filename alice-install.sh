@@ -1379,7 +1379,10 @@ function ModuleAliEn() {
   local ALIEN_TEMP_INST_DIR="/tmp/alien-temp-inst-$USER"
   local ALIEN_INSTALLER="$ALIEN_TEMP_INST_DIR/alien-installer"
 
-  Banner "Installing AliEn..."
+  Banner 'Installing AliEn...'
+  Swallow 'Checking that we are not using an external AliEn' \
+    [ "$ALIENEXT_VER" != EXTERNAL ] || return
+
   Swallow -f "Creating temporary working directory" \
     mkdir -p "$ALIEN_TEMP_INST_DIR"
   local CURWD=`pwd`
