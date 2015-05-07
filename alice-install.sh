@@ -288,23 +288,41 @@ function PrepareBugReport() {
     echo "PATH=$PATH"
     echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH"
     echo "DYLD_LIBRARY_PATH=$DYLD_LIBRARY_PATH"
+    echo "PYTHONPATH=$PYTHONPATH"
     echo "uname -a: `uname -a`"
-    echo "which gcc: `which gcc 2>/dev/null`"
-    echo "which g++: `which g++ 2>/dev/null`"
-    echo "which clang: `which clang 2>/dev/null`"
-    echo "which clang++: `which clang++ 2>/dev/null`"
-    echo "which gfortran: `which gfortran 2>/dev/null`"
-    echo "which ld: `which ld 2>/dev/null`"
-    echo "which make: `which make 2>/dev/null`"
-    echo "which cmake: `which cmake 2>/dev/null`"
-    echo "root-config --f77: `root-config --f77 2>/dev/null`"
-    echo "root-config --cc: `root-config --cc 2>/dev/null`"
-    echo "root-config --cxx: `root-config --cxx 2>/dev/null`"
-    echo "root-config --ld: `root-config --ld 2>/dev/null`"
-    echo "root-config --features: `root-config --features 2>/dev/null`"
-    echo "root-config --cflags: `root-config --cflags 2>/dev/null`"
-    echo "root-config --auxcflags: `root-config --auxcflags 2>/dev/null`"
-    echo "root-config --ldflags: `root-config --ldflags 2>/dev/null`"
+    if [[ -r /etc/lsb-release ]] ; then
+      echo "*** /etc/lsb-release ***"
+      cat /etc/lsb-release
+    fi
+    if [[ -r /etc/redhat-release ]] ; then
+      echo "*** /etc/redhat-release ***"
+      cat /etc/redhat-release
+    fi
+
+    echo "=== ROOT COMPILATION FLAGS ==="
+    local rootconf=( --f77 --cc --cxx --ld --features --cflags --auxcflags --ldflags )
+    for rc in "${rootconf[@]}" ; do
+      echo "root-config ${rc}: `root-config ${rc} 2> /dev/null`"
+    done
+
+    echo "=== VERSIONS OF EXTERNAL TOOLS ==="
+    local progs=( 'gcc -v' 'g++ -v' 'ld -v' 'gfortran -v' \
+                  'clang -v' 'clang++ -v' \
+                  'make -v' 'cmake --version' \
+                  'libtool -V' 'autoconf --version' 'automake --version' \
+                  'git --version' 'brew -v' 'port version' 'fink --version' )
+    for pa in "${progs[@]}" ; do
+      pr=${pa%% *}
+      echo "*** ${pr} ***"
+      w=$( which $pr 2> /dev/null )
+      if [[ $? == 0 ]] ; then
+        echo "Location: ${w}"
+        ${pa} 2>&1
+      else
+        echo '<not found>'
+      fi
+    done
+
     echo "=== ALICE SOFTWARE VERSIONS ==="
     echo "ROOT: $ROOT_VER"
     echo "Geant3: $G3_VER"
@@ -312,31 +330,13 @@ function PrepareBugReport() {
     echo "AliPhysics: $ALICEPHYSICS_VER"
     echo "FastJet: $FASTJET_VER"
     echo "FJ Contrib: $FJCONTRIB_VER"
-    echo "=== TOOLS VERSIONS ==="
-    if [ -r /etc/lsb-release ] ; then
-      echo "*** /etc/lsb-release ***"
-      cat /etc/lsb-release
-    fi
-    echo "*** gcc ***"
-    gcc -v 2>&1
-    echo "*** g++ ***"
-    g++ -v 2>&1
-    echo "*** gfortran ***"
-    gfortran -v 2>&1
-    echo "*** clang ***"
-    clang -v 2>&1
-    echo "*** clang++ ***"
-    clang++ -v 2>&1
-    echo "*** ld ***"
-    ld -v 2>&1
-    echo "*** cmake ***"
-    cmake --version 2>&1
-    echo "*** git ***"
-    git --version 2>&1
+
     echo "=== DISK SPACE ==="
     df
+
     echo "=== MOUNTED VOLUMES ==="
     mount
+
   ) >> $OUT 2>&1
 
 }
