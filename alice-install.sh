@@ -1615,7 +1615,7 @@ _EoF_
       ALIPHYSICS_STR="${CEmp}${ALIPHYSICS_VER}${COff} (subdir: ${CTt}${ALIPHYSICS_SUBDIR}${COff})"
     fi
 
-    local BUILD_MODE_STR="${CEmp}${BUILD_MODE}${COff}"
+    local BUILD_MODE_STR="${CTt}${BUILD_MODE}${COff}"
     if [[ $BUILD_MODE == custom-gcc ]]; then
       BUILD_MODE_STR="using custom gcc at ${CTt}${CUSTOM_GCC_PATH}${COff}"
     fi
@@ -1630,10 +1630,10 @@ ALICE Environment script:
 Software installation prefix (nothing will be installed outside it):
   ${CTt}${ALICE_PREFIX}${COff}
 
-Compiler: ${BUILD_MODE_STR}
+Compiler (set with ${CEmp}--compiler${COff}): ${BUILD_MODE_STR}
 (You can choose between $( echo ${SUPPORTED_BUILD_MODES} | sed -e 's/ /, /g'))
 
-Build type: ${CEmp}${BuildType}${COff}
+Build type (set with ${CEmp}--type${COff}): ${CTt}${BuildType}${COff}
 (You can choose between debug, normal, optimized)
 
 You have selected the tuple ${CEmp}number ${ALI_nAliTuple}${COff}. This corresponds to:
