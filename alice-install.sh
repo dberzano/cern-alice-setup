@@ -1579,18 +1579,29 @@ _EoF_
 
     # alice-env.sh script was loaded but no action was provided
 
+    local ALIEN_STR='always the latest version'
     local ROOT_STR="${CEmp}${ROOT_VER}${COff}"
     local G3_STR="${CEmp}${G3_VER}${COff}"
     local ALICE_STR="${CEmp}${ALICE_VER}${COff}"
     local FASTJET_STR="${CEmp}${FASTJET_VER}${COff}"
     local ALIPHYSICS_STR="${CEmp}${ALIPHYSICS_VER}${COff}"
 
-    if [[ $ROOT_VER != $ROOT_SUBDIR ]]; then
+    if [[ $ALIENEXT_VER == EXTERNAL ]]; then
+      ALIEN_STR="will not be built, taken as-is from ${CTt}${ALIEN_DIR}${COff}"
+    fi
+
+    if [[ $ROOT_VER == '' ]]; then
+      ROOT_STR='will not be installed'
+    elif [[ $ROOT_VER == EXTERNAL ]] ; then
+      ROOT_STR="will not be built, taken as-is from ${CTt}${ROOT_SUBDIR}${COff}"
+    elif [[ $ROOT_VER != $ROOT_SUBDIR ]]; then
       ROOT_STR="${CEmp}${ROOT_VER}${COff} (subdir: ${CTt}${ROOT_SUBDIR}${COff})"
     fi
 
     if [[ $G3_VER == '' ]]; then
       G3_STR='will not be installed'
+    elif [[ $G3_VER == EXTERNAL ]] ; then
+      G3_STR="will not be built, taken as-is from ${CTt}${G3_SUBDIR}${COff}"
     elif [[ $G3_VER != $G3_SUBDIR ]]; then
       G3_STR="${CEmp}${G3_VER}${COff} (subdir: ${CTt}${G3_SUBDIR}${COff})"
     fi
@@ -1605,7 +1616,11 @@ _EoF_
       fi
     fi
 
-    if [[ $ALICE_VER != $ALICE_SUBDIR ]]; then
+    if [[ $ALICE_VER == '' ]]; then
+      ALICE_STR='will not be installed'
+    elif [[ $ALICE_VER == EXTERNAL ]] ; then
+      ALICE_STR="will not be built, taken as-is from ${CTt}${ALICE_SUBDIR}${COff}"
+    elif [[ $ALICE_VER != $ALICE_SUBDIR ]]; then
       ALICE_STR="${CEmp}${ALICE_VER}${COff} (subdir: ${CTt}${ALICE_SUBDIR}${COff})"
     fi
 
@@ -1636,9 +1651,9 @@ Compiler (set with ${CEmp}--compiler${COff}): ${BUILD_MODE_STR}
 Build type (set with ${CEmp}--type${COff}): ${CTt}${BuildType}${COff}
 (You can choose between debug, normal, optimized)
 
-You have selected the tuple ${CEmp}number ${ALI_nAliTuple}${COff}. This corresponds to:
+You have selected tuple ${CEmp}number ${ALI_nAliTuple}${COff}. This corresponds to:
 
-  AliEn            always the latest version
+  AliEn            ${ALIEN_STR}
   ROOT             ${ROOT_STR}
   Geant 3          ${G3_STR}
   FastJet          ${FASTJET_STR}
