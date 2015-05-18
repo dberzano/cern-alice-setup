@@ -16,6 +16,16 @@ export Cz="\033[m"
 # Set to 0 to enable commands
 export dry=1
 
+# Options for SSH
+export sshOpts='-oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no -lroot'
+
+# OpenStack services on the worker
+export openStackWorkerServices=(
+  'openstack-nova-network'
+  'openstack-nova-metadata-api'
+  'openstack-nova-compute'
+  'libvirtd' )
+
 # Wrap a command, prints it on screen before executing it. Execute it for real
 # only if dry=0. Preserve its exit state.
 #
@@ -106,7 +116,7 @@ function disableHypervisor() (
   local err_count=0
   local nova_tmp
 
-  # Disable the OpenStack service
+  # Disable the OpenStack service: prevents scheduling of VMs there
   wrap "Disabling hypervisor ${host}" \
     nova-manage service disable --host="$host" --service=nova-compute
   if [[ $? != 0 ]] ; then
@@ -137,6 +147,16 @@ function disableHypervisor() (
 
   rm -f "$nova_tmp"
 
+  # Shut down all OpenStack-related daemons running on the host
+  local services_command='true'
+  local serv
+  for serv in "${openStackWorkerServices[@]}" ; do
+    services_command="${services_command} && systemctl stop ${serv}"
+  done
+  wrap "Shutting down OpenStack daemons on ${host}" \
+    ssh $sshOpts $host "$services_command"
+  [[ $? == 0 ]] || err_count=$((err_count+1))
+
   [[ $err_count == 0 ]] && return 0
   return 1
 )
@@ -147,6 +167,16 @@ function disableHypervisor() (
 # Usage: enableHypervisor <full_host_name>
 function enableHypervisor() (
   local host="$1"
+
+  # Turn on all OpenStack-related daemons running on the host
+  local services_command='true'
+  local serv
+  for serv in "${openStackWorkerServices[@]}" ; do
+    services_command="${services_command} && systemctl start ${serv}"
+  done
+  wrap "Starting OpenStack daemons on ${host}" \
+    ssh $sshOpts $host "$services_command" || return $?
+
   wrap "Enabling hypervisor ${host}" \
     nova-manage service enable --host="$host" --service=nova-compute
   return $?

@@ -58,6 +58,11 @@ For each hypervisor you will see:
 * if the OpenStack daemons running on it are **responding**, and
 * *(optionally)* the **number** of deployed virtual machines
 
+A *disabled* hypervisor should report:
+
+* **Runs VMs? no**, meaning that OpenStack will not try to schedule VMs on it
+* **Alive? dead**, meaning that no OpenStack daemon is running on it
+
 
 ### Adding a node to the Cloud
 
@@ -71,9 +76,14 @@ Syntax:
 openstack-hlt-manage [--for-real] enable [node1 [node2 [node3...]]]
 ```
 
-Each node in the list is enabled to run virtual machines. Node names must be
-specified in the full form, *i.e.* with the domain name appended. It is the same
-domain name displayed by the [status command](#querying-the-status).
+Each node in the list is enabled to run virtual machines. This means that:
+
+* OpenStack services are explicitly started on each node in the list, and
+* the OpenStack central service is told to use those nodes.
+
+Node names must be specified in the full form, *i.e.* with the domain name
+appended. It is the same domain name displayed by the
+[status command](#querying-the-status).
 
 Errors enabling a single node are non-fatal: the program will continue with the
 other nodes, and report errors accordingly.
@@ -95,8 +105,11 @@ All commands executed successfully.
 
 Removing a node from the HLT Cloud means:
 
-* preventing new virtual machines to be launched on the selected nodes, and
-* deleting (abruptly) virtual machines currently running on the same nodes.
+* disabling the node from the central OpenStack manager,
+* deleting (abruptly) virtual machines currently running on the same nodes,
+* shutting down all OpenStack services on the node.
+
+This means that when a node is disabled, no OpenStack service runs on it.
 
 Those two operations normally involve a series of OpenStack commands, but they
 are simplified by the control script:
