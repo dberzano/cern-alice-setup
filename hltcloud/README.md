@@ -96,7 +96,9 @@ Sample output:
 ```console
 $> openstack-hlt-manage --for-real enable cn43.internal cn44.internal
 [ OK ] Enabling hypervisor cn43.internal
+[ OK ] Starting OpenStack daemons on cn43.internal
 [ OK ] Enabling hypervisor cn44.internal
+[ OK ] Starting OpenStack daemons on cn44.internal
 
 All commands executed successfully.
 ```
@@ -130,9 +132,11 @@ Sample output:
 $> openstack-hlt-manage --no-colors disable cn43.internal cn44.internal
 [ OK ] Disabling hypervisor cn43.internal
 [ OK ] Deleting VM e8cbe323-7c50-446a-841a-4460080f911f on hypervisor cn43.internal
+[ OK ] Shutting down OpenStack daemons on cn43.internal
 [ OK ] Disabling hypervisor cn44.internal
 [ OK ] Deleting VM 36eba1b0-c060-4046-8118-7a44bfca332c on hypervisor cn44.internal
 [ OK ] Deleting VM db0ea693-150f-455b-af76-df88408c8aaa on hypervisor cn44.internal
+[ OK ] Shutting down OpenStack daemons on cn44.internal
 
 All commands executed successfully.
 ```
