@@ -106,24 +106,14 @@ function forEach() (
 
 )
 
-# Deletes all virtual machines running on the specified hypervisor and disables
-# it: no new virtual machine will land there. OpenStack daemons and their
-# dependencies are started.
+# Just delete all virtual machines running on a certain hypervisor.
 #
-# Usage: disableHypervisor <full_host_name>
-function disableHypervisor() (
+# Usage: deleteAllVmsOnHypervisor <full_host_name>
+function deleteAllVmsOnHypervisor() {
 
   local host="$1"
-  local err_count=0
   local nova_tmp
-
-  # Disable the OpenStack service: prevents scheduling of VMs there
-  wrap "Disabling hypervisor ${host}" \
-    nova-manage service disable --host="$host" --service=nova-compute
-  if [[ $? != 0 ]] ; then
-    echo -e "${Cr}Cannot procede with deletion of VMs on ${host}!"
-    return 1
-  fi
+  local err_count=0
 
   # Get IDs of the instances running on $host
   nova_tmp=$(mktemp)
@@ -147,6 +137,31 @@ function disableHypervisor() (
   fi
 
   rm -f "$nova_tmp"
+
+  [[ $err_count == 0 ]] && return 0
+  return 1
+}
+
+# Deletes all virtual machines running on the specified hypervisor and disables
+# it: no new virtual machine will land there. OpenStack daemons and their
+# dependencies are started.
+#
+# Usage: disableHypervisor <full_host_name>
+function disableHypervisor() (
+
+  local host="$1"
+  local err_count=0
+
+  # Disable the OpenStack service: prevents scheduling of VMs there
+  wrap "Disabling hypervisor ${host}" \
+    nova-manage service disable --host="$host" --service=nova-compute
+  if [[ $? != 0 ]] ; then
+    echo -e "${Cr}Cannot procede with deletion of VMs on ${host}!"
+    return 1
+  fi
+
+  # Delete all VMs running on the host
+  deleteAllVmsOnHypervisor "$host" || err_count=1
 
   # Shut down all OpenStack-related daemons running on the host
   local services_command
