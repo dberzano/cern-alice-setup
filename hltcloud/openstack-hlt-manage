@@ -107,7 +107,8 @@ function forEach() (
 )
 
 # Deletes all virtual machines running on the specified hypervisor and disables
-# it: no new virtual machine will land there.
+# it: no new virtual machine will land there. OpenStack daemons and their
+# dependencies are started.
 #
 # Usage: disableHypervisor <full_host_name>
 function disableHypervisor() (
@@ -148,11 +149,15 @@ function disableHypervisor() (
   rm -f "$nova_tmp"
 
   # Shut down all OpenStack-related daemons running on the host
-  local services_command='true'
+  local services_command
   local serv
+
+  # Stop dnsmasq first
+  services_command="kill -15 \$( /usr/bin/ps -e -o user,pid,command | grep /var/lib/nova/networks | grep -v grep | grep ^nobody | awk '{print \$2}' ) > /dev/null 2> /dev/null ; true"
   for serv in "${openStackWorkerServices[@]}" ; do
     services_command="${services_command} && systemctl stop ${serv}"
   done
+
   wrap "Shutting down OpenStack daemons on ${host}" \
     ssh $sshOpts $host "$services_command"
   [[ $? == 0 ]] || err_count=$((err_count+1))
@@ -162,7 +167,7 @@ function disableHypervisor() (
 )
 
 # Reenables an hypervisor: it will be available again to accept new virtual
-# machines.
+# machines. OpenStack daemons and dependencies are started.
 #
 # Usage: enableHypervisor <full_host_name>
 function enableHypervisor() (
