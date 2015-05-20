@@ -286,8 +286,10 @@ function statusHypervisors() (
     alive=$( echo "$rawline" | awk '{print $5}' )   # :-) / XXX
 
     if [[ $qnvms == 1 ]] ; then
-      nvms=$( nova hypervisor-show "$host" 2> /dev/null | \
-        grep '|\s*running_vms' | sed -s 's/|//g' | awk '{print $2}' )
+      # nova hypervisor-show gives an unreliable running_vms field: we use
+      # another command here
+      nvms=$( nova hypervisor-servers "$host" | \
+        grep '^|' | grep -v '^|\s*ID' | wc -l 2> /dev/null )
     fi
 
     if [[ $status == enabled ]] ; then
