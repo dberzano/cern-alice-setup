@@ -109,7 +109,7 @@ function forEach() (
 # Just delete all virtual machines running on a certain hypervisor.
 #
 # Usage: deleteAllVmsOnHypervisor <full_host_name>
-function deleteAllVmsOnHypervisor() {
+function deleteAllVmsOnHypervisor() (
 
   local host="$1"
   local nova_tmp
@@ -140,7 +140,48 @@ function deleteAllVmsOnHypervisor() {
 
   [[ $err_count == 0 ]] && return 0
   return 1
-}
+)
+
+# Wait for all virtual machines running on a hypervisor to disappear. There is
+# also a timeout.
+#
+# Usage: waitVmsOnHypervisor <full_host_name> <timeout_seconds>
+function waitVmsOnHypervisor() (
+
+  local host="$1"
+  local timeout_s="$2"
+  local old_nvms='-1'
+  local nvms='-1'
+  local nova_tmp=$(mktemp)
+  local i
+
+  echo -e -n "${Cb}Waiting max ${timeout_s}s for VMs to be deleted from ${Cm}${host}${Cb}...${Cz}"
+
+  for (( i=0 ; i<$timeout_s ; i++ )) ; do
+    nova hypervisor-servers "$host"  > "$nova_tmp"
+    if [[ $? == 0 ]] ; then
+      old_nvms=$nvms
+      nvms=$( cat "$nova_tmp" | grep '^|' | grep -v '^|\s*ID' | wc -l )
+      if [[ $nvms == 0 ]] ; then
+        echo -e "${Cg}all gone!${Cz}"
+        rm -f "$nova_tmp"
+        return 0
+      elif [[ $nvms != $old_nvms ]] ; then
+        echo -e -n "${Cy}${nvms} running...${Cz}"
+      else
+        echo -e -n "${Cb}.${Cz}"
+      fi
+    else
+      # nova hypervisor-servers returned nonzero
+      echo -e -n "${Cr}X${Cz}"
+    fi
+    sleep 1
+  done
+
+  rm -f "$nova_tmp"
+  echo -e "${Cr}timeout reached, giving up${Cz}"
+  return 1
+)
 
 # Deletes all virtual machines running on the specified hypervisor and disables
 # it: no new virtual machine will land there. OpenStack daemons and their
@@ -156,12 +197,22 @@ function disableHypervisor() (
   wrap "Disabling hypervisor ${host}" \
     nova-manage service disable --host="$host" --service=nova-compute
   if [[ $? != 0 ]] ; then
-    echo -e "${Cr}Cannot procede with deletion of VMs on ${host}!"
+    echo -e "${Cr}Cannot procede with deletion of VMs on ${host}!${Cz}"
     return 1
   fi
 
-  # Delete all VMs running on the host
-  deleteAllVmsOnHypervisor "$host" || err_count=1
+  # Daemons must be enabled in order to delete stale VMs
+  startDaemons "$host"
+
+  if [[ $? == 0 ]] ; then
+
+    # Delete all VMs running on the host
+    deleteAllVmsOnHypervisor "$host" || err_count=1
+
+    # Wait for VMs to disappear
+    waitVmsOnHypervisor "$host" 3600
+
+  fi
 
   # Shut down all OpenStack-related daemons running on the host
   local services_command
@@ -181,11 +232,10 @@ function disableHypervisor() (
   return 1
 )
 
-# Reenables an hypervisor: it will be available again to accept new virtual
-# machines. OpenStack daemons and dependencies are started.
+# Just starts daemons on the specified hypervisor.
 #
-# Usage: enableHypervisor <full_host_name>
-function enableHypervisor() (
+# Usage: startDaemons <full_host_name>
+function startDaemons() (
   local host="$1"
 
   # Turn on all OpenStack-related daemons running on the host
@@ -196,7 +246,15 @@ function enableHypervisor() (
   done
   wrap "Starting OpenStack daemons on ${host}" \
     ssh $sshOpts $host "$services_command" || return $?
+)
 
+# Reenables an hypervisor: it will be available again to accept new virtual
+# machines. OpenStack daemons and dependencies are started.
+#
+# Usage: enableHypervisor <full_host_name>
+function enableHypervisor() (
+  local host="$1"
+  startDaemons "$host"
   wrap "Enabling hypervisor ${host}" \
     nova-manage service enable --host="$host" --service=nova-compute
   return $?
