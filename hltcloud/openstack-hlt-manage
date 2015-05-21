@@ -16,6 +16,9 @@ export Cz="\033[m"
 # Set to 0 to enable commands
 export dry=1
 
+# Set to 1 to have each echo output a line return at the end (useful with pdsh)
+export line_output=0
+
 # Options for SSH
 export sshOpts='-oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no -lroot'
 
@@ -37,7 +40,11 @@ function wrap() {
   local msg="$1"
   shift
 
-  echo -e -n "[....] ${Cc}${msg}${Cz}"
+  if [[ $line_output == 0 ]] ; then
+    echo -e -n "[....] ${Cc}${msg}${Cz}"
+  else
+    echo "${msg}: started"
+  fi
 
   # Dry run?
   if [[ $dry == 0 ]] ; then
@@ -48,11 +55,23 @@ function wrap() {
   fi
 
   if [[ $dry == 1 ]] ; then
-    echo -e "\r[${Cy}FAKE${Cz}]"
+    if [[ $line_output == 0 ]] ; then
+      echo -e "\r[${Cy}FAKE${Cz}]"
+    else
+      echo "${msg}: dry run"
+    fi
   elif [[ $r == 0 ]] ; then
-    echo -e "\r[ ${Cg}OK${Cz} ]"
+    if [[ $line_output == 0 ]] ; then
+      echo -e "\r[ ${Cg}OK${Cz} ]"
+    else
+      echo "${msg}: OK"
+    fi
   else
-    echo -e "\r[${Cr}FAIL${Cz}]"
+    if [[ $line_output == 0 ]] ; then
+      echo -e "\r[${Cr}FAIL${Cz}]"
+    else
+      echo "${msg}: failed, errors follow"
+    fi
 
     echo -e "\n${Cy}=== COMMAND FAILED === ${Cz}"
     echo -e "${Cm}Command: ${Cr}${@}${Cz}"
@@ -339,6 +358,10 @@ function main() (
         dry=0
         shift
       ;;
+      --line-output)
+        line_output=1
+        shift
+      ;;
       --no-colors)
         for v in Cc Cm Cy Cb Cr Cg Cz ; do
           eval "export $v=''"
@@ -385,10 +408,11 @@ function main() (
       "[${Cg}enable${Cz}|${Cr}disable${Cz}|${Cy}status${Cz}]" \
       "[${Cc}node1${Cz} [${Cc}node2${Cz}...]]${Cz}\n"
 
-    echo -e "         ${Cc}--for-real${Cz}   without this flag, ${Cg}enable${Cz} and" \
+    echo -e "         ${Cc}--for-real${Cz}     without this flag, ${Cg}enable${Cz} and" \
       "${Cr}disable${Cz} are just simulated and not executed"
-    echo -e "         ${Cc}--no-colors${Cz}  turn off colors"
-    echo -e "         ${Cc}--nvms${Cz}       report num of VMs running on each host when" \
+    echo -e "         ${Cc}--no-colors${Cz}    turn off colors"
+    echo -e "         ${Cc}--line-output${Cz}  line-buffered output (useful with pdsh)"
+    echo -e "         ${Cc}--nvms${Cz}         report num of VMs running on each host when" \
       "executing ${Cy}status${Cz} (slow)"
 
     echo
