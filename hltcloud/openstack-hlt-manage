@@ -132,17 +132,21 @@ function deleteAllVmsOnHypervisor() (
 
   local host="$1"
   local nova_tmp
+  local nova_filtered_tmp
   local err_count=0
 
   # Get IDs of the instances running on $host
   nova_tmp=$(mktemp)
+  nova_filtered_tmp=$(mktemp)
   nova hypervisor-servers "$host" 2> /dev/null > "$nova_tmp"
   if [[ $? == 0 ]] ; then
 
-    exec 3< <( cat "$nova_tmp" 2> /dev/null | \
+    cat "$nova_tmp" 2> /dev/null | \
       grep -E '\|\s*instance-' | \
       sed -e 's/|//g' | \
-      awk '{ print $1 }' )
+      awk '{ print $1 }' > "$nova_filtered_tmp"
+
+    exec 3< "$nova_filtered_tmp"
 
     # Delete instances
     while read -u 3 iid ; do
@@ -150,12 +154,14 @@ function deleteAllVmsOnHypervisor() (
       [[ $? == 0 ]] || err_count=$((err_count+1))
     done
 
+    exec 3<&-
+
   else
     echo -e "${Cr}Cannot read the list of VMs!${Cz}"
     err_count=1
   fi
 
-  rm -f "$nova_tmp"
+  rm -f "$nova_tmp" "$nova_filtered_tmp"
 
   [[ $err_count == 0 ]] && return 0
   return 1
@@ -290,6 +296,7 @@ function statusHypervisors() (
   local qnvms="$1"
   local hdr_txt='| Hypervisor           | Runs VMs? | Alive? |'
   local hdr_sep='+----------------------+-----------+--------+'
+  local nova_tmp=$(mktemp)
 
   if [[ $qnvms == 1 ]] ; then
     hdr_txt="${hdr_txt} #VMs |"
@@ -298,7 +305,9 @@ function statusHypervisors() (
 
   echo -e "${hdr_sep}\n${hdr_txt}\n${hdr_sep}"
 
-  exec 3< <( nova-manage service list 2> /dev/null | grep ^nova-compute )
+  nova-manage service list 2> /dev/null | grep ^nova-compute > "$nova_tmp"
+
+  exec 3< "$nova_tmp"
   while read -u 3 rawline ; do
     host=$( echo "$rawline" | awk '{print $2}' )    # hypervisor's name
     status=$( echo "$rawline" | awk '{print $4}' )  # enabled/disabled
@@ -318,6 +327,7 @@ function statusHypervisors() (
       status=0
       status_str="${Cr}no ${Cz}"
     else
+      rm -f "$nova_tmp"
       die 'Status is neither enabled nor disabled'
     fi
 
@@ -338,7 +348,9 @@ function statusHypervisors() (
     echo ''
 
   done
+  exec 3<&-
 
+  rm -f "$nova_tmp"
   echo "${hdr_sep}"
 )
 
