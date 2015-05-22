@@ -395,7 +395,7 @@ function main() (
 
   # Options to pass to each worker when running in parallel. Each option should
   # be appended to this array if you want it to be passed to the worker
-  parallel_opts+=('--no-colors' '--line-output')
+  parallel_opts+=('--line-output')
 
   while [[ $# -gt 0 ]] ; do
     case "$1" in
