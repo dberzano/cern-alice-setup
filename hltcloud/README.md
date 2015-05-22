@@ -26,7 +26,7 @@ openstack-enter admin
 Syntax:
 
 ```
-openstack-hlt-manage  [--for-real] [--no-colors] [--nvms] [enable|disable|status] [node1 [node2...]]
+openstack-hlt-manage  [--for-real] [--no-colors] [--line-output] [--parallel] [--ssh-config <file>] [--nvms] [enable|disable|status] [node1 [node2...]]
 ```
 
 ### Querying the status
@@ -73,7 +73,7 @@ Virtual machines are then usually deployed automatically using
 Syntax:
 
 ```
-openstack-hlt-manage [--for-real] enable [node1 [node2 [node3...]]]
+openstack-hlt-manage [--for-real] [--parallel] enable [node1 [node2 [node3...]]]
 ```
 
 Each node in the list is enabled to run virtual machines. This means that:
@@ -87,6 +87,9 @@ appended. It is the same domain name displayed by the
 
 Errors enabling a single node are non-fatal: the program will continue with the
 other nodes, and report errors accordingly.
+
+It is convenient to pass `--parallel` to enable hosts in parallel: this is way
+faster when running on many hosts at the same time.
 
 **Note:** the command runs in **dry-run** mode by default, meaning that it only
 simulates what would do. Prepend `--for-real` to effectively execute it.
@@ -123,23 +126,33 @@ openstack-hlt-manage [--for-real] disable [node1 [node2 [node3...]]]
 As for the `enable` command, errors removing one node are non-fatal and the
 program will continue to disable the other nodes.
 
+It is convenient to pass `--parallel` to disable hosts in parallel: this is way
+faster when running on many hosts at the same time, expecially if you consider
+that the command waits for virtual machines to disappear after issuing the kill
+command.
+
 **Note:** the command runs in **dry-run** mode by default, meaning that it only
 simulates what would do. Prepend `--for-real` to effectively execute it.
 
 Sample output:
 
 ```console
-$> openstack-hlt-manage --no-colors disable cn43.internal cn44.internal
-[ OK ] Disabling hypervisor cn43.internal
-[ OK ] Deleting VM e8cbe323-7c50-446a-841a-4460080f911f on hypervisor cn43.internal
-[ OK ] Shutting down OpenStack daemons on cn43.internal
-[ OK ] Disabling hypervisor cn44.internal
-[ OK ] Deleting VM 36eba1b0-c060-4046-8118-7a44bfca332c on hypervisor cn44.internal
-[ OK ] Deleting VM db0ea693-150f-455b-af76-df88408c8aaa on hypervisor cn44.internal
-[ OK ] Shutting down OpenStack daemons on cn44.internal
+$> openstack-hlt-manage --no-colors disable cn47.internal
+[ OK ] Disabling hypervisor cn47.internal
+[ OK ] Starting OpenStack daemons on cn47.internal
+[ OK ] Deleting VM d9d0c131-fd60-4ecb-97cf-c0e46901edf1 on hypervisor cn47.internal
+[ OK ] Deleting VM 380a44d5-71cd-4254-a3ae-4f9e716ec523 on hypervisor cn47.internal
+Waiting max 3600 s for VMs to be deleted on cn47.internal...2 running (3600 s left)...all gone in 1s!
+[ OK ] Shutting down OpenStack daemons on cn47.internal
 
 All commands executed successfully.
 ```
+
+From the output, you can see that OpenStack daemons are *started* before
+deleting virtual machines, and subsequently *stopped*. This is counterintuitive:
+we must make sure services are running before issuing delete commands, otherwise
+deletion will fail. In any case, since we have *disabled* the host in the first
+place, no VM will be scheduled there even if we temporarily start the daemons.
 
 Please note that OpenStack takes care of some cleanup (disk- and network-wise)
 after issuing the delete command: this takes some time (usually less than one
@@ -160,3 +173,15 @@ any command.
 
 * `--no-colors`: suppresses any color from the output. Useful if running inside
   a `watch` or from a terminal that does not support special escape sequences.
+* `--line-output`: all messages are line-buffered, *i.e.* they end with a new
+  line. This is used automatically by the `--parallel` option for its subworkers
+  to avoid mangled output.
+* `--parallel`: use `pdsh` (with the *exec* RCMD module) under the hood to
+  execute enable and disable operations for the given hosts in parallel. This
+  mechanism makes enabling and disabling many nodes at the same time very fast.
+* `--ssh-config <file>`: for enabling and disabling OpenStack daemons, ssh is
+  executed towards target nodes. In order to configure SSH connection options
+  (for instance, the private key to use) a SSH configuration file must be
+  provided. Omit this option on the production nodes: the correct configuration
+  will be picked automatically. If you specify a configuration file manually you
+  must use an absolute path.
