@@ -22,15 +22,9 @@ export line_output=0
 # Set to 1 to enable parallel execution (via pdsh)
 export parallel_exec=0
 
-# Options for SSH
-export sshOpts='-oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no -lroot'
-
-# OpenStack services on the worker
-export openStackWorkerServices=(
-  'openstack-nova-network'
-  'openstack-nova-metadata-api'
-  'openstack-nova-compute'
-  'libvirtd' )
+# SSH key. In the production configuration, this is substituted by Puppet. In
+# any other case, it can be specified from the command line
+export sshConfigFile='<%= @os_enable_disable_config %>'
 
 # Wrap a command, prints it on screen before executing it. Execute it for real
 # only if dry=0. Preserve its exit state.
@@ -280,18 +274,10 @@ function disableHypervisor() (
 
   fi
 
-  # Shut down all OpenStack-related daemons running on the host
-  local services_command
-  local serv
-
-  # Stop dnsmasq first
-  services_command="kill -15 \$( /usr/bin/ps -e -o user,pid,command | grep /var/lib/nova/networks | grep -v grep | grep ^nobody | awk '{print \$2}' ) > /dev/null 2> /dev/null ; true"
-  for serv in "${openStackWorkerServices[@]}" ; do
-    services_command="${services_command} && systemctl stop ${serv}"
-  done
-
+  # Shut down all OpenStack-related daemons running on the host (must be
+  # supported by an SSH key on the remote side for security reasons)
   wrap "Shutting down OpenStack daemons on ${host}" \
-    ssh $sshOpts $host "$services_command"
+    sh -c "echo disable | ssh -F \"$sshConfigFile\" $host"
   [[ $? == 0 ]] || err_count=$((err_count+1))
 
   [[ $err_count == 0 ]] && return 0
@@ -305,13 +291,8 @@ function startDaemons() (
   local host="$1"
 
   # Turn on all OpenStack-related daemons running on the host
-  local services_command='true'
-  local serv
-  for serv in "${openStackWorkerServices[@]}" ; do
-    services_command="${services_command} && systemctl start ${serv}"
-  done
   wrap "Starting OpenStack daemons on ${host}" \
-    ssh $sshOpts $host "$services_command" || return $?
+    sh -c "echo enable | ssh -F \"$sshConfigFile\" $host" || return $?
 )
 
 # Reenables an hypervisor: it will be available again to accept new virtual
@@ -440,6 +421,10 @@ function main() (
         parallel_exec=1
         shift
       ;;
+      --ssh-config)
+        sshConfigFile="$2"
+        shift ; shift
+      ;;
       --nvms)
         nvms=1
         shift
@@ -452,6 +437,11 @@ function main() (
 
   action="$1"
   shift
+
+  if [[ ${sshConfigFile:0:1} == '<' || ${sshConfigFile} == '' ]] ; then
+    # Default SSH config file if none is specified
+    export sshConfigFile="$HOME/.ssh/config"
+  fi
 
   case "$action" in
     enable|disable)
@@ -485,7 +475,7 @@ function main() (
 
   if [[ $print_help == 1 ]] ; then
     echo -e "\n${Cm}Usage: ${Cc}${prog}${Cz}" \
-      "[${Cc}--for-real${Cz}] [${Cc}--no-colors${Cz}] [${Cc}--line-output${Cz}] [${Cc}--parallel${Cz}] [${Cc}--nvms${Cz}]" \
+      "[${Cc}--for-real${Cz}] [${Cc}--no-colors${Cz}] [${Cc}--line-output${Cz}] [${Cc}--parallel${Cz}] [${Cc}--ssh-config${Cz} ${Cy}<file>${Cz}] [${Cc}--nvms${Cz}]" \
       "[${Cg}enable${Cz}|${Cr}disable${Cz}|${Cy}status${Cz}]" \
       "[${Cc}node1${Cz} [${Cc}node2${Cz}...]]${Cz}\n"
 
@@ -494,6 +484,7 @@ function main() (
     echo -e "         ${Cc}--no-colors${Cz}    turn off colors"
     echo -e "         ${Cc}--line-output${Cz}  line-buffered output (useful with pdsh)"
     echo -e "         ${Cc}--parallel${Cz}     use pdsh for executing in parallel with pdsh"
+    echo -e "         ${Cc}--ssh-config${Cz}   SSH config file for running remote commands"
     echo -e "         ${Cc}--nvms${Cz}         report num of VMs running on each host when" \
       "executing ${Cy}status${Cz} (slow)"
 
