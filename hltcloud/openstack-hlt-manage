@@ -19,6 +19,9 @@ export dry=1
 # Set to 1 to have each echo output a line return at the end (useful with pdsh)
 export line_output=0
 
+# Set to 1 to enable parallel execution (via pdsh)
+export parallel_exec=0
+
 # Options for SSH
 export sshOpts='-oUserKnownHostsFile=/dev/null -oStrictHostKeyChecking=no -lroot'
 
@@ -373,17 +376,29 @@ function statusHypervisors() (
 # Entry point
 function main() (
 
- local action
- local r
- local nvms=0
- local prog=$(basename "$0")
- local print_help=0
- local print_dry_notice=0
+  local action
+  local r
+  local nvms=0
+  local prog=$(basename "$0")
+  local full_prog
+  local print_help=0
+  local print_dry_notice=0
+  local parallel_opts=()
+  local all_args=("$@")
+
+  full_prog=$(dirname "$0")
+  full_prog=$(cd "$full_prog";pwd)
+  full_prog="${full_prog}/${prog}"
+
+  # Options to pass to each worker when running in parallel. Each option should
+  # be appended to this array if you want it to be passed to the worker
+  parallel_opts+=('--no-colors' '--line-output')
 
   while [[ $# -gt 0 ]] ; do
     case "$1" in
       --for-real)
         dry=0
+        parallel_opts+=("$1")
         shift
       ;;
       --line-output)
@@ -394,6 +409,10 @@ function main() (
         for v in Cc Cm Cy Cb Cr Cg Cz ; do
           eval "export $v=''"
         done
+        shift
+      ;;
+      --parallel)
+        parallel_exec=1
         shift
       ;;
       --nvms)
@@ -412,8 +431,17 @@ function main() (
   case "$action" in
     enable|disable)
       if [[ "$@" != '' ]] ; then
-        forEach "${action}Hypervisor" "$@"
-        r=$?
+        if [[ $parallel_exec == 1 ]] ; then
+          # Parallel execution with "pdsh -R exec"
+          hosts_list=$( echo "$@" | sed -e 's/ /,/g' )
+          pdsh -R exec -w "$hosts_list" \
+            "$full_prog" "${parallel_opts[@]}" "$action" '%h'
+          r=$?
+        else
+          # Single core
+          forEach "${action}Hypervisor" "$@"
+          r=$?
+        fi
         print_dry_notice=1
       else
         print_help=1
@@ -431,8 +459,8 @@ function main() (
   esac
 
   if [[ $print_help == 1 ]] ; then
-    echo -e "\n${Cm}Usage: ${Cc}${prog}${Cz} " \
-      "[${Cc}--for-real${Cz}] [${Cc}--no-colors${Cz}] [${Cc}--nvms${Cz}]" \
+    echo -e "\n${Cm}Usage: ${Cc}${prog}${Cz}" \
+      "[${Cc}--for-real${Cz}] [${Cc}--no-colors${Cz}] [${Cc}--line-output${Cz}] [${Cc}--parallel${Cz}] [${Cc}--nvms${Cz}]" \
       "[${Cg}enable${Cz}|${Cr}disable${Cz}|${Cy}status${Cz}]" \
       "[${Cc}node1${Cz} [${Cc}node2${Cz}...]]${Cz}\n"
 
@@ -440,6 +468,7 @@ function main() (
       "${Cr}disable${Cz} are just simulated and not executed"
     echo -e "         ${Cc}--no-colors${Cz}    turn off colors"
     echo -e "         ${Cc}--line-output${Cz}  line-buffered output (useful with pdsh)"
+    echo -e "         ${Cc}--parallel${Cz}     use pdsh for executing in parallel with pdsh"
     echo -e "         ${Cc}--nvms${Cz}         report num of VMs running on each host when" \
       "executing ${Cy}status${Cz} (slow)"
 
