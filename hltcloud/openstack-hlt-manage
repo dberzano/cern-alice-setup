@@ -223,7 +223,11 @@ function waitVmsOnHypervisor() (
   done
 
   rm -f "$nova_tmp"
-  echo -e "${Cr}timeout reached, giving up${Cz}"
+  if [[ $line_output == 0 ]] ; then
+    echo -e "${Cr}timeout reached, giving up${Cz}"
+  else
+    echo -e "${Cr}VMs still running ${timeout_s}s: timeout reached, giving up${Cz}"
+  fi
   return 1
 )
 
