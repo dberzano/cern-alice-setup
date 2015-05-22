@@ -251,10 +251,13 @@ function disableHypervisor() (
   if [[ $? == 0 ]] ; then
 
     # Delete all VMs running on the host
-    deleteAllVmsOnHypervisor "$host" || err_count=1
-
-    # Wait for VMs to disappear
-    waitVmsOnHypervisor "$host" 3600
+    deleteAllVmsOnHypervisor "$host"
+    if [[ $? != 0 ]] ; then
+      err_count=1
+    else
+      # Wait for VMs to disappear
+      waitVmsOnHypervisor "$host" 3600
+    fi
 
   fi
 
