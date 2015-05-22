@@ -189,9 +189,13 @@ function waitVmsOnHypervisor() (
     echo -e "${Cc}Waiting max ${timeout_s} s for VMs to be deleted on ${host}${Cz}"
   fi
 
+  [[ $dry == 1 ]] && echo 0 > "$nova_tmp"
+
   for (( i=0 ; i<$timeout_s ; i++ )) ; do
-    nova hypervisor-servers "$host" 2> /dev/null > "$nova_tmp"
-    if [[ $? == 0 ]] ; then
+
+    [[ $dry == 0 ]] && nova hypervisor-servers "$host" 2> /dev/null > "$nova_tmp"
+
+    if [[ $? == 0 || $dry == 1 ]] ; then
       old_nvms=$nvms
       nvms=$( cat "$nova_tmp" | grep '^|' | grep -v '^|\s*ID' | wc -l )
       if [[ $nvms == 0 ]] ; then
