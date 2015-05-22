@@ -182,6 +182,7 @@ function waitVmsOnHypervisor() (
   local nvms='-1'
   local nova_tmp=$(mktemp)
   local i
+  local r
 
   if [[ $line_output == 0 ]] ; then
     echo -e -n "${Cb}Waiting max ${timeout_s} s for VMs to be deleted on ${Cm}${host}${Cb}...${Cz}"
@@ -189,15 +190,23 @@ function waitVmsOnHypervisor() (
     echo -e "${Cc}Waiting max ${timeout_s} s for VMs to be deleted on ${host}${Cz}"
   fi
 
-  [[ $dry == 1 ]] && echo 0 > "$nova_tmp"
-
   for (( i=0 ; i<$timeout_s ; i++ )) ; do
 
-    [[ $dry == 0 ]] && nova hypervisor-servers "$host" 2> /dev/null > "$nova_tmp"
+    if [[ $dry == 0 ]] ; then
+      nova hypervisor-servers "$host" 2> /dev/null > "$nova_tmp"
+      r=$?
+    else
+      r=0
+    fi
 
-    if [[ $? == 0 || $dry == 1 ]] ; then
+    if [[ $r == 0 || $dry == 1 ]] ; then
       old_nvms=$nvms
-      nvms=$( cat "$nova_tmp" | grep '^|' | grep -v '^|\s*ID' | wc -l )
+      if [[ $dry == 1 ]] ; then
+        # No VMs running in dry mode
+        nvms=0
+      else
+        nvms=$( cat "$nova_tmp" | grep '^|' | grep -v '^|\s*ID' | wc -l )
+      fi
       if [[ $nvms == 0 ]] ; then
         if [[ $line_output == 0 ]] ; then
           echo -e "${Cg}all gone in ${i}s!${Cz}"
