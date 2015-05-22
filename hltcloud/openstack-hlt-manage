@@ -43,7 +43,7 @@ function wrap() {
   if [[ $line_output == 0 ]] ; then
     echo -e -n "[....] ${Cc}${msg}${Cz}"
   else
-    echo "${msg}: started"
+    echo -e "${Cc}${msg}: operation started${Cz}"
   fi
 
   # Dry run?
@@ -58,19 +58,19 @@ function wrap() {
     if [[ $line_output == 0 ]] ; then
       echo -e "\r[${Cy}FAKE${Cz}]"
     else
-      echo "${msg}: dry run"
+      echo -e "${Cy}${msg}: dry run${Cz}"
     fi
   elif [[ $r == 0 ]] ; then
     if [[ $line_output == 0 ]] ; then
       echo -e "\r[ ${Cg}OK${Cz} ]"
     else
-      echo "${msg}: OK"
+      echo -e "${Cg}${msg}: OK${Cz}"
     fi
   else
     if [[ $line_output == 0 ]] ; then
       echo -e "\r[${Cr}FAIL${Cz}]"
     else
-      echo "${msg}: failed, errors follow"
+      echo -e "${Cr}${msg}: failed, errors follow${Cz}"
     fi
 
     echo -e "\n${Cy}=== COMMAND FAILED === ${Cz}"
@@ -114,11 +114,11 @@ function forEach() (
   done
 
   if [[ $err_count == 0 ]] ; then
-    echo
+    [[ $line_output == 0 ]] && echo
     echo -e "${Cg}All commands executed successfully.${Cz}"
     return 0
   else
-    echo
+    [[ $line_output == 0 ]] && echo
     echo -e "${Cr}There were errors.${Cz}"
     return 1
   fi
@@ -180,25 +180,41 @@ function waitVmsOnHypervisor() (
   local nova_tmp=$(mktemp)
   local i
 
-  echo -e -n "${Cb}Waiting max ${timeout_s}s for VMs to be deleted from ${Cm}${host}${Cb}...${Cz}"
+  if [[ $line_output == 0 ]] ; then
+    echo -e -n "${Cb}Waiting max ${timeout_s} s for VMs to be deleted on ${Cm}${host}${Cb}...${Cz}"
+  else
+    echo -e "${Cc}Waiting max ${timeout_s} s for VMs to be deleted on ${host}${Cz}"
+  fi
 
   for (( i=0 ; i<$timeout_s ; i++ )) ; do
-    nova hypervisor-servers "$host"  > "$nova_tmp"
+    nova hypervisor-servers "$host" 2> /dev/null > "$nova_tmp"
     if [[ $? == 0 ]] ; then
       old_nvms=$nvms
       nvms=$( cat "$nova_tmp" | grep '^|' | grep -v '^|\s*ID' | wc -l )
       if [[ $nvms == 0 ]] ; then
-        echo -e "${Cg}all gone!${Cz}"
+        if [[ $line_output == 0 ]] ; then
+          echo -e "${Cg}all gone in ${i}s!${Cz}"
+        else
+          echo -e "${Cg}All VMs gone in ${i} s${Cz}"
+        fi
         rm -f "$nova_tmp"
         return 0
       elif [[ $nvms != $old_nvms ]] ; then
-        echo -e -n "${Cy}${nvms} running...${Cz}"
+        if [[ $line_output == 0 ]] ; then
+          echo -e -n "${Cy}${nvms} running...${Cz}"
+        else
+          echo -e "${Cy}VMs running on ${host}: ${nvms} - we keep waiting${Cz}"
+        fi
       else
-        echo -e -n "${Cb}.${Cz}"
+        [[ $line_output == 0 ]] && echo -e -n "${Cb}.${Cz}"
       fi
     else
       # nova hypervisor-servers returned nonzero
-      echo -e -n "${Cr}X${Cz}"
+      if [[ $line_output == 0 ]] ; then
+        echo -e -n "${Cr}X${Cz}"
+      else
+        echo -e "${Cr}Querying for VMs on ${host} returned an error: we keep retrying${Cz}"
+      fi
     fi
     sleep 1
   done
@@ -431,12 +447,16 @@ function main() (
   fi
 
   if [[ $dry == 1 && $print_dry_notice == 1 ]] ; then
-    echo
-    echo -e "${Cy}Note:${Cc} the command was not executed for real: it was a dry run.${Cz}"
-    echo -e "${Cy}Use ${Cc}--for-real${Cy} to execute it, i.e.:${Cz}"
-    echo
-    echo -e "  ${Cm}${prog} --for-real ${action} ${@}${Cz}"
-    echo
+    if [[ $line_output == 1 ]] ; then
+      echo -e "${Cy}Note:${Cc} this was a dry run.${Cz}"
+    else
+      echo
+      echo -e "${Cy}Note:${Cc} the command was not executed for real: it was a dry run.${Cz}"
+      echo -e "${Cy}Add the ${Cc}--for-real${Cy} switch to execute it, i.e.:${Cz}"
+      echo
+      echo -e "  ${Cm}${prog} --for-real ${all_args[@]}${Cz}"
+      echo
+    fi
   fi
 
   return $?
