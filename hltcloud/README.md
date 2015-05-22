@@ -29,6 +29,10 @@ Syntax:
 openstack-hlt-manage  [--for-real] [--no-colors] [--line-output] [--parallel] [--ssh-config <file>] [--nvms] [enable|disable|status] [node1 [node2...]]
 ```
 
+**Note:** if using the `--parallel` option, nodes list can also be specified in
+the format supported by the `-w` option of `pdsh` (see
+the [manpage](http://linux.die.net/man/1/pdsh)).
+
 ### Querying the status
 
 ```
