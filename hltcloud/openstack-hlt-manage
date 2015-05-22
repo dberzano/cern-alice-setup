@@ -178,6 +178,7 @@ function waitVmsOnHypervisor() (
 
   local host="$1"
   local timeout_s="$2"
+  local time_left_s
   local old_nvms='-1'
   local nvms='-1'
   local nova_tmp=$(mktemp)
@@ -215,11 +216,12 @@ function waitVmsOnHypervisor() (
         fi
         rm -f "$nova_tmp"
         return 0
-      elif [[ $nvms != $old_nvms ]] ; then
+      elif [[ $nvms != $old_nvms || $(( $i % 10 )) == 0 ]] ; then
+        time_left_s=$(( $timeout_s - $i ))
         if [[ $line_output == 0 ]] ; then
-          echo -e -n "${Cy}${nvms} running...${Cz}"
+          echo -e -n "${Cy}${nvms} running (${time_left_s} s left)...${Cz}"
         else
-          echo -e "${Cy}VMs running on ${host}: ${nvms} - we keep waiting${Cz}"
+          echo -e "${Cy}VMs running on ${host}: ${nvms} - timeout in ${time_left_s} s${Cz}"
         fi
       else
         [[ $line_output == 0 ]] && echo -e -n "${Cb}.${Cz}"
@@ -272,7 +274,7 @@ function disableHypervisor() (
     if [[ $? != 0 ]] ; then
       err_count=1
     else
-      # Wait for VMs to disappear
+      # Wait for VMs to disappear (one hour timeout)
       waitVmsOnHypervisor "$host" 3600
     fi
 
