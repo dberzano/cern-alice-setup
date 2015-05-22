@@ -382,6 +382,9 @@ function statusHypervisors() (
 
   rm -f "$nova_tmp"
   echo "${hdr_sep}"
+  echo ''
+  echo -e "${Cy}Note:${Cz} ${Cg}alive${Cz}/${Cr}dead${Cz} status is updated asynchronously."
+  echo -e "      If you have just disabled a node it may still show as ${Cg}alive${Cz} for ~2 mins."
 )
 
 # Entry point
