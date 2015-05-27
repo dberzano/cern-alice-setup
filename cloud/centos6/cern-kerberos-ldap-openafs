@@ -1,0 +1,205 @@
+#cloud-config
+
+# Fundamental for allowing password login
+ssh_pwauth: true
+
+write_files:
+
+ # Kerberos configuration
+ - content: |
+    ; AD  : This Kerberos configuration is for CERN's Active Directory realm.
+    ;
+    ; /etc/krb5.conf
+    ; This file is maintained via ncm-krb5clt(1), local changes may be lost.
+    ; If you need to add your realm, look at the "template" file
+    ; in /usr/lib/ncm/config/krb5clt/etc_krb5.conf.tpl
+    ; or get in touch with project-elfms@cern.ch
+
+    [libdefaults]
+     default_realm = CERN.CH
+     ticket_lifetime = 25h
+     renew_lifetime = 120h
+     forwardable = true
+     proxiable = true
+     default_tkt_enctypes = arcfour-hmac-md5 aes256-cts aes128-cts des3-cbc-sha1 des-cbc-md5 des-cbc-crc
+     allow_weak_crypto = true
+     chpw_prompt = true
+
+    [realms]
+     CERN.CH = {
+      default_domain = cern.ch
+      kpasswd_server = cerndc.cern.ch
+      admin_server = cerndc.cern.ch
+      kdc = cerndc.cern.ch
+
+      v4_name_convert = {
+         host = {
+             rcmd = host
+         }
+      }
+     }
+    ; the external institutes info is completely static for now and comes
+    ; straight from the NCM template
+     FNAL.GOV = {
+      default_domain = fnal.gov
+      admin_server = krb-fnal-admin.fnal.gov
+      kdc = krb-fnal-1.fnal.gov:88
+      kdc = krb-fnal-2.fnal.gov:88
+      kdc = krb-fnal-3.fnal.gov:88
+     }
+     KFKI.HU = {
+      kdc = kerberos.kfki.hu
+      admin_server = kerberos.kfki.hu
+     }
+     HEP.MAN.AC.UK = {
+      kdc = afs4.hep.man.ac.uk
+      kdc = afs1.hep.man.ac.uk
+      kdc = afs2.hep.man.ac.uk
+      kdc = afs3.hep.man.ac.uk
+      admin_server = afs4.hep.man.ac.uk
+      kpasswd_server = afs4.hep.man.ac.uk
+      default_domain = hep.man.ac.uk
+     }
+    [domain_realm]
+     .cern.ch = CERN.CH
+     .fnal.gov = FNAL.GOV
+     .kfki.hu = KFKI.HU
+     .hep.man.ac.uk = HEP.MAN.AC.UK
+    [appdefaults]
+       pkinit_pool =  DIR:/etc/pki/tls/certs/
+       pkinit_anchors = DIR:/etc/pki/tls/certs/
+    ; options for Red Hat pam_krb5-2
+     pam = {
+       external = true
+       krb4_convert =  false
+       krb4_convert_524 =  false
+       krb4_use_as_req =  false
+       ticket_lifetime = 25h
+       use_shmem = sshd
+     }
+   path: /etc/krb5.conf.test
+   permissions: '0644'
+   owner: root:root
+
+ # AFS configuration
+ - content: cern.ch
+   path: /usr/vice/etc/ThisCell
+   permissions: '0644'
+   owner: root:root
+
+ # SSSD configuration: only alice-member users can login
+ - content: |
+    [sssd]
+    config_file_version = 2
+    services = nss, pam, autofs
+    domains = default
+    debug_level = 0x0400
+
+    [nss]
+    filter_users = root,ldap,named,avahi,haldaemon,dbus,radiusd,news,nscd
+
+    [pam]
+
+    [domain/default]
+    ldap_tls_reqcert = allow
+
+    #access_provider = ldap
+    #ldap_access_order = filter
+    #ldap_access_filter = (&(objectClass=user)(uidNumber=*)(unixHomeDirectory=*)(memberOf=CN=alice-jira-admins,OU=e-groups,OU=Workgroups,DC=cern,DC=ch))
+    auth_provider = krb5
+
+    # Users are objects of class "user" (default is "posixAccount")
+    ldap_user_object_class = user
+    # Groups are objects of class "group"
+    ldap_group_object_class = group
+
+    ldap_schema = rfc2307bis
+    ldap_user_search_filter = memberOf=CN=alice-member,OU=e-groups,OU=Workgroups,DC=cern,DC=ch
+
+    ldap_search_base = DC=cern,DC=ch
+
+    id_provider = ldap
+
+    ldap_id_use_start_tls = True
+    #chpass_provider = ldap
+
+    ldap_uri = ldap://xldap.cern.ch
+    #ldap_uri = ldaps://cerndc.cern.ch
+    #ldap_chpass_uri = ldaps://your.ldapwrite.server/
+
+    cache_credentials = False
+
+    ldap_tls_cacertdir = /etc/pki/tls/certs
+    entry_cache_timeout = 600
+    ldap_network_timeout = 3
+
+    enumerate = False
+
+    #
+    # POSIX <-> Active Directory (xldap)
+    # Doc: https://jhrozek.fedorapeople.org/sssd/1.11.6/man/sssd-ldap.5.html
+    # We are using: 1.11.6
+    #
+
+    # All CERN users
+    #ldap_access_filter = (&(objectClass=user)(uidNumber=*)(unixHomeDirectory=*))
+
+    # Only users in the e-group alice-jira-admin
+    #ldap_access_filter = (&(objectClass=user)(uidNumber=*)(unixHomeDirectory=*)(memberOf=CN=alice-jira-admins,OU=e-groups,OU=Workgroups,DC=cern,DC=ch))
+
+    #CN=alice-jira-admins,OU=e-groups,OU=Workgroups,DC=cern,DC=ch
+
+    # Mappings (passwd):
+    # uid              <-> sAMAccountName
+    # homeDirectory    <-> unixHomeDirectory
+    # gecos            <-> displayName
+
+    # Mappings (shadow):
+    # uid              <-> sAMAccountName
+    # shadowLastChange <-> pwdLastSet
+
+    # Mappings (group)
+    # uniqueMember     <-> member
+
+    # Comment the lines below if using xldap. Note: use a service account (a user account is too dangerous)
+    #ldap_default_bind_dn = cn=covldap,ou=users,ou=organic units,dc=cern,dc=ch
+    #ldap_default_authtok = *********
+
+    ldap_user_name = sAMAccountName
+    ldap_user_uid_number = uidNumber
+    ldap_user_gid_number = gidNumber
+    ldap_user_gecos = gecos
+    ldap_user_home_directory = unixHomeDirectory
+    ldap_group_member = uniquemember
+
+    autofs_provider = ldap
+    krb5_kpasswd = cerndc.cern.ch
+    krb5_server = cerndc.cern.ch
+    chpass_provider = krb5
+    krb5_realm = CERN.CH
+    [autofs]
+   path: /etc/sssd/sssd.conf
+   permissions: '0600'
+   owner: root:root
+
+runcmd:
+
+ # Works only from CERN: keytab creation
+ - [ /usr/local/sbin/cern-get-keytab ]
+
+ # Enable LDAP and Kerberos
+ - [ authconfig, --enablekrb5, --enablesssd, --enablesssdauth, --enablelocauthorize, --enableldap, --disableldapauth, --update ]
+
+ # Start the OpenAFS cache (module is loaded automatically)
+ - [ service, openafs-client, start ]
+ - [ chkconfig, openafs-client, on ]
+
+ # Enable SSSD at boot
+ - [ chkconfig, sssd, on ]
+
+ # Create AFS token at login
+ - [ rm, -f, /etc/pam.d/password-auth, /etc/pam.d/system-auth ]
+ - |
+    cat /etc/pam.d/system-auth-ac | \
+    sed -e 's|^auth.*pam_sss\.so.*$|\0\nauth [default=done] pam_afs_session.so program=/usr/bin/aklog| ; s|^session.*pam_sss\.so.*$|\0\nsession required pam_afs_session.so program=/usr/bin/aklog|' > /etc/pam.d/system-auth
+ - [ cp, /etc/pam.d/system-auth, /etc/pam.d/password-auth ]
