@@ -1,0 +1,14 @@
+# This is an example file. Rename it to private-config.txt (remove the .example extension) and use
+# it with add-private-config.sh
+
+# IP address of HTCondor "head node"
+IP_FOR_CONDOR_HEAD=1.2.3.4
+
+# HTTP proxy
+MY_HTTP_PROXY=mysquid.cern.ch
+
+# HTCondor shared secret, in cleartext
+CONDOR_SHARED_SECRET=mycondorpassword
+
+# Swap space per core, in KB (3 GB in the example)
+SWAP_PER_CORE_KB=3000000
