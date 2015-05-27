@@ -5,7 +5,8 @@
 IP_FOR_CONDOR_HEAD=1.2.3.4
 
 # HTTP proxy
-MY_HTTP_PROXY=mysquid.cern.ch
+#MY_HTTP_PROXY_URL=http://mysquid.cern.ch:3128
+MY_HTTP_PROXY_URL=DIRECT
 
 # HTCondor shared secret, in cleartext
 CONDOR_SHARED_SECRET=mycondorpassword

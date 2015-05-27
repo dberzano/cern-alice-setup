@@ -14,7 +14,7 @@ packages:
  - htop
 
 runcmd:
- - echo CVMFS_HTTP_PROXY="http://<MY_HTTP_PROXY>:3128" > /etc/cvmfs/default.local
+ - echo CVMFS_HTTP_PROXY="<MY_HTTP_PROXY_URL>" > /etc/cvmfs/default.local
  - [ cvmfs_config, setup ]
  - [ cvmfs_config, reload ]
  - [ service, autofs, forcerestart ]
