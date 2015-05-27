@@ -1,0 +1,7 @@
+#cloud-config
+
+users:
+ - default
+
+bootcmd:
+ - passwd --lock root

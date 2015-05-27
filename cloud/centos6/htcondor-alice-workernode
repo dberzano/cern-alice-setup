@@ -1,0 +1,140 @@
+#cloud-config
+
+users:
+ - default
+
+package_upgrade: false
+
+bootcmd:
+ - |
+    getent group | grep -Eq ^aliprod: || groupadd aliprod -g 355
+    id aliprod > /dev/null 2>&1 || useradd aliprod -u 355 -g 355 -m --home-dir /var/lib/aliprod
+ - passwd --lock root
+ - |
+    SWAP_PER_CORE_KB=3000000
+    SWAP_FILE=/swap
+    SWAP_SIZE_KB=$(( $(grep -c bogomips /proc/cpuinfo) * SWAP_PER_CORE_KB ))
+    if [[ ! -e "$SWAP_FILE" ]] ; then
+      fallocate -l ${SWAP_SIZE_KB}000 "$SWAP_FILE"
+      mkswap "$SWAP_FILE"
+    fi
+
+mounts:
+ - [ /swap, swap, swap, sw ]
+
+write_files:
+ - content: |
+     # written by cloud-init
+     DAEMON_LIST = MASTER, STARTD
+     CONDOR_HOST = <IP_FOR_HTCONDOR_HEAD>
+     CONDOR_ADMIN = root@<IP_FOR_HTCONDOR_HEAD>
+     UID_DOMAIN = *
+     TRUST_UID_DOMAIN = True
+     SOFT_UID_DOMAIN = True
+     QUEUE_SUPER_USERS = root, condor
+     HIGHPORT = 42000
+     LOWPORT = 41000
+     SEC_DAEMON_AUTHENTICATION = required
+     SEC_DAEMON_INTEGRITY = required
+     SEC_DAEMON_AUTHENTICATION_METHODS = password
+     SEC_CLIENT_AUTHENTICATION_METHODS = password,fs,gsi,kerberos
+     SEC_PASSWORD_FILE = /etc/condor/condor_credential
+     SEC_ENABLE_MATCH_PASSWORD_AUTHENTICATION = True
+     ALLOW_DAEMON = condor_pool@*, submit-side@matchsession
+     COLLECTOR_NAME = Condor cluster at \$(CONDOR_HOST)
+     NEGOTIATOR_INTERVAL = 20
+     START = TRUE
+     SUSPEND = FALSE
+     PREEMPT = FALSE
+     KILL = FALSE
+     TRUST_UID_DOMAIN = TRUE
+     UPDATE_COLLECTOR_WITH_TCP = True
+     COLLECTOR_SOCKET_CACHE_SIZE = 1000
+     # this is needed to set the path
+     USER_JOB_WRAPPER = /etc/condor/job_wrapper.sh
+     # this is a dummy value to prevent job killing for consuming too much mem
+     JOB_DEFAULT_REQUESTMEMORY = 42
+   path: /etc/condor/condor_config.local
+   permissions: '0644'
+   owner: root:root
+ - content: |
+     #!/bin/sh
+     echo '^___^ <--( welcome to condor! )'
+     export PATH='/bin:/usr/bin'
+     export USER=`whoami`
+     if [[ "$USER" == 'aliprod' ]] ; then
+       export HOME='/var/lib/aliprod'
+     elif [[ "$UID" != '' ]] ; then
+       export HOME="/tmp/home-$UID"
+     fi
+     exec "$@"
+   path: /etc/condor/job_wrapper.sh
+   permissions: '0755'
+   owner: root:root
+
+runcmd:
+ - |
+    # set the fqdn to something known by the vobox (needed by AliEn/MonALISA)
+    IP_ADDRESS=$( ifconfig eth0 | grep 'inet addr:' | sed -e 's/\s*inet addr:// ; s/\s.*$//' )
+    if [[ "$IP_ADDRESS" != '' ]] ; then
+      XY=$( echo "$IP_ADDRESS" | sed -e 's/^\([0-9]\+\.\)\{2\}//' )
+      X=$( echo "$XY" | cut -d. -f1 )
+      Y=$( echo "$XY" | cut -d. -f2 )
+      GEN_HOSTSHORT=$( printf "wn-%03d-%03d" $X $Y )
+      GEN_HOSTFQDN=$( printf "wn-%03d-%03d.hltcloud" $X $Y )
+
+      # /etc/hosts
+      F=/etc/hosts
+      cat "$F" | grep -v "$IP_ADDRESS" > "$F".0
+      [[ $( tail -n1 "$F".0 | wc --lines ) == '0' ]] && echo '' >> "$F".0
+      echo "$IP_ADDRESS $GEN_HOSTFQDN $GEN_HOSTSHORT" >> "$F".0
+      mv "$F".0 "$F"
+
+      # system configuration
+      F=/etc/sysconfig/network
+      cat "$F" | grep -v "HOSTNAME=" > "$F".0
+      [[ $( tail -n1 "$F".0 | wc --lines ) == '0' ]] && echo '' >> "$F".0
+      echo "HOSTNAME=$GEN_HOSTFQDN" >> "$F".0
+      mv "$F".0 "$F"
+
+      # make changes
+      hostname "$GEN_HOSTFQDN"
+      service network restart
+    fi
+ - echo 0 > /selinux/enforce
+ - echo CVMFS_HTTP_PROXY="http://<MY_HTTP_PROXY>:3128" > /etc/cvmfs/default.local
+ - [ cvmfs_config, setup ]
+ - [ cvmfs_config, reload ]
+ - [ service, autofs, forcerestart ]
+ - [ service, condor, stop ]
+ - [ rm, -rf, /etc/condor/config.d ]
+ - |
+    # variables
+    CFG=/etc/condor/condor_config
+    CFG_LOCAL="$CFG".local
+    IP_ADDRESS=$( ifconfig eth0 | grep 'inet addr:' | sed -e 's/\s*inet addr:// ; s/\s.*$//' )
+    TOT_MEM_KB=$(cat /proc/meminfo | grep MemTotal | awk '{ print $2 }')
+    NUM_PHYS_CORES=$(grep -c bogomips /proc/cpuinfo)
+    MEM_PER_CORE_KB=2700000
+    NUM_SLOTS=$(( TOT_MEM_KB/MEM_PER_CORE_KB ))
+    [[ $NUM_SLOTS -gt $NUM_PHYS_CORES ]] && NUM_SLOTS=$NUM_PHYS_CORES
+
+    # prepare config: strip old vars, add new line at the end
+    cat "$CFG" | grep -vE '^\s*NO_DNS\s*=|^\s*DEFAULT_DOMAIN_NAME\s*=|^\s*NETWORK_INTERFACE\s*=' > "$CFG".0
+    [[ $( tail -n1 "$CFG".0 | wc --lines ) == '0' ]] && echo '' >> "$CFG".0
+
+    # append cfg vars (they need to stay here)
+    cat >> "$CFG".0 <<EOF
+    NETWORK_INTERFACE = $IP_ADDRESS
+    NO_DNS = True
+    DEFAULT_DOMAIN_NAME = condor-net
+    EOF
+    mv "$CFG".0 "$CFG"
+
+    # number of cores: adapt if we cannot tune the vm flavors
+    echo "NUM_CPUS=$NUM_SLOTS" >> "$CFG_LOCAL"
+ - [ rm, -f, /etc/condor/condor_credential ]
+ - [ condor_store_cred, add, -c, -p, <CONDOR_SHARED_SECRET> ]
+ - [ chkconfig, condor, on ]
+ - [ chkconfig, autofs, on ]
+ - [ service, condor, start ]
