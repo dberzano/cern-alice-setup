@@ -2,7 +2,7 @@
 
 bootcmd:
  - |
-    SWAP_PER_CORE_KB=3000000
+    SWAP_PER_CORE_KB=<SWAP_PER_CORE_KB>
     SWAP_FILE=/swap
     SWAP_SIZE_KB=$(( $(grep -c bogomips /proc/cpuinfo) * SWAP_PER_CORE_KB ))
     if [[ ! -e "$SWAP_FILE" ]] ; then

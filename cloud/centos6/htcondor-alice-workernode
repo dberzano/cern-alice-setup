@@ -11,7 +11,7 @@ bootcmd:
     id aliprod > /dev/null 2>&1 || useradd aliprod -u 355 -g 355 -m --home-dir /var/lib/aliprod
  - passwd --lock root
  - |
-    SWAP_PER_CORE_KB=3000000
+    SWAP_PER_CORE_KB=<SWAP_PER_CORE_KB>
     SWAP_FILE=/swap
     SWAP_SIZE_KB=$(( $(grep -c bogomips /proc/cpuinfo) * SWAP_PER_CORE_KB ))
     if [[ ! -e "$SWAP_FILE" ]] ; then
@@ -26,8 +26,8 @@ write_files:
  - content: |
      # written by cloud-init
      DAEMON_LIST = MASTER, STARTD
-     CONDOR_HOST = <IP_FOR_HTCONDOR_HEAD>
-     CONDOR_ADMIN = root@<IP_FOR_HTCONDOR_HEAD>
+     CONDOR_HOST = <IP_FOR_CONDOR_HEAD>
+     CONDOR_ADMIN = root@<IP_FOR_CONDOR_HEAD>
      UID_DOMAIN = *
      TRUST_UID_DOMAIN = True
      SOFT_UID_DOMAIN = True
