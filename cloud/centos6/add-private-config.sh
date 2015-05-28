@@ -54,8 +54,21 @@ while read line ; do
 done < <( cat "$priv_conf" )
 
 # Applying sed, finally
-cat "$cloud_conf" | sed -e "$sed_command"
+out_file=$(mktemp /tmp/add-private-config-XXXXX)
+cat "$cloud_conf" | sed -e "$sed_command" > "$out_file"
+cat "$out_file"
 r=$?
 
-[[ $r == 0 ]] || pecho "There were errors, please check output!"
-exit $r
+if [[ $r != 0 ]] ; then
+  pecho "There were errors, please check output!"
+  rm -f "$out_file"
+  exit $r
+fi
+
+# Check if there are potentially unresolved variables
+while read unres ; do
+  pecho "Warning: potentially unresolved variable at line ${unres}"
+done < <( cat "$out_file" | grep -nE '<[A-Za-z0-9_]*>' )
+rm -f "$out_file"
+
+exit 0
