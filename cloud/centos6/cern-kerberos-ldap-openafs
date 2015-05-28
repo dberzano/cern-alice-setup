@@ -1,6 +1,33 @@
 #cloud-config
 
-# Fundamental for allowing password login
+# Here we are doing:
+#
+# - CernVM-FS
+# - LDAP + Kerberos + OpenAFS
+# - Swap creation
+#
+# HTCondor configuration is left out for the moment.
+
+users:
+ - default
+
+package_upgrade: false
+
+bootcmd:
+ - passwd --lock root
+ - |
+    SWAP_PER_CORE_KB=<SWAP_PER_CORE_KB>
+    SWAP_FILE=/swap
+    SWAP_SIZE_KB=$(( $(grep -c bogomips /proc/cpuinfo) * SWAP_PER_CORE_KB ))
+    if [[ ! -e "$SWAP_FILE" ]] ; then
+      fallocate -l ${SWAP_SIZE_KB}000 "$SWAP_FILE"
+      mkswap "$SWAP_FILE"
+    fi
+
+mounts:
+ - [ /swap, swap, swap, sw ]
+
+# Fundamental for allowing password login (Kerberos)
 ssh_pwauth: true
 
 write_files:
@@ -203,3 +230,13 @@ runcmd:
     cat /etc/pam.d/system-auth-ac | \
     sed -e 's|^auth.*pam_sss\.so.*$|\0\nauth [default=done] pam_afs_session.so program=/usr/bin/aklog| ; s|^session.*pam_sss\.so.*$|\0\nsession required pam_afs_session.so program=/usr/bin/aklog|' > /etc/pam.d/system-auth
  - [ cp, /etc/pam.d/system-auth, /etc/pam.d/password-auth ]
+
+ # SELinux is disabled
+ - echo 0 > /selinux/enforce
+
+ # CernVM-FS
+ - echo CVMFS_HTTP_PROXY="<MY_HTTP_PROXY_URL>" > /etc/cvmfs/default.local
+ - [ cvmfs_config, setup ]
+ - [ cvmfs_config, reload ]
+ - [ service, autofs, forcerestart ]
+ - [ chkconfig, autofs, on ]
