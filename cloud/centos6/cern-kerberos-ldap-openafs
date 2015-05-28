@@ -239,7 +239,7 @@ runcmd:
  - [ rm, -f, /etc/pam.d/password-auth, /etc/pam.d/system-auth ]
  - |
     cat /etc/pam.d/system-auth-ac | \
-    sed -e 's|^auth.*pam_sss\.so.*$|\0\nauth [default=done] pam_afs_session.so program=/usr/bin/aklog| ; s|^session.*pam_sss\.so.*$|\0\nsession required pam_afs_session.so program=/usr/bin/aklog|' > /etc/pam.d/system-auth
+    sed -e 's|^auth.*pam_sss\.so.*$|\0\nauth optional pam_afs_session.so program=/usr/bin/aklog| ; s|^session.*pam_sss\.so.*$|\0\nsession required pam_afs_session.so program=/usr/bin/aklog|' > /etc/pam.d/system-auth
  - [ cp, /etc/pam.d/system-auth, /etc/pam.d/password-auth ]
 
  # SELinux is disabled
