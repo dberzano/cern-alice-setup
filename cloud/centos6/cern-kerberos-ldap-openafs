@@ -104,7 +104,7 @@ write_files:
        ticket_lifetime = 25h
        use_shmem = sshd
      }
-   path: /etc/krb5.conf.mine
+   path: /etc/krb5.conf
    permissions: '0644'
    owner: root:root
 
@@ -205,6 +205,8 @@ write_files:
     chpass_provider = krb5
     krb5_realm = CERN.CH
     [autofs]
+   # Note: not written to the final location: restore it after running
+   # authconfig in the 'runcmd' section
    path: /etc/sssd/sssd.conf.mine
    permissions: '0600'
    owner: root:root
@@ -214,10 +216,8 @@ runcmd:
  # Enable LDAP and Kerberos
  - [ authconfig, --enablekrb5, --enablesssd, --enablesssdauth, --enablelocauthorize, --enableldap, --disableldapauth, --update ]
 
- # Place *my* files in their location (authconfig mangles them!)
- - [ mv, -v, /etc/krb5.conf, /etc/krb5.conf.authconfig ]
+ # Place *my* SSSD configuration in place, backup the authconfig-generated one
  - [ mv, -v, /etc/sssd/sssd.conf, /etc/sssd/sssd.conf.authconfig ]
- - [ cp, -vp, /etc/krb5.conf.mine, /etc/krb5.conf ]
  - [ cp, -vp, /etc/sssd/sssd.conf.mine, /etc/sssd/sssd.conf ]
  - [ service, sssd, stop ]
  - [ sss_cache, -E ]
