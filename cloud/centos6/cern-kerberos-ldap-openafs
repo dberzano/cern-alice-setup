@@ -104,7 +104,7 @@ write_files:
        ticket_lifetime = 25h
        use_shmem = sshd
      }
-   path: /etc/krb5.conf.test
+   path: /etc/krb5.conf.mine
    permissions: '0644'
    owner: root:root
 
@@ -205,17 +205,26 @@ write_files:
     chpass_provider = krb5
     krb5_realm = CERN.CH
     [autofs]
-   path: /etc/sssd/sssd.conf
+   path: /etc/sssd/sssd.conf.mine
    permissions: '0600'
    owner: root:root
 
 runcmd:
 
- # Works only from CERN: keytab creation
- - [ /usr/local/sbin/cern-get-keytab ]
-
  # Enable LDAP and Kerberos
  - [ authconfig, --enablekrb5, --enablesssd, --enablesssdauth, --enablelocauthorize, --enableldap, --disableldapauth, --update ]
+
+ # Place *my* files in their location (authconfig mangles them!)
+ - [ mv, -v, /etc/krb5.conf, /etc/krb5.conf.authconfig ]
+ - [ mv, -v, /etc/sssd/sssd.conf, /etc/sssd/sssd.conf.authconfig ]
+ - [ cp, -vp, /etc/krb5.conf.mine, /etc/krb5.conf ]
+ - [ cp, -vp, /etc/sssd/sssd.conf.mine, /etc/sssd/sssd.conf ]
+ - [ service, sssd, stop ]
+ - [ sss_cache, -E ]
+ - [ service, sssd, start ]
+
+ # Works only from CERN: keytab creation
+ - [ /usr/local/sbin/cern-get-keytab ]
 
  # Start the OpenAFS cache (module is loaded automatically)
  # NOTE: chkconfig openafs-client 'on' ==> 'on' needs quotes, or cloud-init will
