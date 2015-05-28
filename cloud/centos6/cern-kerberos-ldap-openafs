@@ -218,11 +218,13 @@ runcmd:
  - [ authconfig, --enablekrb5, --enablesssd, --enablesssdauth, --enablelocauthorize, --enableldap, --disableldapauth, --update ]
 
  # Start the OpenAFS cache (module is loaded automatically)
+ # NOTE: chkconfig openafs-client 'on' ==> 'on' needs quotes, or cloud-init will
+ # transform it into 'true' for some reason!
  - [ service, openafs-client, start ]
- - [ chkconfig, openafs-client, on ]
+ - [ chkconfig, openafs-client, 'on' ]
 
  # Enable SSSD at boot
- - [ chkconfig, sssd, on ]
+ - [ chkconfig, sssd, 'on' ]
 
  # Create AFS token at login
  - [ rm, -f, /etc/pam.d/password-auth, /etc/pam.d/system-auth ]
@@ -239,4 +241,4 @@ runcmd:
  - [ cvmfs_config, setup ]
  - [ cvmfs_config, reload ]
  - [ service, autofs, forcerestart ]
- - [ chkconfig, autofs, on ]
+ - [ chkconfig, autofs, 'on' ]
