@@ -327,7 +327,7 @@ function statusHypervisors() (
 
   echo -e "${hdr_sep}\n${hdr_txt}\n${hdr_sep}"
 
-  nova-manage service list 2> /dev/null | grep ^nova-compute > "$nova_tmp"
+  nova-manage service list 2> /dev/null | grep ^nova-compute | sort > "$nova_tmp"
 
   exec 3< "$nova_tmp"
   while read -u 3 rawline ; do
