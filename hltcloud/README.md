@@ -189,3 +189,110 @@ any command.
   provided. Omit this option on the production nodes: the correct configuration
   will be picked automatically. If you specify a configuration file manually you
   must use an absolute path.
+
+## Precaching images on hypervisors
+
+Use the OpenStack cache prefiller:
+
+```bash
+openstack-prefill-cache [image-name] [host-range-pdsh-format]
+```
+
+**Note:** you need to be in the administrative OpenStack environment for using
+it. As root, on the OpenStack head:
+
+```bash
+openstack-enter admin
+```
+
+The **image name** is the readable name of the image you want to cache
+(something like `CentOS6-build8`). Check available images with:
+
+```bash
+glance image-list
+```
+
+The list of hosts has the same format as pdsh. An argument like:
+
+```
+cn[43-45,47]
+```
+
+will expand to **cn43**, **cn44**, **cn45** and **cn47**. Please note that you
+need to put it in quotes in order to prevent the shell from expanding it:
+
+```bash
+openstack-prefill-cache CentOS6-build8 'cn[43-45,47]'
+```
+
+Sample output:
+
+```
+Getting image CentOS6-build8 (id=58853970-f8ac-41d0-9255-8a6d3e3b85dc)
+Chain transferring on every node
+transferring /var/lib/nova/instances/hlt-glance-cache-58853970-f8ac-41d0-9255-8a6d3e3b85dc to 5 host(s)...
+[ ok ] openstack.internal --> cn44
+[ ok ] openstack.internal --> cn46
+[ ok ] cn44 --> cn45
+[ ok ] openstack.internal --> cn43
+[ ok ] cn46 --> cn47
+file size: 1145MB
+elapsed time: 1.01s
+Converting image in parallel on all hosts
+cn43: Started image conversion
+cn47: Started image conversion
+cn44: Started image conversion
+cn46: Started image conversion
+cn44: Image conversion done
+cn43: Image conversion done
+cn47: Image conversion done
+cn46: Image conversion done
+cn45: Started image conversion
+cn45: Image conversion done
+Done!
+```
+
+### How it works
+
+This utility uses `rsync-wave.py` behind the scenes to transfer the image via
+SSH (rsync): the image is first transferred to an host, and when the transfer
+completes, this host becomes source for another transfer - and so on, until it
+has been copied to every host.
+
+This mechanism prevents overloading the head node for the initial transfer.
+
+When the base image has been transferred on all nodes, it is converted to "raw"
+format into the directory that OpenStack uses as "cache directory". This
+operation is performed in parallel with pdsh.
+
+### OpenStack conventions
+
+By default, an image with, *e.g*, ID `58853970-f8ac-41d0-9255-8a6d3e3b85dc`
+will be found on the head node at the following location:
+
+```
+/var/lib/glance/images/58853970-f8ac-41d0-9255-8a6d3e3b85dc
+```
+
+Hypervisors ("compute nodes") will have it cached (in raw format) at:
+
+```
+/var/lib/nova/instances/_base/ba803eec7b06980196d8dd62262f999a5f9c8bbb
+```
+
+This hexadecimal string is the **SHA1 sum of the original Glance ID**. Check
+with:
+
+```console
+$> echo -n 58853970-f8ac-41d0-9255-8a6d3e3b85dc | sha1sum | awk '{print $1}'
+ba803eec7b06980196d8dd62262f999a5f9c8bbb
+```
+
+Please note that images in `_base` directory are purged by default by OpenStack
+if no more instances are using them. To prevent this from happening, change the
+`nova.conf` configuration on the compute node as follows:
+
+```ini
+[DEFAULT]
+remove_unused_base_images = False
+```
