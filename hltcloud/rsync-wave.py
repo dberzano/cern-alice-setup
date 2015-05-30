@@ -313,6 +313,8 @@ def main(logfile=LOG_FILE, logging_enabled=LOGGING_ENABLED, username=None):
     try:
         filename = args[0]
         filepath = os.path.realpath(filename)
+        if os.path.isdir(filename):
+            filepath = filepath + '/'  # for rsync: trailing slash matters
         filedest = args[1]
     except:
         _usage()
