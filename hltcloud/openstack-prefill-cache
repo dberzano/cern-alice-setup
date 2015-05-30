@@ -1,0 +1,63 @@
+#!/bin/bash
+
+function pecho() (
+  echo -e "\033[35m$1\033[m" >&2
+)
+
+if [[ "$1" == '' || "$2" == '' ]] ; then
+  pecho 'Usage: openstack-prefill-cache [image-name] [hosts-range-pdsh-format]'
+  exit 1
+fi
+
+# From command line
+glance_image_name="$1"
+host_range="$2"
+
+glance_image_id=$( glance image-show "$glance_image_name" | grep "^| id " | sed -e 's/|//g' | \
+  awk '{ print $2 }' )
+cache_image_id=$( echo -n $glance_image_id | sha1sum | awk '{ print $1 }' )
+
+if [[ "$glance_image_id" == '' ]] ; then
+  pecho "Cannot find image with name ${glance_image_name}"
+  exit 2
+fi
+
+# rsync-wave path
+rsync_wave="$( dirname "$0" )"
+rsync_wave="$( cd "$rsync_wave" ; pwd )/rsync-wave.py"
+
+# Location of raw image on every node
+inst_dir="/var/lib/nova/instances"
+temp_src="${inst_dir}/hlt-glance-cache-${glance_image_id}"
+
+# Final destination
+dest_dir="${inst_dir}/_base"
+dest="${dest_dir}/${cache_image_id}"
+
+# Create destination path
+mkdir -p "$inst_dir"
+chown nova:nova "$inst_dir"
+chmod 0755 "$inst_dir"
+
+# Download image to a temporary location
+pecho "Getting image ${glance_image_name} (id=${glance_image_id})"
+[[ ! -e "$temp_src" ]] && glance image-download --file="$temp_src" "$glance_image_id"
+
+if [[ ! -e "$temp_src" ]] ; then
+  pecho 'Cannot download image!'
+  exit 3
+fi
+
+# Permissions
+chown nova:nova "$temp_src"
+chmod 0644 "$temp_src"
+
+# Transfer it to every node
+pecho 'Chain transferring on every node'
+su nova -c "${rsync_wave} ${temp_src} ${temp_src} -r ${host_range}"
+
+# Now convert it on every node in parallel
+pecho 'Converting image in parallel on all hosts'
+su nova -c "pdsh -w '${host_range}' echo Started image conversion \; mkdir -p ${dest_dir} \; \( \[ \! -e ${dest} \] \&\& qemu-img convert -O raw ${temp_src} ${dest} \|\| true \) \&\& echo Image conversion done"
+
+pecho 'Done!'
