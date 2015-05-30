@@ -206,11 +206,10 @@ class Seeder(threading.Thread):
             
     def sendFile(self):
         ''' return True on success, False on failure.'''
-        info = "%s:%s -> %s:%s... " %\
-               (self.seeder[0], self.seeder[1], self.target[0], self.target[1])
+        info = '%s --> %s' % (self.seeder[0], self.target[0])
         stderr = None
         try:
-            print "*** Executing command: %s ***\n" % self.command
+            #print "*** Executing command: %s ***\n" % self.command
             proc = Popen(self.command, shell=True, stdout=PIPE,\
                          stdin=PIPE, stderr=PIPE)
             stdout, stderr = proc.communicate()
@@ -218,13 +217,13 @@ class Seeder(threading.Thread):
 
             if ret == 0:
                 # success
-                print info + 'success'
+                print "[\033[32m ok \033[m] " + info
                 self.seedq.put(self.target) # use target as a seeder
                 self.timeq.put(len(self.seeder_threads))
                 return True
             else:
-                # same as below, dont raise
-                print info + ' failed'
+                # same as below, don't raise
+                print "[\033[31mfail\033[m] " + info
                 print stderr
                 return False
         except Exception:
