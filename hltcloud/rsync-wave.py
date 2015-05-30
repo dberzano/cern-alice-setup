@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 '''
-scpWave.py - binary tree distribution of files to hosts on a cluster using
-             scp utility.
+rsync-wave.py - binary tree distribution of files to hosts on a cluster using
+                rsync utility.
 
 ===============
 The MIT License
@@ -28,7 +28,7 @@ THE SOFTWARE.
 '''
 
 # SUMMARY
-#  Transfer a file to multiple hosts via scp utility
+#  Transfer a file to multiple hosts via rsync utility
 #
 #  The script begins by using the current machine to transfer a file to a host.
 #  Once this transfer is done, both the current machine and the host which
@@ -38,7 +38,7 @@ THE SOFTWARE.
 #
 #
 # USAGE
-# ./scpWave.py <file> <file destination>
+# ./rsync-wave.py <file> <file destination>
 #
 #   Required Options - must specify a target host
 #     -l '<host1> <host2> <host3> ...'  # list the target hosts, quote multiples
@@ -56,6 +56,7 @@ THE SOFTWARE.
 #     -s Writes transfer statistics to a log file
 #     -u Specify a username to use for the transfers
 #     -v Enable verbose output
+#     -1 <host> Use this host instead of current host as first source
 #
 # LOGGING
 #  After each run, the results are written to "transfers.log" as comma separated
@@ -98,7 +99,7 @@ from subprocess import Popen, PIPE, call
 
 # turn transfer logging on or off using -s switch
 LOGGING_ENABLED = False
-LOG_FILE = "scpWave.log"
+LOG_FILE = "rsync-wave.log"
 
 # maximum number of concurrent transfers
 THREAD_MAX = 250
@@ -110,14 +111,14 @@ MAX_TRANSFER_ATTEMPTS = 3
 VERBOSE_OUTPUT_ENABLED = False
 
 # each seeder thread will fill this in with the proper host data
-CMD_TEMPLATE = "ssh -o StrictHostKeyChecking=no %s scp -o\
-StrictHostKeyChecking=no %s %s:%s"
+#CMD_TEMPLATE = 'ssh -F /var/lib/nova/.ssh/config %s rsync -av --progress --delete --delete-before -e \\"ssh -F /var/lib/nova/.ssh/config\\" %s %s:%s'
+CMD_TEMPLATE = 'ssh  %s rsync -av --progress --delete --delete-before %s %s:%s'
 
 ### End global data ########################
 
 def _usage():
     print '''\
-usage: scpWave.py <file> <filedest> [-f <hostfile>] \
+usage: rsync-wave.py <file> <filedest> [-f <hostfile>] \
 [-l '<host1> <host2> ...'] [-r 'basehost[0-1,4-6,...]']'''
 
 
@@ -209,6 +210,7 @@ class Seeder(threading.Thread):
                (self.seeder[0], self.seeder[1], self.target[0], self.target[1])
         stderr = None
         try:
+            print "*** Executing command: %s ***\n" % self.command
             proc = Popen(self.command, shell=True, stdout=PIPE,\
                          stdin=PIPE, stderr=PIPE)
             stdout, stderr = proc.communicate()
@@ -240,14 +242,16 @@ def isAlive(host, cmd='ssh -o StrictHostKeyChecking=no %s exit'):
     return not ret
 
 
-def startTransfers(seedq, targetq, timeq, filepath, filedest, username):
+def startTransfers(seedq, targetq, timeq, filepath, filedest, username, firsthost=None):
     ''' called from main(), creates threads to do the file transfers.
     seedq takes a tuple of ([user@]host, filepath)
     add first machine to seedq '''
+    if firsthost is None:
+        firsthost = gethostname()
     if username:
-        seedq.put(("%s@%s" % (username, gethostname()), filepath))
+        seedq.put(("%s@%s" % (username, firsthost), filepath))
     else:
-        seedq.put((gethostname(), filepath))
+        seedq.put((firsthost, filepath))
         
     # initialize thread list
     seeder_threads = []
@@ -295,7 +299,7 @@ def main(logfile=LOG_FILE, logging_enabled=LOGGING_ENABLED, username=None):
 
     # You can use -u to specify a username
     try:
-        optlist, args = getopt.gnu_getopt(sys.argv[1:], "u:f:r:l:sv")
+        optlist, args = getopt.gnu_getopt(sys.argv[1:], "u:f:r:l:sv1:")
     except:
         print "ERROR: ", sys.exc_info()[1]
         sys.exit(1)
@@ -314,9 +318,11 @@ def main(logfile=LOG_FILE, logging_enabled=LOGGING_ENABLED, username=None):
         _usage()
         sys.exit(1)
 
-    if not os.path.isfile(filepath):
+    if not os.path.exists(filepath):
         print "ERROR: '%s' not found" % filepath
         sys.exit(1)
+
+    firsthost = None
 
     # 3 ways to populate the targetq
     targetList = [] # temporarily holds target hosts
@@ -361,6 +367,8 @@ def main(logfile=LOG_FILE, logging_enabled=LOGGING_ENABLED, username=None):
                 targetList.append((host.strip(), filedest))
         elif opt == '-u': # username
             username = arg
+        elif opt == '-1': # source host (if omitted, use current host)
+            firsthost = arg
         elif opt == '-s': # log transfer statistics
             logging_enabled = True
         elif opt == '-v': # verbose output
@@ -369,7 +377,7 @@ def main(logfile=LOG_FILE, logging_enabled=LOGGING_ENABLED, username=None):
     # remove duplicate targets and add them to targetq
     targetList = set(targetList)
     for target in targetList:
-        if username: # add username to scp call
+        if username: # add username to rsync call
             target = (username + '@' + target[0], target[1])
         targetq.put(target)
         
@@ -387,7 +395,7 @@ def main(logfile=LOG_FILE, logging_enabled=LOGGING_ENABLED, username=None):
     timeq = TimeQueue(start_time)
 
     # returns when all transfers are complete or exception
-    startTransfers(seedq, targetq, timeq, filepath, filedest, username)
+    startTransfers(seedq, targetq, timeq, filepath, filedest, username, firsthost)
 
     # transfers are complete, print out the stats
     elapsed_time = time.time() - start_time
