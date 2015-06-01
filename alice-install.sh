@@ -11,9 +11,6 @@
 # Variables
 #
 
-export SWALLOW_LOG="/tmp/alice-autobuild-$USER-$$"
-export ERR="$SWALLOW_LOG.err"
-export OUT="$SWALLOW_LOG.out"
 export NCORES=0
 export BUILD_MODE='' # clang, gcc, custom-gcc
 export SUPPORTED_BUILD_MODES=''
@@ -1497,6 +1494,7 @@ To build, install, clean or update one or multiple components:
     [--ncores <n>] \\
     [--force-hard-reset] \\
     [--dont-update-env] \\
+    [--one-log-per-user] \\
     [--verbose] \\
     [--download-only|--no-download] \\
     [--compiler [gcc|clang|/prefix/to/gcc]] \\
@@ -1531,6 +1529,12 @@ Switches (all of them are optional):
                       version of the installation script is in sync with the
                       latest version of the environment one, so expect problems
                       if you use this switch
+
+  ${CEmp}--one-log-per-user${COff}  (POTENTIALLY DANGEROUS!) Without this switch it is
+                      possible to start several build sessions per user, and log
+                      files will be distinct. By turning on this option only one
+                      log file is generated per user and it is not possible to
+                      launch several build sessions at the same time
 
   ${CEmp}--verbose${COff}           Print out the commands being executed under the hood
 
@@ -1790,6 +1794,7 @@ function Main() {
 
   local GenerateDoc=0
   local ForceHardReset=0
+  local SingleLogPerUser=0
 
   # Look for debug
   for (( i=0 ; i<=$# ; i++ )) ; do
@@ -1990,6 +1995,10 @@ function Main() {
           DontUpdateEnv=1
         ;;
 
+        one-log-per-user)
+          SingleLogPerUser=1
+        ;;
+
         *)
           Help "Unrecognized parameter: $1"
           exit 1
@@ -2002,6 +2011,14 @@ function Main() {
     fi
     shift
   done
+
+  # Log files
+  [[ "$SingleLogPerUser" == 1 ]] && \
+    SWALLOW_LOG="/tmp/alice-autobuild-${USER}" || \
+    SWALLOW_LOG="/tmp/alice-autobuild-${USER}-${$}"
+  export SWALLOW_LOG
+  export ERR="${SWALLOW_LOG}.err"
+  export OUT="${SWALLOW_LOG}.out"
 
   # How many build actions?
   let N_INST=DO_ALIEN+DO_ROOT+DO_G3+DO_FASTJET+DO_ALICE+DO_ALIPHYSICS
