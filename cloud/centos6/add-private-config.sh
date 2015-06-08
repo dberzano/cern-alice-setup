@@ -64,11 +64,11 @@ while read line ; do
     if [[ -e "$include" ]] ; then
       exec 3<"$include"
       if [[ "${BASH_REMATCH[2]}" == 'INCLUDE_REDUCE' ]] ; then
-        while read  -u 3 inc_line ; do
+        while read -r -u 3 inc_line ; do
           echo "${spaces}${inc_line}"
         done | sed -e '/^[[:space:]]*$/d ; /^[[:space:]]*#.*$/d'
       else
-        while read  -u 3 inc_line ; do
+        while read -r -u 3 inc_line ; do
           echo "${spaces}${inc_line}"
         done
       fi
