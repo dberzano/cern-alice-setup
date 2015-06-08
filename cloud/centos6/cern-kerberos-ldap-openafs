@@ -5,8 +5,7 @@
 # - CernVM-FS
 # - LDAP + Kerberos + OpenAFS
 # - Swap creation
-#
-# HTCondor configuration is left out for the moment.
+# - Condor
 
 users:
  - default
@@ -31,6 +30,15 @@ mounts:
 ssh_pwauth: true
 
 write_files:
+
+ # Condor configuration: blank
+ - content: |
+     # This file was intentionally left blank.
+     # See /etc/condor/config.d/* for the actual configuration.
+     # Please note that Condor does not start without this file!
+   path: /etc/condor/condor_config.local
+   permissions: '0644'
+   owner: root:root
 
  # Kerberos configuration
  - content: |
@@ -251,3 +259,10 @@ runcmd:
  - [ cvmfs_config, reload ]
  - [ service, autofs, forcerestart ]
  - [ chkconfig, autofs, 'on' ]
+
+# Condor
+runcmd:
+ - [ rm, -f, /etc/condor/condor_credential ]
+ - [ condor_store_cred, add, -c, -p, <CONDOR_SHARED_SECRET> ]
+ - [ chkconfig, condor, on ]
+ - [ service, condor, start ]
