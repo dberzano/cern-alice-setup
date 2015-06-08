@@ -56,7 +56,7 @@ done < <( cat "$priv_conf" )
 # Include other files
 out_with_includes=$(mktemp /tmp/add-private-config-XXXXX)
 OldIFS="$IFS"
-IFS='\n'
+IFS=$'\n'
 while read line ; do
   if [[ "$line" =~ ^([[:space:]]*)\<(INCLUDE|INCLUDE_REDUCE):([^>]*)\> ]] ; then
     spaces="${BASH_REMATCH[1]}"
