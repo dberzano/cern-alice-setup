@@ -17,7 +17,7 @@ bootcmd:
  - |
     SWAP_PER_CORE_KB=<SWAP_PER_CORE_KB>
     SWAP_FILE=/swap
-    SWAP_SIZE_KB=$(( $(grep -c bogomips /proc/cpuinfo) * SWAP_PER_CORE_KB ))
+    SWAP_SIZE_KB=$(( $(grep -c bogomips /proc/cpuinfo) * $SWAP_PER_CORE_KB ))
     if [[ ! -e "$SWAP_FILE" ]] ; then
       fallocate -l ${SWAP_SIZE_KB}000 "$SWAP_FILE"
       mkswap "$SWAP_FILE"
