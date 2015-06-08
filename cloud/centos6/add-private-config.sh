@@ -53,11 +53,43 @@ while read line ; do
 
 done < <( cat "$priv_conf" )
 
+# Include other files
+out_with_includes=$(mktemp /tmp/add-private-config-XXXXX)
+OldIFS="$IFS"
+IFS='\n'
+while read line ; do
+  if [[ "$line" =~ ^([[:space:]]*)\<(INCLUDE|INCLUDE_REDUCE):([^>]*)\> ]] ; then
+    spaces="${BASH_REMATCH[1]}"
+    include="${BASH_REMATCH[3]}"
+    if [[ -e "$include" ]] ; then
+      exec 3<"$include"
+      if [[ "${BASH_REMATCH[2]}" == 'INCLUDE_REDUCE' ]] ; then
+        while read  -u 3 inc_line ; do
+          echo "${spaces}${inc_line}"
+        done | sed -e '/^[[:space:]]*$/d ; /^[[:space:]]*#.*$/d'
+      else
+        while read  -u 3 inc_line ; do
+          echo "${spaces}${inc_line}"
+        done
+      fi
+      exec 3<&-
+    else
+      pecho "Error: cannot open included file: ${include}"
+      rm -f "$out_with_includes"
+      exit 1
+    fi
+  else
+    echo "$line"
+  fi
+done < <( cat "$cloud_conf" ) > "$out_with_includes"
+IFS="$OldIFS"
+
 # Applying sed, finally
 out_file=$(mktemp /tmp/add-private-config-XXXXX)
-cat "$cloud_conf" | sed -e "$sed_command" > "$out_file"
-cat "$out_file"
+cat "$out_with_includes" | sed -e "$sed_command" > "$out_file"
 r=$?
+rm -f "$out_with_includes"
+cat "$out_file"
 
 if [[ $r != 0 ]] ; then
   pecho "There were errors, please check output!"
