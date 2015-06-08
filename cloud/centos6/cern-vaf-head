@@ -4,8 +4,6 @@
 
 <INCLUDE:cern-kerberos-ldap-openafs>
 
-write_files:
-
  - content: |
      <INCLUDE_REDUCE:../../condor/00-central-node.config>
    path: /etc/condor/config.d/00-central-node.config

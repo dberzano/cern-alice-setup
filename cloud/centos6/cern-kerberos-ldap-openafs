@@ -29,6 +29,53 @@ mounts:
 # Fundamental for allowing password login (Kerberos)
 ssh_pwauth: true
 
+runcmd:
+
+ # Enable LDAP and Kerberos
+ - [ authconfig, --enablekrb5, --enablesssd, --enablesssdauth, --enablelocauthorize, --enableldap, --disableldapauth, --update ]
+
+ # Place *my* SSSD configuration in place, backup the authconfig-generated one
+ - [ mv, -v, /etc/sssd/sssd.conf, /etc/sssd/sssd.conf.authconfig ]
+ - [ cp, -vp, /etc/sssd/sssd.conf.mine, /etc/sssd/sssd.conf ]
+ - [ service, sssd, stop ]
+ - [ sss_cache, -E ]
+ - [ service, sssd, start ]
+
+ # Works only from CERN: keytab creation
+ - [ /usr/local/sbin/cern-get-keytab ]
+
+ # Start the OpenAFS cache (module is loaded automatically)
+ # NOTE: chkconfig openafs-client 'on' ==> 'on' needs quotes, or cloud-init will
+ # transform it into 'true' for some reason!
+ - [ service, openafs-client, start ]
+ - [ chkconfig, openafs-client, 'on' ]
+
+ # Enable SSSD at boot
+ - [ chkconfig, sssd, 'on' ]
+
+ # Create AFS token at login
+ - [ rm, -f, /etc/pam.d/password-auth, /etc/pam.d/system-auth ]
+ - |
+    cat /etc/pam.d/system-auth-ac | \
+    sed -e 's|^auth.*pam_sss\.so.*$|\0\nauth optional pam_afs_session.so program=/usr/bin/aklog| ; s|^session.*pam_sss\.so.*$|\0\nsession required pam_afs_session.so program=/usr/bin/aklog|' > /etc/pam.d/system-auth
+ - [ cp, /etc/pam.d/system-auth, /etc/pam.d/password-auth ]
+
+ # SELinux is disabled
+ - echo 0 > /selinux/enforce
+
+ # CernVM-FS
+ - echo CVMFS_HTTP_PROXY="<MY_HTTP_PROXY_URL>" > /etc/cvmfs/default.local
+ - [ cvmfs_config, setup ]
+ - [ cvmfs_config, reload ]
+ - [ service, autofs, forcerestart ]
+ - [ chkconfig, autofs, 'on' ]
+
+# Condor
+ - [ rm, -f, /etc/condor/condor_credential ]
+ - [ condor_store_cred, add, -c, -p, <CONDOR_SHARED_SECRET> ]
+ - [ chkconfig, condor, on ]
+ - [ service, condor, start ]
+
 write_files:
 
  # Condor configuration: blank
@@ -218,51 +265,3 @@ write_files:
    path: /etc/sssd/sssd.conf.mine
    permissions: '0600'
    owner: root:root
-
-runcmd:
-
- # Enable LDAP and Kerberos
- - [ authconfig, --enablekrb5, --enablesssd, --enablesssdauth, --enablelocauthorize, --enableldap, --disableldapauth, --update ]
-
- # Place *my* SSSD configuration in place, backup the authconfig-generated one
- - [ mv, -v, /etc/sssd/sssd.conf, /etc/sssd/sssd.conf.authconfig ]
- - [ cp, -vp, /etc/sssd/sssd.conf.mine, /etc/sssd/sssd.conf ]
- - [ service, sssd, stop ]
- - [ sss_cache, -E ]
- - [ service, sssd, start ]
-
- # Works only from CERN: keytab creation
- - [ /usr/local/sbin/cern-get-keytab ]
-
- # Start the OpenAFS cache (module is loaded automatically)
- # NOTE: chkconfig openafs-client 'on' ==> 'on' needs quotes, or cloud-init will
- # transform it into 'true' for some reason!
- - [ service, openafs-client, start ]
- - [ chkconfig, openafs-client, 'on' ]
-
- # Enable SSSD at boot
- - [ chkconfig, sssd, 'on' ]
-
- # Create AFS token at login
- - [ rm, -f, /etc/pam.d/password-auth, /etc/pam.d/system-auth ]
- - |
-    cat /etc/pam.d/system-auth-ac | \
-    sed -e 's|^auth.*pam_sss\.so.*$|\0\nauth optional pam_afs_session.so program=/usr/bin/aklog| ; s|^session.*pam_sss\.so.*$|\0\nsession required pam_afs_session.so program=/usr/bin/aklog|' > /etc/pam.d/system-auth
- - [ cp, /etc/pam.d/system-auth, /etc/pam.d/password-auth ]
-
- # SELinux is disabled
- - echo 0 > /selinux/enforce
-
- # CernVM-FS
- - echo CVMFS_HTTP_PROXY="<MY_HTTP_PROXY_URL>" > /etc/cvmfs/default.local
- - [ cvmfs_config, setup ]
- - [ cvmfs_config, reload ]
- - [ service, autofs, forcerestart ]
- - [ chkconfig, autofs, 'on' ]
-
-# Condor
-runcmd:
- - [ rm, -f, /etc/condor/condor_credential ]
- - [ condor_store_cred, add, -c, -p, <CONDOR_SHARED_SECRET> ]
- - [ chkconfig, condor, on ]
- - [ service, condor, start ]
