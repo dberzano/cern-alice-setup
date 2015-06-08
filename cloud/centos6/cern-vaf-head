@@ -1,0 +1,25 @@
+#cloud-config
+
+# VAF at CERN: CernVM-FS, Kerberos+AFS, Condor
+
+<INCLUDE:cern-kerberos-ldap-openafs>
+
+write_files:
+
+ - content: |
+     <INCLUDE_REDUCE:../../condor/00-central-node.config>
+   path: /etc/condor/config.d/00-central-node.config
+   permissions: '0644'
+   owner: root:root
+
+ - content: |
+     <INCLUDE_REDUCE:../../condor/10-common.config>
+   path: /etc/condor/config.d/10-common.config
+   permissions: '0644'
+   owner: root:root
+
+ - content: |
+     <INCLUDE_REDUCE:../../condor/20-common-schedd.config>
+   path: /etc/condor/config.d/20-common-schedd.config
+   permissions: '0644'
+   owner: root:root
