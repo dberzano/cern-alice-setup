@@ -23,3 +23,7 @@ write_files:
    path: /etc/condor/config.d/20-common-schedd.config
    permissions: '0644'
    owner: root:root
+
+packages:
+ - https://github.com/dberzano/elastiq/releases/download/v1.0.0/python-elastiq-1.0.0-1.py26.noarch.rpm ]
+ - https://github.com/dberzano/virtual-analysis-facility/releases/download/v0.9.5/vaf-client-0.9.5-1.noarch.rpm ]
