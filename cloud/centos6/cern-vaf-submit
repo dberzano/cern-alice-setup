@@ -24,4 +24,5 @@
 
 packages:
  - https://github.com/dberzano/virtual-analysis-facility/releases/download/v0.9.5/vaf-client-0.9.5-1.noarch.rpm
+ - xorg-x11-xauth
  - boost
