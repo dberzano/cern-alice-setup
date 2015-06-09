@@ -1,0 +1,27 @@
+#cloud-config
+
+# VAF at CERN: CernVM-FS, Kerberos+AFS, Condor. This is the submit node.
+
+<INCLUDE:cern-kerberos-ldap-openafs>
+
+ - content: |
+     <INCLUDE_REDUCE:../../condor/00-additional-schedd.config>
+   path: /etc/condor/config.d/00-additional-schedd.config
+   permissions: '0644'
+   owner: root:root
+
+ - content: |
+     <INCLUDE_REDUCE:../../condor/10-common.config>
+   path: /etc/condor/config.d/10-common.config
+   permissions: '0644'
+   owner: root:root
+
+ - content: |
+     <INCLUDE_REDUCE:../../condor/20-common-schedd.config>
+   path: /etc/condor/config.d/20-common-schedd.config
+   permissions: '0644'
+   owner: root:root
+
+packages:
+ - https://github.com/dberzano/virtual-analysis-facility/releases/download/v0.9.5/vaf-client-0.9.5-1.noarch.rpm
+ - boost

@@ -1,0 +1,26 @@
+#cloud-config
+
+# VAF at CERN: CernVM-FS, Kerberos+AFS, Condor. This is the worker node.
+
+<INCLUDE:cern-kerberos-ldap-openafs>
+
+ - content: |
+     <INCLUDE_REDUCE:../../condor/00-worker-node.config>
+   path: /etc/condor/config.d/00-worker-node.config
+   permissions: '0644'
+   owner: root:root
+
+ - content: |
+     <INCLUDE_REDUCE:../../condor/10-common.config>
+   path: /etc/condor/config.d/10-common.config
+   permissions: '0644'
+   owner: root:root
+
+ - content: |
+     <INCLUDE_REDUCE:../../condor/20-common-schedd.config>
+   path: /etc/condor/config.d/20-common-schedd.config
+   permissions: '0644'
+   owner: root:root
+
+packages:
+ - boost
