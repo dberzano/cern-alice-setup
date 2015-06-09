@@ -79,6 +79,9 @@ runcmd:
  - [ service, autofs, forcerestart ]
  - [ chkconfig, autofs, 'on' ]
 
+# Condor quotas from AFS (useful on submit nodes only)
+ - [ ln, -nfs, /afs/cern.ch/alice/offline/vaf/condor/90-user-quotas.config, /etc/condor/config.d/ ]
+
 # Condor
  - [ rm, -f, /etc/condor/condor_credential ]
  - [ condor_store_cred, add, -c, -p, <CONDOR_SHARED_SECRET> ]
