@@ -31,6 +31,9 @@ ssh_pwauth: true
 
 runcmd:
 
+ # Disable elastiq
+ - [ chkconfig, elastiq, 'off' ]
+
  # Enable LDAP and Kerberos
  - [ authconfig, --enablekrb5, --enablesssd, --enablesssdauth, --enablelocauthorize, --enableldap, --disableldapauth, --update ]
 
@@ -75,6 +78,10 @@ runcmd:
  - [ condor_store_cred, add, -c, -p, <CONDOR_SHARED_SECRET> ]
  - [ chkconfig, condor, 'on' ]
  - [ service, condor, start ]
+
+# Get VAF configuration from AFS (useful only on login nodes)
+ - [ mkdir, -p, /etc/vaf ]
+ - [ ln, -nfs, /afs/cern.ch/alice/offline/vaf/etc, /etc/vaf/default ]
 
 write_files:
 
