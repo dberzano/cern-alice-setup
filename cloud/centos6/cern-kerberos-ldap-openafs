@@ -31,6 +31,12 @@ ssh_pwauth: true
 
 runcmd:
 
+ # First off, wait for the VM to have a FQDN. This is needed if using EC2
+ - |
+    while ! hostname -f > /dev/null 2> /dev/null ; do
+      sleep 1
+    done
+
  # Disable elastiq
  - [ chkconfig, elastiq, 'off' ]
 
