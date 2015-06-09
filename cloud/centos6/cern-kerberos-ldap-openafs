@@ -79,7 +79,7 @@ runcmd:
  - [ service, autofs, forcerestart ]
  - [ chkconfig, autofs, 'on' ]
 
-# Condor quotas from AFS (useful on submit nodes only)
+# Condor quotas from AFS: use both on nodes with Schedd and with the Negotiator!
  - [ ln, -nfs, /afs/cern.ch/alice/offline/vaf/condor/90-user-quotas.config, /etc/condor/config.d/ ]
 
 # Condor
