@@ -185,7 +185,7 @@ write_files:
    permissions: '0644'
    owner: root:root
 
- # SSSD configuration: only alice-member users can login
+ # SSSD configuration: only users in alice-member or alice-vaf-external-users can login
  - content: |
     [sssd]
     config_file_version = 2
@@ -212,7 +212,7 @@ write_files:
     ldap_group_object_class = group
 
     ldap_schema = rfc2307bis
-    ldap_user_search_filter = memberOf=CN=alice-member,OU=e-groups,OU=Workgroups,DC=cern,DC=ch
+    ldap_user_search_filter = (|(memberOf=CN=alice-member,OU=e-groups,OU=Workgroups,DC=cern,DC=ch)(memberOf=CN=alice-vaf-external-users,OU=e-groups,OU=Workgroups,DC=cern,DC=ch))
 
     ldap_search_base = DC=cern,DC=ch
 
