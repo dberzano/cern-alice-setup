@@ -97,9 +97,8 @@ Bool_t SETUP_SetAliRootCoreMode(TString &mode, const TString &extraLibs) {
       gSystem->ExpandPathName("$ALICE_ROOT/macros/loadlibsrec.C") );
     if (rv == 0) loadlibsrec();
   }
-  else {
-    // No mode specified, or invalid mode: load standard libraries, and also
-    // fix loading order
+  else if (mode == "base") {
+    // "Base" mode: load standard libraries, and also fix loading order
     ::Info(gMessTag.Data(), "No mode specified: loading standard libraries...");
     TPMERegexp reLibs("(ANALYSISalice|ANALYSIS|STEERBase|ESD|AOD)(:|$)");
     while (reLibs.Substitute(libs, "")) {}
