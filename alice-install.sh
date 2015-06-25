@@ -388,8 +388,11 @@ function ModuleRoot() {
       SwallowProgress -f --pattern 'Cloning ROOT Git repository (might take some time)' \
         git clone http://root.cern.ch/git/root.git .
 
-    Swallow -f 'Updating list of remote ROOT Git branches' \
+    Swallow -f --pattern 'Updating list of remote ROOT Git branches' \
       git remote update origin --prune
+
+    SwallowProgress -f --pattern 'Updating list of remote ROOT Git tags' \
+      git fetch origin --tags
 
     # Updating from the former installation schema (no inst and build dir)
     if [[ -e "${RootBase}/LICENSE" ]] ; then
@@ -559,8 +562,11 @@ function ModuleGeant3() {
         git clone http://root.cern.ch/git/geant3.git .
     fi
 
-    SwallowProgress -f --pattern 'Updating the list of Git references' \
+    SwallowProgress -f --pattern 'Updating the list of Git branches' \
       git remote update --prune
+
+    SwallowProgress -f --pattern 'Updating the list of Git tags' \
+      git fetch --tags
 
     # Updating from the former installation schema (no inst and build dir)
     if [[ -e "${Geant3Base}/README" ]] ; then
@@ -893,6 +899,10 @@ function ModuleAliRoot() {
       'Updating list of remote AliRoot Git branches' \
       git remote update "$AliRootGitRemote" --prune
 
+    SwallowProgress -f --pattern \
+      'Updating list of remote AliRoot Git tags' \
+      git fetch "$AliRootGitRemote" --tags
+
     # Source is ${AliRootSrc} his will be a Git directory on its own that shares
     # the object database, but with its own index. This is possible via the
     # git-new-workdir[1] script
@@ -1091,6 +1101,10 @@ function ModuleAliPhysics() {
     SwallowProgress -f --pattern \
       'Updating list of remote AliPhysics Git branches' \
       git remote update "$AliPhysicsGitRemote" --prune
+
+    SwallowProgress -f --pattern \
+      'Updating list of remote AliPhysics Git tags' \
+      git fetch "$AliPhysicsGitRemote" --tags
 
     # Shallow copy with git-new-workdir
     if [[ ! -d "${AliPhysicsSrc}/.git" ]] ; then
