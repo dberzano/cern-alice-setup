@@ -373,6 +373,8 @@ function ModuleRoot() {
   local RootInst="$ROOTSYS"
   local RootSrc="${RootBase}/src"
   local RootTmp="${RootBase}/build"
+  local RootGitUrl='https://github.com/alisw/root'
+  local RootGitRemote='aliceroot'
 
   Swallow -f 'Creating ROOT directory' mkdir -p "$RootBase"
 
@@ -384,12 +386,17 @@ function ModuleRoot() {
 
     Swallow -f 'Creating ROOT Git local directory' mkdir -p "$RootGit"
     Swallow -f 'Moving into ROOT Git local directory' cd "$RootGit"
-    [ ! -e "$RootGit/.git" ] && \
+    if [[ ! -e "$RootGit/.git" ]] ; then
       SwallowProgress -f --pattern 'Cloning ROOT Git repository (might take some time)' \
-        git clone http://root.cern.ch/git/root.git .
+        git clone "$RootGitUrl" .
+    fi
+
+    # Setting a public and private remote
+    Swallow -f 'Setting ROOT ALICE remote URL' \
+      GitForceSetRemote "$RootGitRemote" "$RootGitUrl" "$RootGitUrl"
 
     SwallowProgress -f 'Synchronizing Git clone' \
-      GitSync origin
+      GitSync "$RootGitRemote"
 
     # Updating from the former installation schema (no inst and build dir)
     if [[ -e "${RootBase}/LICENSE" ]] ; then
@@ -405,7 +412,8 @@ function ModuleRoot() {
     fi
 
     Swallow -f "Moving to local clone for version ${ROOT_VER}" cd "$RootSrc"
-    Swallow -f "Checking out ROOT version ${ROOT_VER}" git checkout "$ROOT_VER"
+    Swallow -f "Checking out ROOT version ${ROOT_VER}" \
+      GitCheckoutTrack "$ROOT_VER" "$RootGitRemote"
 
     if [[ $ForceHardReset == 1 ]] ; then
       Swallow -f 'Forcing hard reset to HEAD' git reset --hard HEAD

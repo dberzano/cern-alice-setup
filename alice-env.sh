@@ -283,7 +283,8 @@ function AliCleanEnv() {
 
     # cleanup of functions (also cleans up self!)
     unset AliCleanEnv AliCleanPathList AliExportVars AliMain AliMenu AliPrintVars \
-      AliRemovePaths AliSetParallelMake AliConf AliUpdate AliTupleSection AliParseVerDir
+      AliRemovePaths AliSetParallelMake AliConf AliUpdate AliTupleSection AliParseVerDir \
+      AliSanitizeDir
 
   else
 
@@ -708,6 +709,12 @@ function AliPrintVars() {
 
 }
 
+# converts all the "invalid" characters from a string that is supposed to be a path to an underscore
+# and echo the sanitized string on stdout
+function AliSanitizeDir() (
+  echo -n "$1" | sed -e 's|[^A-Za-z0-9._-]|_|g'
+)
+
 # separates version from directory, if tuple component is expressed in the form directory(version);
 # if no (version) is provided, dir and version are set to the same value
 function AliParseVerDir() {
@@ -715,12 +722,18 @@ function AliParseVerDir() {
   local dirVar="$2"
   local verVar="$3"
   local cmd=''
+  local saniDir=''
   if [[ ${verAndDir:0:1} == '/' ]] ; then
+    # Getting a precompiled version
     cmd="$dirVar='$verAndDir' ; $verVar='EXTERNAL'"
   elif [[ $verAndDir =~ ^([^\(]+)\((.+)\)$ ]] ; then
-    cmd="$dirVar='${BASH_REMATCH[1]}' ; $verVar='${BASH_REMATCH[2]}'"
+    # Has dirname(version)
+    saniDir=$(AliSanitizeDir "${BASH_REMATCH[1]}")
+    cmd="$dirVar='$saniDir' ; $verVar='${BASH_REMATCH[2]}'"
   else
-    cmd="$dirVar='$verAndDir' ; $verVar='$verAndDir'"
+    # Has only version
+    saniDir=$(AliSanitizeDir "$verAndDir")
+    cmd="$dirVar='$saniDir' ; $verVar='$verAndDir'"
   fi
   eval "$cmd"
 }
