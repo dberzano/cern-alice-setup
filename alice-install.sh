@@ -525,11 +525,15 @@ function ModuleRoot() {
     [[ "$BUILDOPT_LDFLAGS" != '' ]] && AppendLDFLAGS="LDFLAGS=$BUILDOPT_LDFLAGS"
     [[ "$BUILDOPT_CPATH" != '' ]] && AppendCPATH="CPATH=$BUILDOPT_CPATH"
 
+    export CCACHE_BASEDIR="$RootBase"
+
     SwallowProgress -f --pattern 'Building ROOT' \
       make -j$MJ $AppendLDFLAGS $AppendCPATH OPT="$BuildMakeFlags"
 
     Swallow -f 'Cleaning ROOT installation directory' rm -rf "${RootInst}"
     SwallowProgress -f --pattern 'Installing ROOT' make -j$MJ install
+
+    unset CCACHE_BASEDIR
 
   fi # end build
 
@@ -606,6 +610,8 @@ function ModuleGeant3() {
 
     Swallow -f "Moving to the local Git clone for Geant3 version $G3_VER" cd "$Geant3Src"
 
+    export CCACHE_BASEDIR="$Geant3Base"
+
     if [[ -e Makefile ]] ; then
 
       # Prior to version ~v2-0: no CMake, only make
@@ -636,6 +642,8 @@ function ModuleGeant3() {
       SwallowProgress -f --percentage "Installing Geant3 ${G3_VER}" make -j$MJ install
 
     fi
+
+    unset CCACHE_BASEDIR
 
   fi
 
@@ -771,6 +779,8 @@ function ModuleFastJet() {
       ;;
     esac
 
+    export CCACHE_BASEDIR="$FastJetBase"
+
     # Exporting this variable is relevant to FastJet's configure, while FJ contrib's Makefile picks
     # it directly from the environment
     export CXXFLAGS="${BUILDOPT_LDFLAGS} ${FastJetOptDbgFlags} -lgmp"
@@ -807,7 +817,7 @@ function ModuleFastJet() {
 
     fi
 
-    unset CXXFLAGS CXX
+    unset CXXFLAGS CXX CCACHE_BASEDIR
 
   fi
 
@@ -1010,6 +1020,8 @@ function ModuleAliRoot() {
 
     fi
 
+    export CCACHE_BASEDIR="$AliRootBase"
+
     SwallowProgress -f --percentage 'Building AliRoot' make -j$MJ
 
     if [[ -L "${AliRootSrc}/include" ]] ; then
@@ -1037,6 +1049,8 @@ function ModuleAliRoot() {
     if [[ $GenerateDoc == 1 ]] ; then
       SwallowProgress -f --pattern 'Generating Doxygen documentation' make install-doxygen
     fi
+
+    unset CCACHE_BASEDIR
 
     Swallow -f 'Sourcing envvars' SourceEnvVars
 
@@ -1159,8 +1173,12 @@ function ModuleAliPhysics() {
         -DALIROOT="$ALICE_ROOT" \
         -DCMAKE_BUILD_TYPE=$CMakeBuildType
 
+    export CCACHE_BASEDIR="$AliPhysicsBase"
+
     SwallowProgress -f --percentage 'Building AliPhysics' make -j$MJ
     SwallowProgress -f --percentage 'Installing AliPhysics' make -j$MJ install
+
+    unset CCACHE_BASEDIR
 
     if [[ $GenerateDoc == 1 ]] ; then
       SwallowProgress -f --pattern 'Generating Doxygen documentation' make install-doxygen
