@@ -354,7 +354,7 @@ function ShowBugReportInfo() {
 # Module to fetch and compile ROOT
 function ModuleRoot() {
 
-  local ForceHardReset="$1"
+  local ForceCleanSlate="$1"
 
   Banner 'Installing ROOT...'
   Swallow -f 'Sourcing envvars' SourceEnvVars
@@ -415,7 +415,7 @@ function ModuleRoot() {
     Swallow -f "Checking out ROOT version ${ROOT_VER}" \
       GitCheckoutTrack "$ROOT_VER" "$RootGitRemote"
 
-    if [[ $ForceHardReset == 1 ]] ; then
+    if [[ $ForceCleanSlate == 1 ]] ; then
       Swallow -f 'Forcing hard reset to HEAD' git reset --hard HEAD
       Swallow -f 'Forcing cleanup of working directory' git clean -f -d
     fi
@@ -542,7 +542,7 @@ function ModuleRoot() {
 # Module to fetch and compile Geant3
 function ModuleGeant3() {
 
-  local ForceHardReset="$1"
+  local ForceCleanSlate="$1"
 
   Banner 'Installing Geant3...'
   Swallow -f 'Sourcing envvars' SourceEnvVars
@@ -590,7 +590,7 @@ function ModuleGeant3() {
     Swallow -f "Moving to local clone for version ${G3_VER}" cd "$Geant3Src"
     Swallow -f "Checking out Geant3 version ${G3_VER}" git checkout "$G3_VER"
 
-    if [[ $ForceHardReset == 1 ]] ; then
+    if [[ $ForceCleanSlate == 1 ]] ; then
       Swallow -f 'Forcing hard reset to HEAD' git reset --hard HEAD
       Swallow -f 'Forcing cleanup of working directory' git clean -f -d
     fi
@@ -864,7 +864,7 @@ function GitSync() (
 function ModuleAliRoot() {
 
   local GenerateDoc="$1"
-  local ForceHardReset="$2"
+  local ForceCleanSlate="$2"
 
   Banner 'Installing AliRoot Core...'
   Swallow -f 'Sourcing envvars' SourceEnvVars
@@ -937,7 +937,7 @@ function ModuleAliRoot() {
     Swallow -f "Checking out AliRoot version ${ALICE_VER}" \
       GitCheckoutTrack "$ALICE_VER" "$AliRootGitRemote"
 
-    if [[ $ForceHardReset == 1 ]] ; then
+    if [[ $ForceCleanSlate == 1 ]] ; then
       Swallow -f 'Forcing hard reset to HEAD' git reset --hard HEAD
       Swallow -f 'Forcing cleanup of working directory' git clean -f -d
     fi
@@ -1069,7 +1069,7 @@ function ModuleAliRoot() {
 function ModuleAliPhysics() {
 
   local GenerateDoc="$1"
-  local ForceHardReset="$2"
+  local ForceCleanSlate="$2"
 
   Banner 'Installing AliPhysics...'
   Swallow -f 'Sourcing envvars' SourceEnvVars
@@ -1134,7 +1134,7 @@ function ModuleAliPhysics() {
     Swallow -f "Checking out AliPhysics version ${ALIPHYSICS_VER}" \
       GitCheckoutTrack "$ALIPHYSICS_VER" "$AliPhysicsGitRemote"
 
-    if [[ $ForceHardReset == 1 ]] ; then
+    if [[ $ForceCleanSlate == 1 ]] ; then
       Swallow -f 'Forcing hard reset to HEAD' git reset --hard HEAD
       Swallow -f 'Forcing cleanup of working directory' git clean -f -d
     fi
@@ -1526,7 +1526,7 @@ To build, install, clean or update one or multiple components:
     [--clean-aliroot] [--clean-aliphysics] \\
     [--clean-all] [--clean-all-but-alien] \\
     [--ncores <n>] \\
-    [--force-hard-reset] \\
+    [--force-clean-slate] \\
     [--dont-update-env] \\
     [--one-log-per-user] \\
     [--verbose] \\
@@ -1553,7 +1553,7 @@ Switches (all of them are optional):
   ${CEmp}--ncores <n>${COff}        Build using <n> parallel threads, instead of automatically
                       calculating the optimal number
 
-  ${CEmp}--force-hard-reset${COff}  (POTENTIALLY DANGEROUS!) Discard all your local changes in
+  ${CEmp}--force-clean-slate${COff}  (POTENTIALLY DANGEROUS!) Discard all your local changes in
                       all source directories and sync with the remote ones. This
                       is useful if you want a clean source, and you are 100%
                       sure you are not going to lose your work
@@ -1827,7 +1827,7 @@ function Main() {
   local PARAM
 
   local GenerateDoc=0
-  local ForceHardReset=0
+  local ForceCleanSlate=0
   local SingleLogPerUser=0
 
   # Look for debug
@@ -2021,8 +2021,8 @@ function Main() {
           GenerateDoc=1
         ;;
 
-        force-hard-reset)
-          ForceHardReset=1
+        force-clean-slate)
+          ForceCleanSlate=1
         ;;
 
         dont-update-env)
@@ -2113,15 +2113,15 @@ function Main() {
     [[ $DO_CLEAN_ALIEN      == 1 ]] && ModuleCleanAliEn
     [[ $DO_ALIEN            == 1 ]] && ModuleAliEn
     [[ $DO_CLEAN_ROOT       == 1 ]] && ModuleCleanRoot
-    [[ $DO_ROOT             == 1 ]] && ModuleRoot $ForceHardReset
+    [[ $DO_ROOT             == 1 ]] && ModuleRoot $ForceCleanSlate
     [[ $DO_CLEAN_G3         == 1 ]] && ModuleCleanGeant3
-    [[ $DO_G3               == 1 ]] && ModuleGeant3 $ForceHardReset
+    [[ $DO_G3               == 1 ]] && ModuleGeant3 $ForceCleanSlate
     [[ $DO_CLEAN_FASTJET    == 1 ]] && ModuleCleanFastJet
     [[ $DO_FASTJET          == 1 ]] && ModuleFastJet
     [[ $DO_CLEAN_ALICE      == 1 ]] && ModuleCleanAliRoot
-    [[ $DO_ALICE            == 1 ]] && ModuleAliRoot $GenerateDoc $ForceHardReset
+    [[ $DO_ALICE            == 1 ]] && ModuleAliRoot $GenerateDoc $ForceCleanSlate
     [[ $DO_CLEAN_ALIPHYSICS == 1 ]] && ModuleCleanAliPhysics
-    [[ $DO_ALIPHYSICS       == 1 ]] && ModuleAliPhysics $GenerateDoc $ForceHardReset
+    [[ $DO_ALIPHYSICS       == 1 ]] && ModuleAliPhysics $GenerateDoc $ForceCleanSlate
   fi
 
   # Remove logs: if we are here, everything went right, so no need to see the
