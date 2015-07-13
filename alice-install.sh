@@ -976,6 +976,13 @@ function ModuleAliRoot() {
       # Build with FastJet?
       local FastJetFlag="-DFASTJET=$FASTJET"
 
+      # Build with C++11?
+      local Cxx11Flags
+      root-config --cflags | grep -q -- '-std=c++11'
+      if [[ $? == 0 ]] ; then
+        Cxx11Flags='-DCMAKE_CXX_FLAGS="-std=c++11"'
+      fi
+
       # Build type
       case $BuildType in
         normal)    CMakeBuildType='RELWITHDEBINFO' ;;
@@ -999,7 +1006,7 @@ function ModuleAliRoot() {
             -DALIEN="$ALIEN_DIR" \
             -DROOTSYS="$ROOTSYS" \
             -DCMAKE_BUILD_TYPE=$CMakeBuildType \
-            $FastJetFlag
+            $FastJetFlag $Cxx11Flags
 
       else
 
@@ -1014,7 +1021,7 @@ function ModuleAliRoot() {
             -DALIEN="$ALIEN_DIR" \
             -DROOTSYS="$ROOTSYS" \
             -DCMAKE_BUILD_TYPE=$CMakeBuildType \
-            $FastJetFlag
+            $FastJetFlag $Cxx11Flags
 
       fi
 
@@ -1158,6 +1165,13 @@ function ModuleAliPhysics() {
       debug)     CMakeBuildType='DEBUG' ;;
     esac
 
+    # Build with C++11?
+    local Cxx11Flags
+    root-config --cflags | grep -q -- '-std=c++11'
+    if [[ $? == 0 ]] ; then
+      Cxx11Flags='-DCMAKE_CXX_FLAGS="-std=c++11"'
+    fi
+
     Swallow -f 'Moving into AliPhysics build directory' cd "$AliPhysicsTmp"
 
     SwallowProgress -f --pattern \
@@ -1171,7 +1185,7 @@ function ModuleAliPhysics() {
         -DROOTSYS="$ROOTSYS" \
         -DFASTJET="$FASTJET" \
         -DALIROOT="$ALICE_ROOT" \
-        -DCMAKE_BUILD_TYPE=$CMakeBuildType
+        -DCMAKE_BUILD_TYPE=$CMakeBuildType $Cxx11Flags
 
     export CCACHE_BASEDIR="$AliPhysicsBase"
 
