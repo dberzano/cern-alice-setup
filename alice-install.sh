@@ -980,7 +980,7 @@ function ModuleAliRoot() {
       local Cxx11Flags
       root-config --cflags | grep -q -- '-std=c++11'
       if [[ $? == 0 ]] ; then
-        Cxx11Flags='-DCMAKE_CXX_FLAGS="-std=c++11"'
+        Cxx11Flags='-DCMAKE_CXX_FLAGS=-std=c++11'
       fi
 
       # Build type
@@ -1169,7 +1169,7 @@ function ModuleAliPhysics() {
     local Cxx11Flags
     root-config --cflags | grep -q -- '-std=c++11'
     if [[ $? == 0 ]] ; then
-      Cxx11Flags='-DCMAKE_CXX_FLAGS="-std=c++11"'
+      Cxx11Flags='-DCMAKE_CXX_FLAGS=-std=c++11'
     fi
 
     Swallow -f 'Moving into AliPhysics build directory' cd "$AliPhysicsTmp"
