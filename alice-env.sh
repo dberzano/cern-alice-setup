@@ -726,7 +726,7 @@ function AliParseVerDir() {
   if [[ ${verAndDir:0:1} == '/' ]] ; then
     # Getting a precompiled version
     cmd="$dirVar='$verAndDir' ; $verVar='EXTERNAL'"
-  elif [[ $verAndDir =~ ^([^\(]+)\((.+)\)$ ]] ; then
+  elif [[ "$verAndDir" =~ '^([^\(]+)\((.+)\)$' || "$verAndDir" =~ ^([^\(]+)\((.+)\)$ ]] ; then
     # Has dirname(version)
     saniDir=$(AliSanitizeDir "${BASH_REMATCH[1]}")
     cmd="$dirVar='$saniDir' ; $verVar='${BASH_REMATCH[2]}'"
