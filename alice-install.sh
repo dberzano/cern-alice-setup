@@ -459,6 +459,7 @@ function ModuleRoot() {
       --with-monalisa-incdir="${GSHELL_ROOT}/include" \
       --with-monalisa-libdir="${GSHELL_ROOT}/lib" \
       --with-xrootd=${GSHELL_ROOT} \
+      --enable-builtin-ftgl \
       --enable-minuit2 \
       --enable-roofit \
       --enable-soversion \
