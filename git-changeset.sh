@@ -3,7 +3,6 @@
 # Print a list of changes between two Git refs, formatted
 
 Format=''
-BaseUrl='http://git.cern.ch/pubweb/AliRoot.git/commit'
 
 while [[ $# -gt 0 ]] ; do
   [[ "${1:0:2}" != '--' ]] && break
@@ -12,12 +11,26 @@ while [[ $# -gt 0 ]] ; do
       Format="$2"
       shift
     ;;
+    --sw)
+      Sw="$2"
+      shift
+    ;;
+    --old)
+      CommitOld="$2"
+      shift
+    ;;
+    --new)
+      CommitNew="$2"
+      shift
+    ;;
   esac
   shift
 done
 
-CommitNew="$1"
-CommitOld="$2"
+Sw=${Sw:-AliRoot}
+BaseUrl="http://git.cern.ch/pubweb/${Sw}.git/commit"
+
+[[ "$CommitNew" == '' || "$CommitOld" == '' ]] && exit 0
 
 case "$Format" in
   html)
@@ -53,5 +66,7 @@ esac
 GitLogFormat="`Link "${BaseUrl}/%H" "%h"`: %s `Italic "(%an)"`"
 GitLogFormat="`Item "$GitLogFormat"`"
 
-Par "New release `Bold "${CommitNew}"`. Changeset with respect to `Bold "${CommitOld}"`:"
-List "$( git log --pretty=format:"$GitLogFormat" "$CommitNew"..."$CommitOld" )"
+(
+  Par "New ${Sw} release `Bold "${CommitNew}"`. Changeset with respect to `Bold "${CommitOld}"`:"
+  List "$( git log --pretty=format:"$GitLogFormat" "$CommitNew"..."$CommitOld" )"
+)
