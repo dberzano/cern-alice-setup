@@ -416,13 +416,12 @@ function ModuleRoot() {
       GitCheckoutTrack "$ROOT_VER" "$RootGitRemote"
 
     if [[ $ForceCleanSlate == 1 ]] ; then
-      Swallow -f 'Forcing hard reset to HEAD' git reset --hard HEAD
+      Swallow -f "Forcing hard reset to remote ${ROOT_VER}" \
+        GitResetHard "$RootGitRemote" "$ROOT_VER"
       Swallow -f 'Forcing cleanup of working directory' git clean -f -d
-    fi
-
-    if [[ "$(git rev-parse --abbrev-ref HEAD)" != 'HEAD' ]] ; then
+    elif [[ "$(git rev-parse --abbrev-ref HEAD)" != 'HEAD' ]] ; then
       # update only if on a branch: errors are fatal
-      SwallowProgress -f --pattern "Updating ROOT branch ${ROOT_VER}" git pull --rebase
+      SwallowProgress -f --pattern "Updating ROOT branch ${ROOT_VER}" git pull --rebase=preserve
     fi
 
   fi # end download
@@ -592,13 +591,11 @@ function ModuleGeant3() {
     Swallow -f "Checking out Geant3 version ${G3_VER}" git checkout "$G3_VER"
 
     if [[ $ForceCleanSlate == 1 ]] ; then
-      Swallow -f 'Forcing hard reset to HEAD' git reset --hard HEAD
+      Swallow -f "Forcing hard reset to remote ${G3_VER}" GitResetHard origin "$G3_VER"
       Swallow -f 'Forcing cleanup of working directory' git clean -f -d
-    fi
-
-    if [[ "$(git rev-parse --abbrev-ref HEAD)" != 'HEAD' ]] ; then
+    elif [[ "$(git rev-parse --abbrev-ref HEAD)" != 'HEAD' ]] ; then
       # update only if on a branch: errors are fatal
-      SwallowProgress -f --pattern "Updating Geant3 branch ${G3_VER}" git pull --rebase
+      SwallowProgress -f --pattern "Updating Geant3 branch ${G3_VER}" git pull --rebase=preserve
     fi
 
   fi # end download
@@ -861,6 +858,16 @@ function GitSync() (
     git fetch "$remote" --tags
 )
 
+# Force-reset to either a remote head or tag.
+# $1: remote name
+# $2: version name
+# Returns nonzero on error
+function GitResetHard() (
+  local remote="$1"
+  local vers="$2"
+  git reset --hard "${remote}/${vers}" || git reset --hard "${vers}"
+)
+
 # Module to fetch, update and compile AliRoot
 function ModuleAliRoot() {
 
@@ -939,16 +946,16 @@ function ModuleAliRoot() {
       GitCheckoutTrack "$ALICE_VER" "$AliRootGitRemote"
 
     if [[ $ForceCleanSlate == 1 ]] ; then
-      Swallow -f 'Forcing hard reset to HEAD' git reset --hard HEAD
+      Swallow -f "Forcing hard reset to remote ${ALICE_VER}" \
+        GitResetHard "$AliRootGitRemote" "$ALICE_VER"
       Swallow -f 'Forcing cleanup of working directory' git clean -f -d
-    fi
-
-    if [[ "$(git rev-parse --abbrev-ref HEAD)" != 'HEAD' ]] ; then
+    elif [[ "$(git rev-parse --abbrev-ref HEAD)" != 'HEAD' ]] ; then
       # update only if on a branch: errors are fatal
       # if we are working on a clone made with git-new-workdir, changes in the
       # git object database will be propagated to all the sibling clones
       SwallowProgress -f --pattern \
-        "Updating AliRoot $ALICE_VER from public Git" git pull --rebase "$AliRootGitRemote" "$ALICE_VER"
+        "Updating AliRoot $ALICE_VER from public Git" \
+        git pull --rebase=preserve "$AliRootGitRemote" "$ALICE_VER"
     fi
 
   fi # end download
@@ -1143,14 +1150,14 @@ function ModuleAliPhysics() {
       GitCheckoutTrack "$ALIPHYSICS_VER" "$AliPhysicsGitRemote"
 
     if [[ $ForceCleanSlate == 1 ]] ; then
-      Swallow -f 'Forcing hard reset to HEAD' git reset --hard HEAD
+      Swallow -f "Forcing hard reset to remote ${ALIPHYSICS_VER}" \
+        GitResetHard "$AliPhysicsGitRemote" "$ALIPHYSICS_VER"
       Swallow -f 'Forcing cleanup of working directory' git clean -f -d
-    fi
-
-    if [[ "$(git rev-parse --abbrev-ref HEAD)" != 'HEAD' ]] ; then
+    elif [[ "$(git rev-parse --abbrev-ref HEAD)" != 'HEAD' ]] ; then
       # update only if on a branch: errors are fatal
       SwallowProgress -f --pattern \
-        "Updating AliPhysics $ALIPHYSICS_VER from public Git" git pull --rebase "$AliPhysicsGitRemote" "$ALIPHYSICS_VER"
+        "Updating AliPhysics ${ALIPHYSICS_VER} from public Git" \
+        git pull --rebase=preserve "$AliPhysicsGitRemote" "$ALIPHYSICS_VER"
     fi
 
   fi # end download
