@@ -421,7 +421,7 @@ function ModuleRoot() {
       Swallow -f 'Forcing cleanup of working directory' git clean -f -d
     elif [[ "$(git rev-parse --abbrev-ref HEAD)" != 'HEAD' ]] ; then
       # update only if on a branch: errors are fatal
-      SwallowProgress -f --pattern "Updating ROOT branch ${ROOT_VER}" git pull --rebase=preserve
+      SwallowProgress -f --pattern "Updating ROOT branch ${ROOT_VER}" git pull --rebase
     fi
 
   fi # end download
@@ -595,7 +595,7 @@ function ModuleGeant3() {
       Swallow -f 'Forcing cleanup of working directory' git clean -f -d
     elif [[ "$(git rev-parse --abbrev-ref HEAD)" != 'HEAD' ]] ; then
       # update only if on a branch: errors are fatal
-      SwallowProgress -f --pattern "Updating Geant3 branch ${G3_VER}" git pull --rebase=preserve
+      SwallowProgress -f --pattern "Updating Geant3 branch ${G3_VER}" git pull --rebase
     fi
 
   fi # end download
@@ -955,7 +955,7 @@ function ModuleAliRoot() {
       # git object database will be propagated to all the sibling clones
       SwallowProgress -f --pattern \
         "Updating AliRoot $ALICE_VER from public Git" \
-        git pull --rebase=preserve "$AliRootGitRemote" "$ALICE_VER"
+        git pull --rebase "$AliRootGitRemote" "$ALICE_VER"
     fi
 
   fi # end download
@@ -1157,7 +1157,7 @@ function ModuleAliPhysics() {
       # update only if on a branch: errors are fatal
       SwallowProgress -f --pattern \
         "Updating AliPhysics ${ALIPHYSICS_VER} from public Git" \
-        git pull --rebase=preserve "$AliPhysicsGitRemote" "$ALIPHYSICS_VER"
+        git pull --rebase "$AliPhysicsGitRemote" "$ALIPHYSICS_VER"
     fi
 
   fi # end download
