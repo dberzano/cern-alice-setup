@@ -1,2 +1,3 @@
 /alice-env.conf
 /.alice-env.*
+/cvmfs-check-todays-tag.config
