@@ -873,6 +873,7 @@ function ModuleAliRoot() {
 
   local GenerateDoc="$1"
   local ForceCleanSlate="$2"
+  local Pedantic="$3"
 
   local CMakeCxxFlags
 
@@ -985,6 +986,7 @@ function ModuleAliRoot() {
 
       # Build with C++11?
       root-config --cflags | grep -q -- '-std=c++11' && CMakeCxxFlags="${CMakeCxxFlags} -std=c++11"
+      [[ "$Pedantic" == 1 ]] && CMakeCxxFlags="${CMakeCxxFlags} -Wall -Wextra"
 
       # Build type
       case $BuildType in
@@ -994,7 +996,7 @@ function ModuleAliRoot() {
       esac
 
       SwallowProgress -f --pattern \
-        'Bootstrapping AliRoot build with CMake' \
+        "Bootstrapping AliRoot build with CMake${Pedantic:+ (WARNING: pedantic mode is on!)}" \
         cmake "$AliRootSrc" \
           -DCMAKE_C_COMPILER=`root-config --cc` \
           -DCMAKE_CXX_COMPILER=`root-config --cxx` \
@@ -1061,6 +1063,7 @@ function ModuleAliPhysics() {
 
   local GenerateDoc="$1"
   local ForceCleanSlate="$2"
+  local Pedantic="$3"
 
   local CMakeCxxFlags
 
@@ -1153,11 +1156,12 @@ function ModuleAliPhysics() {
 
     # Build with C++11?
     root-config --cflags | grep -q -- '-std=c++11' && CMakeCxxFlags="${CMakeCxxFlags} -std=c++11"
+    [[ "$Pedantic" == 1 ]] && CMakeCxxFlags="${CMakeCxxFlags} -Wall -Wextra"
 
     Swallow -f 'Moving into AliPhysics build directory' cd "$AliPhysicsTmp"
 
     SwallowProgress -f --pattern \
-      'Configuring AliPhysics with CMake' \
+      "Configuring AliPhysics with CMake${Pedantic:+ (WARNING: pedantic mode is on!)}" \
       cmake "$AliPhysicsSrc" \
         -DCMAKE_C_COMPILER=`root-config --cc` \
         -DCMAKE_CXX_COMPILER=`root-config --cxx` \
@@ -1523,6 +1527,7 @@ To build, install, clean or update one or multiple components:
     [--clean-aliroot] [--clean-aliphysics] \\
     [--clean-all] [--clean-all-but-alien] \\
     [--ncores <n>] \\
+    [--pedantic] \\
     [--force-clean-slate] \\
     [--dont-update-env] \\
     [--one-log-per-user] \\
@@ -1550,7 +1555,9 @@ Switches (all of them are optional):
   ${CEmp}--ncores <n>${COff}        Build using <n> parallel threads, instead of automatically
                       calculating the optimal number
 
-  ${CEmp}--force-clean-slate${COff}  (POTENTIALLY DANGEROUS!) Discard all your local changes in
+  ${CEmp}--pedantic${COff}          Stricter warning handling: useful for testing new code
+
+  ${CEmp}--force-clean-slate${COff} (POTENTIALLY DANGEROUS!) Discard all your local changes in
                       all source directories and sync with the remote ones. This
                       is useful if you want a clean source, and you are 100%
                       sure you are not going to lose your work
@@ -1825,6 +1832,7 @@ function Main() {
   local PARAM
 
   local GenerateDoc=0
+  local Pedantic=''
   local ForceCleanSlate=0
   local SingleLogPerUser=0
 
@@ -2019,6 +2027,10 @@ function Main() {
           GenerateDoc=1
         ;;
 
+        pedantic)
+          Pedantic=1
+        ;;
+
         force-clean-slate)
           ForceCleanSlate=1
         ;;
@@ -2117,9 +2129,9 @@ function Main() {
     [[ $DO_CLEAN_FASTJET    == 1 ]] && ModuleCleanFastJet
     [[ $DO_FASTJET          == 1 ]] && ModuleFastJet
     [[ $DO_CLEAN_ALICE      == 1 ]] && ModuleCleanAliRoot
-    [[ $DO_ALICE            == 1 ]] && ModuleAliRoot $GenerateDoc $ForceCleanSlate
+    [[ $DO_ALICE            == 1 ]] && ModuleAliRoot $GenerateDoc $ForceCleanSlate $Pedantic
     [[ $DO_CLEAN_ALIPHYSICS == 1 ]] && ModuleCleanAliPhysics
-    [[ $DO_ALIPHYSICS       == 1 ]] && ModuleAliPhysics $GenerateDoc $ForceCleanSlate
+    [[ $DO_ALIPHYSICS       == 1 ]] && ModuleAliPhysics $GenerateDoc $ForceCleanSlate $Pedantic
   fi
 
   # Remove logs: if we are here, everything went right, so no need to see the
