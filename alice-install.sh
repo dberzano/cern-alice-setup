@@ -874,6 +874,8 @@ function ModuleAliRoot() {
   local GenerateDoc="$1"
   local ForceCleanSlate="$2"
 
+  local CMakeCxxFlags
+
   Banner 'Installing AliRoot Core...'
   Swallow -f 'Sourcing envvars' SourceEnvVars
 
@@ -981,15 +983,8 @@ function ModuleAliRoot() {
     # Assemble cmake command
     if [[ ! -e 'Makefile' ]]; then
 
-      # Build with FastJet?
-      local FastJetFlag="-DFASTJET=$FASTJET"
-
       # Build with C++11?
-      local Cxx11Flags
-      root-config --cflags | grep -q -- '-std=c++11'
-      if [[ $? == 0 ]] ; then
-        Cxx11Flags='-DCMAKE_CXX_FLAGS=-std=c++11'
-      fi
+      root-config --cflags | grep -q -- '-std=c++11' && CMakeCxxFlags="${CMakeCxxFlags} -std=c++11"
 
       # Build type
       case $BuildType in
@@ -998,40 +993,21 @@ function ModuleAliRoot() {
         debug)     CMakeBuildType='DEBUG' ;;
       esac
 
-      if [[ "$BUILDOPT_LDFLAGS" != '' ]]; then
-
-        # Special configuration for latest Ubuntu/Linux Mint
-        SwallowProgress -f --pattern \
-          'Bootstrapping AliRoot build with CMake (using LDFLAGS)' \
-          cmake "$AliRootSrc" \
-            -DCMAKE_C_COMPILER=`root-config --cc` \
-            -DCMAKE_CXX_COMPILER=`root-config --cxx` \
-            -DCMAKE_Fortran_COMPILER=`root-config --f77` \
-            -DCMAKE_MODULE_LINKER_FLAGS="$BUILDOPT_LDFLAGS" \
-            -DCMAKE_SHARED_LINKER_FLAGS="$BUILDOPT_LDFLAGS" \
-            -DCMAKE_EXE_LINKER_FLAGS="$BUILDOPT_LDFLAGS" \
-            -DCMAKE_INSTALL_PREFIX="$AliRootInst" \
-            -DALIEN="$ALIEN_DIR" \
-            -DROOTSYS="$ROOTSYS" \
-            -DCMAKE_BUILD_TYPE=$CMakeBuildType \
-            $FastJetFlag $Cxx11Flags
-
-      else
-
-        # Any other configuration (no linker)
-        SwallowProgress -f --pattern \
-          'Bootstrapping AliRoot build with CMake' \
-          cmake "$AliRootSrc" \
-            -DCMAKE_C_COMPILER=`root-config --cc` \
-            -DCMAKE_CXX_COMPILER=`root-config --cxx` \
-            -DCMAKE_Fortran_COMPILER=`root-config --f77` \
-            -DCMAKE_INSTALL_PREFIX="$AliRootInst" \
-            -DALIEN="$ALIEN_DIR" \
-            -DROOTSYS="$ROOTSYS" \
-            -DCMAKE_BUILD_TYPE=$CMakeBuildType \
-            $FastJetFlag $Cxx11Flags
-
-      fi
+      SwallowProgress -f --pattern \
+        'Bootstrapping AliRoot build with CMake' \
+        cmake "$AliRootSrc" \
+          -DCMAKE_C_COMPILER=`root-config --cc` \
+          -DCMAKE_CXX_COMPILER=`root-config --cxx` \
+          -DCMAKE_Fortran_COMPILER=`root-config --f77` \
+          -DCMAKE_INSTALL_PREFIX="$AliRootInst" \
+          -DALIEN="$ALIEN_DIR" \
+          -DROOTSYS="$ROOTSYS" \
+          -DCMAKE_BUILD_TYPE=$CMakeBuildType \
+          ${BUILDOPT_LDFLAGS:+-DCMAKE_MODULE_LINKER_FLAGS="$BUILDOPT_LDFLAGS"} \
+          ${BUILDOPT_LDFLAGS:+-DCMAKE_SHARED_LINKE__FLAGS="$BUILDOPT_LDFLAGS"} \
+          ${BUILDOPT_LDFLAGS:+-DCMAKE_EXE_LINKER_FLAGS="$BUILDOPT_LDFLAGS"} \
+          ${FASTJET:+-DFASTJET="$FASTJET"} \
+          ${CMakeCxxFlags:+-DCMAKE_CXX_FLAGS="$CMakeCxxFlags"}
 
     fi
 
@@ -1085,6 +1061,8 @@ function ModuleAliPhysics() {
 
   local GenerateDoc="$1"
   local ForceCleanSlate="$2"
+
+  local CMakeCxxFlags
 
   Banner 'Installing AliPhysics...'
   Swallow -f 'Sourcing envvars' SourceEnvVars
@@ -1174,11 +1152,7 @@ function ModuleAliPhysics() {
     esac
 
     # Build with C++11?
-    local Cxx11Flags
-    root-config --cflags | grep -q -- '-std=c++11'
-    if [[ $? == 0 ]] ; then
-      Cxx11Flags='-DCMAKE_CXX_FLAGS=-std=c++11'
-    fi
+    root-config --cflags | grep -q -- '-std=c++11' && CMakeCxxFlags="${CMakeCxxFlags} -std=c++11"
 
     Swallow -f 'Moving into AliPhysics build directory' cd "$AliPhysicsTmp"
 
@@ -1191,9 +1165,10 @@ function ModuleAliPhysics() {
         -DCMAKE_INSTALL_PREFIX="$AliPhysicsInst" \
         -DALIEN="$ALIEN_DIR" \
         -DROOTSYS="$ROOTSYS" \
-        -DFASTJET="$FASTJET" \
+        ${FASTJET:+-DFASTJET="$FASTJET"} \
         -DALIROOT="$ALICE_ROOT" \
-        -DCMAKE_BUILD_TYPE=$CMakeBuildType $Cxx11Flags
+        -DCMAKE_BUILD_TYPE=$CMakeBuildType \
+        ${CMakeCxxFlags:+-DCMAKE_CXX_FLAGS="$CMakeCxxFlags"}
 
     export CCACHE_BASEDIR="$AliPhysicsBase"
 
@@ -1780,9 +1755,10 @@ function DetectOsBuildOpts() {
     SUPPORTED_BUILD_MODES='gcc custom-gcc clang'
     OsName=`source $VerFile > /dev/null 2>&1 ; echo $DISTRIB_ID`
     OsVer=`source $VerFile > /dev/null 2>&1 ; echo $DISTRIB_RELEASE | tr -d .`
-    if [ "$OsName" == 'Ubuntu' ] && [ "$OsVer" -ge 1110 ]; then
+    # https://en.wikipedia.org/wiki/List_of_Linux_Mint_releases
+    if [[ "$OsName" == 'Ubuntu' && "$OsVer" -ge 1110 && "$OsVer" -le 1404 ]]; then
       BUILDOPT_LDFLAGS='-Wl,--no-as-needed'
-    elif [ "$OsName" == 'LinuxMint' ] && [ "$OsVer" -ge 12 ]; then
+    elif [[ "$OsName" == 'LinuxMint' && "$OsVer" -ge 12 && "$OsVer" -le 17 ]] ; then
       BUILDOPT_LDFLAGS='-Wl,--no-as-needed'
     fi
   fi
