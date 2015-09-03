@@ -463,6 +463,8 @@ function ModuleRoot() {
       --enable-roofit \
       --enable-soversion \
       --disable-bonjour \
+      --disable-rfio \
+      --disable-castor \
       --enable-builtin-freetype $BuildCfgFlags \
       --prefix=${RootInst} \
       --incdir=${RootInst}/include \
