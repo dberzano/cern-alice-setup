@@ -6,19 +6,20 @@
 source "$(echo "$0" | sed -e 's|\.sh$|.config|')" || exit 3
 Pref='/cvmfs/alice.cern.ch/x86_64-2.6-gnu-4.1.2/Packages/AliPhysics'
 AnTag=`env TZ=Europe/Zurich LANG=C date --date='now' +vAN-%Y%m%d`
-if [[ -d $Pref/$AnTag ]]; then
-  echo "OK: $Pref/$AnTag" >&2
+FullPath=$(ls -d $Pref/$AnTag* | sort -n | tail -n1)
+if [[ "$FullPath" != "" ]]; then
+  echo "OK: $FullPath" >&2
   SlackMsg="Today's AliPhysics tag *$AnTag* is available on CVMFS :thumbsup:"
   SlackColor="good"
   rv=0
 else
-  echo "Not OK, sending mail: $Pref/$AnTag" >&2
+  echo "Not OK, sending mail: $AnTag" >&2
   mailx -r cvmfs-checker \
               -s "[CVMFS Checker] $AnTag still not available" \
               root <<EoF
 Today's AliPhysics tag ($AnTag) is not available on CVMFS:
 
-  $Pref/$AnTag
+  $Pref/$AnTag*
 
 Please check.
 --
@@ -36,7 +37,7 @@ payload={
   "text": "$SlackMsg",
   "attachments": [{
     "pretext": "Path:",
-    "text": "\`$Pref/$AnTag\`",
+    "text": "\`$FullPath\`",
     "color": "$SlackColor",
     "mrkdwn_in": [ "text" ]
    }]
