@@ -27,6 +27,7 @@ CVMFS Checker
 EoF
   SlackMsg="Today's AliPhysics tag *$AnTag* is not yet available on CVMFS :scream: Could you please have a look?"
   SlackColor="danger"
+  FullPath="$Pref/$AnTag*"
   rv=2
 fi
 
