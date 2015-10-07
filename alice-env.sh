@@ -781,23 +781,27 @@ function AliConf() {
 # Software tuples: they start from 1 (not 0) and must be consecutive.
 #
 # Format (you can also type it on a single long line):
-#   AliTuple[n]='root=<rootver> geant3=<geant3ver> aliroot=<alirootver> \\
-#                aliphysics=<aliphysicsver> fastjet=<fjver> fjcontrib=<fjcontribver>'
+#   AliTuple[n]='root=<rootver> \\
+#                geant3=<geant3ver> \\
+#                aliroot=<alirootver> \\
+#                aliphysics=<aliphysicsver> \\
+#                fastjet=<fjver> \\
+#                fjcontrib=<fjcontribver>'
 #
 # Note: FastJet and FJContrib are optional.
 #
 
-# Default tuple with no FastJet
-AliTuple[1]='root=v5-34-26 \\
+# Default tuple with no FastJet (NOTE: root=alice/v5-34-30 is not an error!)
+AliTuple[1]='root=alice/v5-34-30 \\
              geant3=v2-0 \\
              aliroot=master \\
              aliphysics=master'
 
-# Default tuple with FastJet
-#AliTuple[2]='root=v5-34-26 \\
+# Default tuple with FastJet (NOTE: root=alice/v5-34-30 is not an error!)
+#AliTuple[2]='root=alice/v5-34-30 \\
 #             geant3=v2-0 \\
-#             fastjet=3.0.6 \\
-#             fjcontrib=1.012 \\
+#             fastjet=3.1.3 \\
+#             fjcontrib=1.020 \\
 #             aliroot=master \\
 #             aliphysics=master'
 
@@ -806,14 +810,14 @@ AliTuple[1]='root=v5-34-26 \\
 # and it is indicated in brackets. For instance:
 #
 #   aliroot=master                --> directory=aliroot/master, version=master
-#   aliroot=master_r53426(master) --> directory=aliroot/master_r53426, version=master
+#   aliroot=master_r53430(master) --> directory=aliroot/master_r53430, version=master
 #
-#AliTuple[3]='root=v5-34-26 \\
-#             geant3=v2-0_r53426(v2-0) \\
+#AliTuple[3]='root=alice/v5-34-30 \\
+#             geant3=v2-0_r53430(v2-0) \\
 #             fastjet=3.0.6 \\
 #             fjcontrib=1.012 \\
-#             aliroot=master_r53426(master) \\
-#             aliphysics=master_r53426(master)'
+#             aliroot=master_r53430(master) \\
+#             aliphysics=master_r53430(master)'
 
 # A tuple with ROOT, Geant 3 and AliRoot Core from external, pre-built packages:
 # this is possible if specifying the "prefix" of preinstalled packages (absolute
