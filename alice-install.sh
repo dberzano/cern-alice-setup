@@ -203,6 +203,7 @@ function Swallow() {
   # Options given?
   FATAL=0
   ERRMSG=''
+  OKMSG=''
   while [[ "${1:0:1}" == '-' ]] ; do
     case "$1" in
       -f|--fatal)
@@ -210,6 +211,10 @@ function Swallow() {
       ;;
       --error-msg)
         ERRMSG="$2"
+        shift
+      ;;
+      --success-msg)
+        OKMSG="$2"
         shift
       ;;
     esac
@@ -228,7 +233,7 @@ function Swallow() {
   TSEND=$(date +%s)
   SwallowEnd "$OP" $FATAL $RET $TSSTART $TSEND "$@"
 
-  if [[ $RET != 0 ]] && [[ $FATAL == 1 ]]; then
+  if [[ $RET != 0 && $FATAL == 1 ]]; then
     if [[ "$ERRMSG" != '' ]] ; then
       # Produce a custom error message instead of log output
       echo
@@ -238,6 +243,10 @@ function Swallow() {
       LastLogLines -e "$OP"
     fi
     exit 1
+  elif [[ $RET == 0 && "$OKMSG" != '' ]]; then
+    echo
+    echo -e "\033[32m${OKMSG}\033[m"
+    echo
   fi
 
   return $RET
@@ -1457,27 +1466,25 @@ function ModuleAliEn() {
   Swallow -f "Removing temporary working directory" rm -rf "$ALIEN_TEMP_INST_DIR"
 }
 
-# Module to create prefix directory
-function ModulePrepare() {
-  local TF
-  Banner "Creating directory structure..."
-  Swallow -f "Sourcing envvars" SourceEnvVars
-
-  mkdir -p "$ALICE_PREFIX" 2> /dev/null
-
-  if [ "$USER" == "root" ]; then
-    Swallow -f "Creating ALICE software directory" [ -d "$ALICE_PREFIX" ]
-    Swallow -f "Opening permissions of ALICE directory" \
-      chmod 0777 "$ALICE_PREFIX"
-  else
-    TF="$ALICE_PREFIX/dummy_$RANDOM"
-    touch "$TF" 2> /dev/null
-    if [ $? != 0 ]; then
-      Fatal "Not enough permissions: please run \"sudo $Cmd --prepare\""
-    fi
-    rm "$TF"
-  fi
-
+# Module to fetch the alice-env.sh script
+function ModuleFetchEnv() {
+  local ALI_ENV_URL="https://raw.githubusercontent.com/dberzano/cern-alice-setup/master/alice-env.sh"
+  local ALI_ENV_DEST=$(mktemp /tmp/alice-env-XXXXX)
+  Banner "Fetching the ALICE environment script..."
+  Swallow -f \
+          --error-msg "Download failed, check your connectivity" \
+          "Downloading alice-env.sh" \
+          Dl $ALI_ENV_URL $ALI_ENV_DEST
+  local ALI_ENV_SHEBANG="$(head -n1 $ALI_ENV_DEST)"
+  Swallow -f \
+          --error-msg "alice-env.sh script corrupted, please retry later" \
+          "Checking script integrity" \
+          [ "${ALI_ENV_SHEBANG:0:3}" == '#!/' ]
+  Swallow -f \
+          --success-msg "alice-env.sh script downloaded in $PWD: source it and follow the instructions" \
+          "Moving script in place" \
+          \mv $ALI_ENV_DEST $PWD/alice-env.sh
+  return 0
 }
 
 # Fatal error
@@ -1523,6 +1530,7 @@ Online manual of the automatic installation procedure:
 To build, install, clean or update one or multiple components:
 
   ${CTt}${Cmd} \\
+    [--get-alice-env] \\
     [--alien] [--root] [--geant3] [--fastjet] [--aliroot] [--aliphysics] \\
     [--all] [--all-but-alien] \\
     [--clean-alien] [--clean-root] [--clean-geant3] [--clean-fastjet] \\
@@ -1538,9 +1546,14 @@ To build, install, clean or update one or multiple components:
     [--compiler [gcc|clang|/prefix/to/gcc]] \\
     [--type [normal|optimized|debug]]${COff}
 
-Components will be processed in the correct dependency order, disregarding the
-order of the switches: for instance, ROOT is be always installed before Geant 3,
-and cleanup always occurs before installing it.
+Components will be processed in the correct dependency order, regardless of the
+given switches order, e.g. ROOT is be always installed before Geant 3, and
+cleanups always occur before installations.
+
+To install everything from scratch, you need to get the ALICE environment script
+first:
+
+  ${CTt}${Cmd} --get-alice-env${COff}
 
 If you just want to generate a summary to send as a bug report:
 
@@ -1813,7 +1826,7 @@ function ConvertVersionStringToNumber() (
 # Main function
 function Main() {
 
-  local DO_PREP=0
+  local DO_FETCH_ENV=0
   local DO_ALIEN=0
   local DO_ROOT=0
   local DO_G3=0
@@ -1973,8 +1986,8 @@ function Main() {
           DO_BUGREPORT=1
         ;;
 
-        prepare)
-          DO_PREP=1
+        get-alice-env)
+          DO_FETCH_ENV=1
         ;;
 
         ncores)
@@ -2071,14 +2084,13 @@ function Main() {
   let N_CLEAN=DO_CLEAN_ALIEN+DO_CLEAN_ROOT+DO_CLEAN_G3+DO_CLEAN_FASTJET+DO_CLEAN_ALICE+DO_CLEAN_ALIPHYSICS
   let N_INST_CLEAN=N_INST+N_CLEAN
 
-  if [ $DO_PREP == 0 ] && [ $DO_BUGREPORT == 0 ] && \
-     [ $N_INST_CLEAN == 0 ]; then
-    Help 'Nothing to do: what software do you want to install?'
+  if [[ $DO_FETCH_ENV == 0 && $DO_BUGREPORT == 0  && $N_INST_CLEAN == 0 ]]; then
+    Help 'Nothing to do: what do you want to install?'
     exit 1
-  elif [ $DO_PREP == 1 ] && [ $N_INST_CLEAN -gt 0 ]; then
-    Help 'Cannot prepare and update/build/clean something at the same time'
+  elif [[ $DO_FETCH_ENV == 1 && $N_INST_CLEAN -gt 0 ]]; then
+    Help 'Cannot fetch alice-env.sh and update/build/clean something at the same time'
     exit 1
-  elif [ "$USER" == "root" ] && [ $N_INST_CLEAN -gt 0 ]; then
+  elif [[ "$USER" == "root" && $N_INST_CLEAN -gt 0 ]]; then
     Help 'I am refusing to continue the installation as root user'
     exit 1
   fi
@@ -2098,18 +2110,20 @@ function Main() {
 
   # Where are the logfiles?
   echo ""
-  echo "Installation log files can be consulted on:"
+  echo "Log messages are being written to:"
   echo ""
   echo -e "  \033[34mstderr:\033[m $ERR"
   echo -e "  \033[34mstdout:\033[m $OUT"
 
-  # Checking prerequisites
-  ModuleCheckPrereq
 
   # Perform required actions
-  if [ $DO_PREP == 1 ]; then
-    ModulePrepare
+  if [[ $DO_FETCH_ENV == 1 ]]; then
+    ModuleFetchEnv
   else
+
+    # Checking prerequisites
+    ModuleCheckPrereq
+
     SourceEnvVars > /dev/null 2>&1
     echo ""
 
