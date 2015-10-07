@@ -1414,8 +1414,33 @@ function ModuleCheckPrereq() {
 
   Banner 'Checking prerequisites...'
   Swallow -f 'Checking if on a 64 bit machine' [ `uname -m` == 'x86_64' ]
-  Swallow -f --error-msg 'Command "git-new-workdir" cannot be found in your $PATH. Follow the instructions on the web to install it.' \
-    'Checking for git-new-workdir script in $PATH' which git-new-workdir
+  Swallow -f \
+          --error-msg 'Command "git-new-workdir" cannot be found in your $PATH. Follow the instructions on the web to install it.' \
+         'Checking for git-new-workdir script in $PATH' which git-new-workdir
+
+  if [[ $(uname) == Darwin ]]; then
+    local DEVTOOLS_ERR=$(cat <<\EOF
+Please install Xcode and the Command Line Tools.
+To do that, open Xcode, then select from the menubar:
+
+  Xcode > Open Developer Tool > More Developer Tools...
+
+Note: you might need to run a developer command manually afterwards (such as
+"clang") to accept the Apple license agreement.
+EOF)
+    Swallow -f \
+            --error-msg "$DEVTOOLS_ERR" \
+            "Checking Xcode Developer Tools path" \
+            "xcode-select" -p
+    Swallow -f \
+            --error-msg "$DEVTOOLS_ERR" \
+            "Verifying integrity of system includes" \
+            [ -r /usr/include/openssl/ssl.h ]
+    Swallow -f \
+            --error-msg "$DEVTOOLS_ERR" \
+            "Checking Command Line Tools path" \
+            [ -d /Library/Developer/CommandLineTools ]
+  fi
 
   if [[ $DontUpdateEnv == 0 ]] ; then
     aliUpdateMsg=' and updating alice-env.sh'
