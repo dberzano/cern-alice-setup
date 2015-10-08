@@ -20,6 +20,7 @@ export BUILDOPT_CPATH=''
 export ALIEN_INSTALL_TYPE=''
 export FASTJET_PATCH_HEADERS=0
 export DOWNLOAD_MODE=''
+export SYSTEM_ALIEN_LIBS=
 export MIN_ROOT_VER_NUM=''
 export MIN_ROOT_VER_STR='all'
 export LC_ALL=C
@@ -1282,7 +1283,11 @@ function ModuleCleanAliEn() {
     AliEnVer=${AliEnVer:6}
     Swallow -f "Removing AliEn $AliEnVer" rm -rf "$AliEnDir"
   done
-  Swallow -f "Removing symlink to latest AliEn $ALIEN_DIR" rm -f "$ALIEN_DIR"
+  Swallow -f "Removing symlink to latest AliEn ($ALIEN_DIR)" rm -f "$ALIEN_DIR"
+  if [[ "$SYSTEM_ALIEN_LIBS" == 1 ]]; then
+    Swallow -f "Removing AliEn libs in /usr/local/lib" \
+            rm -f /usr/local/lib/libXrd* /usr/local/lib/libgapiUI*
+  fi
 }
 
 # Clean up ROOT
@@ -1471,8 +1476,12 @@ function ModuleAliEn() {
   cd "$ALIEN_TEMP_INST_DIR"
 
   Swallow -f "Sourcing envvars" SourceEnvVars
+
   Swallow -f "Downloading AliEn installer" \
     Dl http://alien.cern.ch/alien-installer "$ALIEN_INSTALLER"
+  #Swallow -f "Copying patched AliEn installer" \
+  #        \cp $ALICE_PREFIX/alien-installer $ALIEN_INSTALLER
+
   Swallow -f "Making AliEn installer executable" \
     chmod +x "$ALIEN_INSTALLER"
 
@@ -1489,6 +1498,14 @@ function ModuleAliEn() {
 
   cd "$CURWD"
   Swallow -f "Removing temporary working directory" rm -rf "$ALIEN_TEMP_INST_DIR"
+
+  if [[ "$SYSTEM_ALIEN_LIBS" == 1 ]]; then
+    Swallow -f "Removing old AliEn libs in /usr/local/lib" \
+            rm -f /usr/local/lib/libXrd* /usr/local/lib/libgapiUI*
+    Swallow -f "Linking AliEn libs to /usr/local/lib" \
+               bash -ce "for L in $GSHELL_ROOT/lib/*.{dylib,so};
+                            do ln -nfs \$L /usr/local/lib; done"
+  fi
 }
 
 # Module to fetch the alice-env.sh script
@@ -1783,19 +1800,23 @@ function DetectOsBuildOpts() {
       # 11 = Lion (10.7)
       SUPPORTED_BUILD_MODES='clang custom-gcc'
     fi
-    if [[ $OsVer -ge 12 ]] ; then
+    if [[ $OsVer -ge 12 ]]; then
       # 12 = Mountain Lion (10.8)
       BUILDOPT_CPATH='/usr/X11/include'  # XQuartz
       ALIEN_INSTALL_TYPE='compile'
       MIN_ROOT_VER_STR='v5-34-18'
     fi
-    if [[ $OsVer -ge 13 ]] ; then
+    if [[ $OsVer -ge 13 ]]; then
       # 13 = Mavericks (10.9)
       SUPPORTED_BUILD_MODES='clang'
     fi
-    if [[ $OsVer -ge 14 ]] ; then
+    if [[ $OsVer -ge 14 ]]; then
       # 14 = Yosemite (10.10)
       MIN_ROOT_VER_STR='v5-34-30'
+    fi
+    if [[ $OsVer -ge 15 ]]; then
+      # 15 = El Capitan (10.11)
+      SYSTEM_ALIEN_LIBS=1
     fi
   elif [[ $KernelName == 'Linux' ]] ; then
     ALIEN_INSTALL_TYPE='compile'
