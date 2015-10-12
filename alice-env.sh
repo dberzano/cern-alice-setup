@@ -177,7 +177,7 @@ function AliTupleNumberByQuery() (
 # variable name is the first argument, and file names are the remaining arguments
 function AliRemovePaths() {
 
-  local RetainPaths="/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/usr/local/sbin:$HOME/bin"
+  local RetainPaths="/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/usr/local/sbin:/usr/local/lib:$HOME/bin"
   local VARNAME=$1
   shift
   local DIRS=`eval echo \\$$VARNAME`
