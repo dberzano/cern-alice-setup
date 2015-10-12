@@ -1436,7 +1436,7 @@ EOF)
     Swallow -f \
             --error-msg "$DEVTOOLS_ERR" \
             "Checking Xcode Developer Tools path" \
-            "xcode-select" -p
+            "xcode-select" "--print-path"
     Swallow -f \
             --error-msg "$DEVTOOLS_ERR" \
             "Verifying integrity of system includes" \
