@@ -39,10 +39,13 @@ mkdir -p /work/sw
 chown $UserId:$GroupId /work/sw
 ln -nfs /mirror /work/sw/MIRROR
 ln -nfs /work/globus /home/builder/.globus
-echo -e "\nexport PS1='[$ContainerShort] \\h \\w \\\\$> '" >> /etc/bashrc
-echo -e "\nalias aliBuild='cd /work;alibuild/aliBuild --architecture $ContainerShort --jobs 50 --debug build'" >> /etc/bashrc
+RC=/etc/bashrc
+NCORES=\$((\$(grep -c bogomips /proc/cpuinfo)*2))
+[[ ! -e \$RC ]] && RC=/etc/bash.bashrc
+echo -e "\nexport PS1='[$ContainerShort] \\h \\w \\\\$> '" >> \$RC
+echo -e "\nalias aliBuild='cd /work;alibuild/aliBuild --architecture $ContainerShort --jobs \$NCORES --debug build'" >> \$RC
 echo "> su builder"
-echo "> alibuild/aliBuild --remote-store /remotestore::rw --architecture ${ContainerShort}_x86-64 --jobs 50 --debug build ROOT"
+echo "> alibuild/aliBuild --remote-store /remotestore::rw --architecture ${ContainerShort}_x86-64 --jobs \$NCORES --debug build ROOT"
 bash
 EoF
 chmod a+x "$WorkDir"/entrypoint.sh
