@@ -5,13 +5,14 @@ cd "$(dirname "$0")"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --arch) ContainerShort=$2 ;;
-    --tag) ContainerTag=$2 ;;
-    --workdir) WorkDir=$2 ;;
-    --host) HostName=$2 ;;
+    --arch) ContainerShort=$2; shift ;;
+    --tag) ContainerTag=$2; shift ;;
+    --workdir) WorkDir=$2; shift ;;
+    --host) HostName=$2; shift ;;
+    --badge) Badge=1 ;;
     *) echo "Unknown parameter: $1" >&2; exit 1 ;;
   esac
-  shift 2
+  shift
 done
 
 ContainerShort=${ContainerShort:-slc6}
@@ -53,6 +54,9 @@ chmod a+x "$WorkDir"/entrypoint.sh
 
 docker pull $Container
 
+[[ "$Badge" != '' ]] && printf "\e]1337;SetBadgeFormat=%s\a" \
+                               $(echo -n "$ContainerShort" | base64)
+
 echo "==> Architecture: $ContainerShort"
 echo "==> Using as working dir: $WorkDir"
 docker run \
@@ -66,3 +70,5 @@ docker run \
   ${HostName:+-h $HostName} \
   $Container \
   /work/entrypoint.sh
+
+[[ "$Badge" != '' ]] && printf "\e]1337;SetBadgeFormat=\a"
