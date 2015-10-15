@@ -20,6 +20,7 @@ Container="alisw/${ContainerShort}-builder:${ContainerTag}"
 
 WorkDirDefault=$PWD/$( date --utc +%Y%m%d-%H%M%S-$ContainerShort )
 WorkDir=${WorkDir:-$WorkDirDefault}
+[[ $WorkDir == 'auto' ]] && WorkDir="default-$ContainerShort"
 
 HostName=${HostName:-$ContainerShort-$RANDOM}
 
@@ -52,6 +53,7 @@ chmod a+x "$WorkDir"/entrypoint.sh
 
 docker pull $Container
 
+echo "==> Architecture: $ContainerShort"
 echo "==> Using as working dir: $WorkDir"
 docker run \
   --rm -it \
