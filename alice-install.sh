@@ -418,7 +418,7 @@ function ModuleRoot() {
       rmdir "$RootSrc" > /dev/null 2>&1
       SwallowProgress -f --pattern \
         "Creating a local clone for version ${ROOT_VER}" \
-        git-new-workdir "$RootGit" "$RootSrc" "$ROOT_VER"
+        GitNewWorkdir "$RootGit" "$RootSrc" "$RootGitRemote" "$ROOT_VER"
     fi
 
     Swallow -f "Moving to local clone for version ${ROOT_VER}" cd "$RootSrc"
@@ -858,6 +858,21 @@ function GitCheckoutTrack() (
   local branch="$1"
   local remote="$2"
   git checkout "$branch" || git checkout -b "$branch" --track "${remote}/${branch}"
+)
+
+# Works around a problem with the original git-new-workdir which is unable to
+# deal properly with multiple remotes
+# $1: Git reference directory
+# $2: destination source
+# $3: remote name
+# $4: branch to checkout
+function GitNewWorkdir() (
+  local ref="$1"
+  local src="$2"
+  local remote="$3"
+  local branch="$4"
+  git-new-workdir "$ref" "$src" "$branch"
+  GitCheckoutTrack "$branch" "$remote"
 )
 
 # Synchronizes the local Git clone with the remote copy.
