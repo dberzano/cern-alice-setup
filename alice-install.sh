@@ -1448,18 +1448,40 @@ To do that, open Xcode, then select from the menubar:
 Note: you might need to run a developer command manually afterwards (such as
 "clang") to accept the Apple license agreement.
 EOF)
+    local OPENSSL_ERR=$(cat <<\EOF
+You do not have an OpenSSL installation suitable for building software.
+It is recommended you do:
+
+  brew install openssl
+  brew link --force openssl
+EOF)
+    function CheckOpenSSL() (
+      TOSSL=$(mktemp /tmp/aliinst-check-openssl-XXXXX)
+      echo "#include <openssl/ssl.h>" > $TOSSL.c
+      echo "int main(int argc, const char *argv[]) { return 0; }" >> $TOSSL.c
+      gcc -o $TOSSL.o $TOSSL.c
+      ROSSL=$?
+      rm -rf $TOSSL*
+      return $ROSSL
+    )
+
     Swallow -f \
             --error-msg "$DEVTOOLS_ERR" \
             "Checking Xcode Developer Tools path" \
             "xcode-select" "--print-path"
     Swallow -f \
             --error-msg "$DEVTOOLS_ERR" \
-            "Verifying integrity of system includes" \
-            [ -r /usr/include/openssl/ssl.h ]
-    Swallow -f \
-            --error-msg "$DEVTOOLS_ERR" \
             "Checking Command Line Tools path" \
             [ -d /Library/Developer/CommandLineTools ]
+    Swallow -f \
+             --error-msg "$DEVTOOLS_ERR" \
+            "Verifying the integrity of system includes" \
+            [ -r /usr/include/stdio.h ]
+    Swallow -f \
+            --error-msg "$OPENSSL_ERR" \
+            "Checking OpenSSL" \
+            CheckOpenSSL
+    unset CheckOpenSSL
   fi
 
   if [[ $DontUpdateEnv == 0 ]] ; then
