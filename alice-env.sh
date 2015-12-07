@@ -377,12 +377,19 @@ function AliExportVars() {
         fi
         unset ALIENEXT_SUBDIR
 
+        # Do we have the extra api directory? Check.
+        if [[ -f $ALIEN_DIR/lib/libgapiUI.so || -f $ALIEN_DIR/lib/libgapiUI.dylib ]]; then
+          # We don't. GSHELL_ROOT == ALIEN_DIR
+          export GSHELL_ROOT="$ALIEN_DIR"
+        else
+          # Probably local or old installation.
+          export GSHELL_ROOT="$ALIEN_DIR/api"
+        fi
+
+        # AliEn installation from source uses a different certs directory
         export X509_CERT_DIR="${ALIEN_DIR}/globus/share/certificates"
+        [[ -d "$X509_CERT_DIR" ]] || X509_CERT_DIR="$GSHELL_ROOT/share/certificates"
 
-        # AliEn source installation uses a different destination directory
-        [[ -d "$X509_CERT_DIR" ]] || X509_CERT_DIR="$ALIEN_DIR/api/share/certificates"
-
-        export GSHELL_ROOT="${ALIEN_DIR}/api"
         export PATH="${GSHELL_ROOT}/bin:${PATH}"
         export LD_LIBRARY_PATH="${GSHELL_ROOT}/lib:${LD_LIBRARY_PATH}"
         export DYLD_LIBRARY_PATH="${GSHELL_ROOT}/lib:${DYLD_LIBRARY_PATH}"
