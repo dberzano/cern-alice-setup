@@ -793,7 +793,7 @@ function ModuleFastJet() {
 
     # Exporting this variable is relevant to FastJet's configure, while FJ contrib's Makefile picks
     # it directly from the environment
-    export CXXFLAGS="${BUILDOPT_LDFLAGS} ${FastJetOptDbgFlags} -lgmp"
+    export CXXFLAGS="${BUILDOPT_LDFLAGS} ${FastJetOptDbgFlags} -lgmp -lCGAL"
 
     SwallowProgress -f --pattern 'Configuring FastJet' \
       ./configure --enable-cgal --prefix="$FastJetInst"
