@@ -518,6 +518,42 @@ function ModuleRoot() {
 
     esac
 
+    # Enable C++11 if possible
+    function TestCxx11() {
+      TCXX11=$(mktemp /tmp/test_cxx11_XXXXX)
+      mv $TCXX11 $TCXX11.cxx
+cat > $TCXX11.cxx <<\EOF
+// Use Clang (any version) or GCC v4.8.2
+#if defined __clang__ || \
+    ((__GNUC__ << 32)+(__GNUC_MINOR__ << 16)+(__GNUC_PATCHLEVEL__) >= (4 << 32)+(8 << 16)+(2))
+#include <iostream>
+using namespace std;
+int main() {
+  int arr[] = {1, 2, 3, 4, 5};
+  for(auto i : arr) {
+    cout << arr[i] <<endl;
+  }
+  return 0;
+}
+#else
+#error "C++11 is not supported by your compiler."
+#endif
+EOF
+      case "$BUILD_MODE" in
+        clang) GXX=clang++ ;;
+        gcc) GXX=g++ ;;
+        custom-gcc) GXX="$CUSTOM_GCC_PATH/bin/g++" ;;
+        *) GXX=false ;;
+      esac
+      "$GXX" -std=c++11 -o $TCXX11.out $TCXX11.cxx
+      RV=$?
+      rm -f $TCXX11*
+      unset GXX TCXX11
+      return $RV
+    }
+
+    Swallow 'Testing C++11 support' TestCxx11 && ConfigOpts="$ConfigOpts --enable-cxx11"
+
     # Building out-of-source with configure (no CMake)
     Swallow -f 'Creating build directory' mkdir -p "$RootTmp"
     Swallow -f 'Moving into build directory' cd "$RootTmp"
