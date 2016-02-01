@@ -16,6 +16,10 @@ Eval(){
    fi
 }
 
+# Set ALIENV_DEBUG to 1 to enable debug output (off by default).
+Debug(){ printf "\033[31malienv> \033[34m$*\033[m\n"; }
+[[ "$ALIENV_DEBUG" != 1 ]] && Debug() { true; }
+
 os_release=/etc/os-release
 which lsb_release > /dev/null 2>&1
 if [[ $? == 0 ]] ; then 
