@@ -103,7 +103,11 @@ fi
 
 unset MODULESHOME
 
-moduledirs="                                                                                                      $modulepath                                                                                                       $cvmfsdir/x86_64-2.6-gnu-4.1.2                                                                                    $cvmfsdir/x86_64-2.6-gnu-4.7.2                                                                                    $cvmfsdir/x86_64-2.6-gnu-4.8.3                                                                                    $cvmfsdir/x86_64-2.6-gnu-4.8.4                                                                                    "
+moduledirs="$modulepath
+            $cvmfsdir/x86_64-2.6-gnu-4.1.2
+            $cvmfsdir/x86_64-2.6-gnu-4.7.2
+            $cvmfsdir/x86_64-2.6-gnu-4.8.3
+            $cvmfsdir/x86_64-2.6-gnu-4.8.4"
 
 function modulepath {
   local dir
@@ -125,7 +129,7 @@ export MODULEPATH=$(modulepath modulefiles $moduledirs)
 
 export PATH=$PATH:$path
 
-if [  -d $modules/$version/$distro_dir/$distro_release ] 
+if [ -d $modules/$version/$distro_dir/$distro_release ] 
 then
    moduleenv="env LD_LIBRARY_PATH=$modules/$version/$distro_dir/$distro_release/lib"
    modulecmd="$modules/$version/$distro_dir/$distro_release/bin/modulecmd"
@@ -140,7 +144,7 @@ then
       exit 1
 fi
  
-tclsh<<EOF>/dev/null 2>&1
+tclsh <<EOF >/dev/null 2>&1
 EOF
 
 if [ $? -eq 0 ]
