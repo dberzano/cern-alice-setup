@@ -1,0 +1,175 @@
+#!/bin/bash
+
+export LANG=C
+
+function _d() {
+  date +%Y%m%d-%H%M%S
+}
+
+function _e() {
+  echo -e "\033[34m$1\033[m" >&2
+}
+
+function _x() {
+  echo -e "\033[36m[$(_d)] executing: \033[35m$@\033[36m\033[m" >&2
+  "$@"
+  r=$?
+  if [ $r == 0 ] ; then
+    echo -e "\033[32m[$(_d)] finished OK\033[m" >&2
+  else
+    echo -e "\033[31m[$(_d)] finished with errors: $r, aborting\033[m" >&2
+    exit $r
+  fi
+}
+
+function _status() {
+  systemctl status $s > /dev/null 2>&1
+  if [ $? == 0 ] ; then
+    echo -en "\033[34m[\033[32m up \033[34m] $s"
+  else
+    echo -en "\033[34m[\033[31mdown\033[34m] $s"
+  fi
+  if [ "$s" == 'openstack-nova-network' ] ; then
+    pids=$( _pid_dnsmasq )
+    [ "$pids" != '' ] && echo -n " (dnsmasq: $pids)"
+  fi
+  echo -e "\033[m"
+}
+
+function _pid_dnsmasq() {
+  ps -e -o user,pid,command | grep '/var/lib/nova/networks' | grep ^nobody | grep -v grep | awk '{ print $2 }'
+}
+
+function _kill_dnsmasq() {
+  pids=$( _pid_dnsmasq )
+  [ "$pids" != '' ] && kill -15 "$pids"
+}
+
+function _m() {
+
+  if [ `whoami` != 'root' ] ; then
+    _e "you must be root to manage services: exiting"
+    return 1
+  fi
+
+  while [ $# -gt 0 ] ; do
+    case "$1" in
+      --head)
+        aux=( mysqld qpidd )
+        auth=( openstack-keystone )
+        glance=( openstack-glance-api openstack-glance-registry )
+        neutron=( neutron-server neutron-metadata-agent \
+          neutron-openvswitch-agent neutron-dhcp-agent \
+          neutron-l3-agent openvswitch )
+        nova=( \
+          openstack-nova-api openstack-nova-cert openstack-nova-consoleauth \
+          openstack-nova-scheduler openstack-nova-conductor \
+          openstack-nova-novncproxy )
+        novanet=()
+        hosttype=head
+      ;;
+      --worker)
+        aux=( libvirtd dbus )
+        auth=()
+        glance=()
+        neutron=( neutron-openvswitch-agent openvswitch )
+        nova=( openstack-nova-compute )
+        novanet=( openstack-nova-network openstack-nova-metadata-api )
+        hosttype=worker
+      ;;
+      --status|--restart|--stop|--disable|--enable) action="${1:2}" ;;
+      --all|--aux|--auth|--glance|--neutron|--nova|--novanet) services="${1:2}" ;;
+      --yes) force=1 ;;
+      *)
+        _e "unknown param: $1"
+        exit 1
+      ;;
+    esac
+    shift
+  done
+  [ "$action" == '' ] && action='status'
+
+  srv=''
+  case "$services" in
+    all)     srv="${aux[@]} ${auth[@]} ${glance[@]} ${novanet[@]} ${nova[@]}" ;;
+    aux)     srv="${aux[@]}" ;;
+    glance)  srv="${glance[@]}" ;;
+    neutron) srv="${neutron[@]}" ;;
+    novanet) srv="${novanet[@]}" ;;
+    nova)    srv="${nova[@]}" ;;
+    *)       srv="${auth[@]} ${glance[@]} ${novanet[@]} ${nova[@]}" ; services='os' ;;
+  esac
+
+  if [ "$services" == '' ] || [ "$hosttype" == '' ] ; then
+    _e "usage: $0 [--worker|--head] [--all|--aux|--auth|--glance|--neutron|--nova|--novanet] [--status|--restart|--stop|--disable|--enable] [--yes]"
+    exit 1
+  fi
+
+  if [ "$action" != 'status' ] ; then
+    _e "the following services will be affected:"
+    for s in ${srv[@]} ; do
+      _e " * $s"
+    done
+    if [ "$force" != 1 ] ; then
+      _e ">> press 'y' to proceed <<"
+      read -n1 ans
+      _e ''
+      if [ "$ans" != 'y' ] && [ "$ans" != 'Y' ] ; then
+        _e "cancelled"
+        exit 1
+      fi
+    fi
+  fi
+
+  for s in ${srv[@]} ; do
+    case "$action" in
+      restart)
+        echo -en "\033[34m[\033[35m....\033[34m] $s\033[m"
+        [ "$s" == 'openstack-nova-network' ] && _kill_dnsmasq
+        systemctl restart $s
+        [ "$s" == 'openstack-nova-network' ] && sleep 5 || sleep 1
+        echo -en '\r'
+        _status $s
+      ;;
+      stop)
+        echo -en "\033[34m[\033[35m....\033[34m] $s\033[m"
+        [ "$s" == 'openstack-nova-network' ] && _kill_dnsmasq
+        systemctl stop $s
+        echo -en '\r'
+        _status $s
+      ;;
+      disable|enable)
+        _e "$action $s"
+        systemctl $action $s
+      ;;
+      status)
+        _status $s
+      ;;
+    esac
+  done
+
+  if [ "$action" == 'status' ] && [ "$hosttype" == 'worker' ] ; then
+
+    ni=$( virsh list 2> /dev/null | grep -cE '\s+instance-' )
+    _e "number of instances: \033[32m$ni"
+
+    nc=$( grep -c bogomips /proc/cpuinfo )
+    _e "number of cores: \033[32m$nc"
+
+    rammb=$( free -m | grep -E '^Mem:' | awk '{ print $2 }' )
+    _e "RAM memory (megabytes): \033[32m$rammb"
+
+    rammbpercore=$(( rammb / nc ))
+    _e "RAM memory per core (megabytes): \033[32m$rammbpercore"
+
+    nlv=$( lvs --noheadings nova | wc -l )
+    _e "LVM partitions for VMs: \033[32m$nlv"
+
+
+  fi
+
+  return 1
+
+}
+
+_m "$@" || exit $?
