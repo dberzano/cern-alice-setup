@@ -20,7 +20,10 @@ echo 'this is the input data' > input_data.txt
   echo 'INPUT=$(cat $1)'
   echo 'shift'
   echo 'echo my job has been invoked on $(hostname) with parameters $@ and it says $INPUT'
-  echo 'sleep 120'
+  echo 'echo testing cvmfs...'
+  echo 'source /cvmfs/alice.cern.ch/etc/login.sh'
+  echo 'alienv setenv AliPhysics/vAN-20160201-1 -c which aliroot'
+  echo 'sleep 10'
 } > myjob.sh
 chmod +x myjob.sh
 echo "*** Working under $TMP ***"
