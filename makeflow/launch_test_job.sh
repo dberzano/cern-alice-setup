@@ -21,8 +21,11 @@ echo 'this is the input data' > input_data.txt
   echo 'shift'
   echo 'echo my job has been invoked on $(hostname) with parameters $@ and it says $INPUT'
   echo 'echo testing cvmfs...'
+  echo 'ls -l /cvmfs ; ls -l /cvmfs/alice.cern.ch'
   echo 'source /cvmfs/alice.cern.ch/etc/login.sh'
   echo 'alienv setenv AliPhysics/vAN-20160201-1 -c which aliroot'
+  echo 'echo testing eos-proxy...'
+  echo 'ls -l /secrets ; ls -l /secrets/eos-proxy'
   echo 'sleep 10'
 } > myjob.sh
 chmod +x myjob.sh
