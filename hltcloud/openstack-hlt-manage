@@ -268,8 +268,8 @@ function disableHypervisor() (
     if [[ $? != 0 ]] ; then
       err_count=1
     else
-      # Wait for VMs to disappear (one hour timeout)
-      waitVmsOnHypervisor "$host" 3600
+      # Wait for VMs to disappear (timeout: 300 s)
+      waitVmsOnHypervisor "$host" 300
     fi
 
   fi
