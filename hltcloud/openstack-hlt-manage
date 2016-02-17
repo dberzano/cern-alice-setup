@@ -331,7 +331,7 @@ function statusHypervisors() (
 
   exec 3< "$nova_tmp"
   while read -u 3 rawline ; do
-    host=$( echo "$rawline" | awk '{print $2}' )    # hypervisor's name
+    host=$( echo "$rawline" | awk '{print $2}' )    # name of hypervisor
     status=$( echo "$rawline" | awk '{print $4}' )  # enabled/disabled
     alive=$( echo "$rawline" | awk '{print $5}' )   # :-) / XXX
 
@@ -443,18 +443,21 @@ function main() (
     export sshConfigFile="$HOME/.ssh/config"
   fi
 
+  # Check if we have a host list
+  [[ "${1:0:1}" == @ ]] && hosts_list=($(grep -v '^\s*#' "${1:1}")) || hosts_list=("$@")
+
   case "$action" in
     enable|disable)
-      if [[ "$@" != '' ]] ; then
+      if [[ "$hosts_list" != '' ]] ; then
         if [[ $parallel_exec == 1 ]] ; then
           # Parallel execution with "pdsh -R exec"
-          hosts_list=$( echo "$@" | sed -e 's/ /,/g' )
+          hosts_list=$(echo ${hosts_list[*]} | sed -e 's/ /,/g')
           pdsh -R exec -w "$hosts_list" \
             "$full_prog" "${parallel_opts[@]}" "$action" '%h'
           r=$?
         else
           # Single core
-          forEach "${action}Hypervisor" "$@"
+          forEach "${action}Hypervisor" "${hosts_list[@]}"
           r=$?
         fi
         print_dry_notice=1
@@ -477,7 +480,7 @@ function main() (
     echo -e "\n${Cm}Usage: ${Cc}${prog}${Cz}" \
       "[${Cc}--for-real${Cz}] [${Cc}--no-colors${Cz}] [${Cc}--line-output${Cz}] [${Cc}--parallel${Cz}] [${Cc}--ssh-config${Cz} ${Cy}<file>${Cz}] [${Cc}--nvms${Cz}]" \
       "[${Cg}enable${Cz}|${Cr}disable${Cz}|${Cy}status${Cz}]" \
-      "[${Cc}node1${Cz} [${Cc}node2${Cz}...]]${Cz}\n"
+      "[[${Cc}node1${Cz} [${Cc}node2${Cz}...]]|${Cc}@${Cy}list.txt${Cz}]${Cz}\n"
 
     echo -e "         ${Cc}--for-real${Cz}     without this flag, ${Cg}enable${Cz} and" \
       "${Cr}disable${Cz} are just simulated and not executed"
@@ -508,4 +511,4 @@ function main() (
 )
 
 # Entry point
-main "$@" || return $?
+main "$@" || exit $?

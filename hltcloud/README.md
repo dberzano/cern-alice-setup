@@ -26,8 +26,13 @@ openstack-enter admin
 Syntax:
 
 ```
-openstack-hlt-manage  [--for-real] [--no-colors] [--line-output] [--parallel] [--ssh-config <file>] [--nvms] [enable|disable|status] [node1 [node2...]]
+openstack-hlt-manage  [--for-real] [--no-colors] [--line-output] [--parallel] [--ssh-config <file>] [--nvms] [enable|disable|status] [ [node1 [node2...]] | @list.txt ]
 ```
+
+Instead of specifying a list of nodes one can just pass a list file with the
+`@list.txt` option: in this case the content of `list.txt` will be considered,
+one host per line. Lines beginning with `#` will be ignored and considered
+comments. Empty lines are skipped.
 
 **Note:** if using the `--parallel` option, nodes list can also be specified in
 the format supported by the `-w` option of `pdsh` (see
