@@ -211,7 +211,7 @@ openstack-enter admin
 ```
 
 The **image name** is the readable name of the image you want to cache
-(something like `CentOS6-build8`). Check available images with:
+(something like `CentOS6-build12`). Check available images with:
 
 ```bash
 glance image-list
@@ -227,13 +227,21 @@ will expand to **cn43**, **cn44**, **cn45** and **cn47**. Please note that you
 need to put it in quotes in order to prevent the shell from expanding it:
 
 ```bash
-openstack-prefill-cache CentOS6-build8 'cn[43-45,47]'
+openstack-prefill-cache CentOS6-build12 'cn[43-45,47]'
+```
+
+It is sometimes more convenient to use a text file containing a list of hosts,
+in the same format supported by `openstack-hlt-manage` (empty lines ignored,
+lines can be commented with `#`):
+
+```bash
+openstack-prefill-cache CentOS6-build12 @list.txt
 ```
 
 Sample output:
 
 ```
-Getting image CentOS6-build8 (id=58853970-f8ac-41d0-9255-8a6d3e3b85dc)
+Getting image CentOS6-build12 (id=58853970-f8ac-41d0-9255-8a6d3e3b85dc)
 Chain transferring on every node
 transferring /var/lib/nova/instances/hlt-glance-cache-58853970-f8ac-41d0-9255-8a6d3e3b85dc to 5 host(s)...
 [ ok ] openstack.internal --> cn44
@@ -300,4 +308,67 @@ if no more instances are using them. To prevent this from happening, change the
 ```ini
 [DEFAULT]
 remove_unused_base_images = False
+```
+
+## OpenStack operations
+
+All OpenStack operations are performed from the head node within the proper
+environment loaded with:
+
+```
+openstack-enter admin
+```
+
+or the appropriate user.
+
+### Register a new VM image
+
+Register a new image from URL like this:
+
+```bash
+glance image-create --name "CentOS6-build12" \
+                    --disk-format qcow2 \
+                    --container-format bare \
+                    --is-public=True \
+                    --copy-from http://personalpages.to.infn.it/~berzano/cloud-images/CentOS6-x86_64-build12-compat0.10.qcow2
+```
+
+Check the status using:
+
+```bash
+glance image-list
+```
+
+When the status is **active** (instead of **saving**) transfer it to all nodes:
+
+```
+openstack-prefill-cache CentOS6-build12 @list_of_nodes.txt
+```
+
+### Start new VMs
+
+After enabling the relevant hosts with:
+
+```bash
+openstack-hlt-manage --for-real --parallel enable @list.txt
+```
+
+you can list the available keys and profiles with:
+
+```bash
+nova keypair-list
+nova flavor-list
+```
+
+Then start a number of VMs like this:
+
+```bash
+nova boot --flavor ali1.xlarge --image CentOS6-build12 --key-name WorkerNodesSsh --user-data /var/lib/elastiq/wn-user-data.txt --num-instances 200 wn-grid
+```
+
+After a while you can delete the VMs in excess like this (they probably went to
+**ERROR** state):
+
+```bash
+nova list | grep ERROR | awk '{print $2}' | xargs -L1 nova delete
 ```
