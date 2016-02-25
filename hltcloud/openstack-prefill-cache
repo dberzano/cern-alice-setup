@@ -11,7 +11,7 @@ fi
 
 # From command line
 glance_image_name="$1"
-host_range="$2"
+[[ "${2:0:1}" == @ ]] && host_file="${2:1}" || host_range="$2"
 
 glance_image_id=$( glance image-show "$glance_image_name" | grep "^| id " | sed -e 's/|//g' | \
   awk '{ print $2 }' )
@@ -54,10 +54,16 @@ chmod 0644 "$temp_src"
 
 # Transfer it to every node
 pecho 'Chain transferring on every node'
-su nova -c "${rsync_wave} ${temp_src} ${temp_src} -r ${host_range}"
+if [[ "$host_file" != '' ]]; then
+  host_tmp_file=$(mktemp)
+  grep -v '^\s*#' "$host_file" > $host_tmp_file
+  chmod 0666 $host_tmp_file
+fi
+su nova -c "${rsync_wave} ${temp_src} ${temp_src} ${host_range:+-r $host_range} ${host_tmp_file:+-f $host_tmp_file}"
 
 # Now convert it on every node in parallel
 pecho 'Converting image in parallel on all hosts'
-su nova -c "pdsh -w '${host_range}' echo Started image conversion \; mkdir -p ${dest_dir} \; \( \[ \! -e ${dest} \] \&\& qemu-img convert -O raw ${temp_src} ${dest} \|\| true \) \&\& echo Image conversion done"
+su nova -c "pdsh -w '${host_range:+$host_range}${host_tmp_file:+$(echo $(cat $host_tmp_file) | sed -e "s/ /,/g")}' echo Started image conversion \; mkdir -p ${dest_dir} \; \( \[ \! -e ${dest} \] \&\& qemu-img convert -O raw ${temp_src} ${dest} \|\| true \) \&\& echo Image conversion done"
 
+[[ "$host_tmp_file" != '' ]] && rm -f $host_tmp_file
 pecho 'Done!'
