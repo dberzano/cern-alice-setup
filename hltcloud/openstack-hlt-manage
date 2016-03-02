@@ -310,19 +310,33 @@ function enableHypervisor() (
 # Prints the status of all hypervisors. Parameter tells whether to turn on or
 # off the query which displays the number of virtual machines.
 #
-# Usage: statusHypervisors [0|1]
+# Usage: statusHypervisors [0|1]           [0|1]
+#                          ^^^^^           ^^^^^
+#                          query num vms   query what vms are running on cn
 function statusHypervisors() (
   local host
   local status status_str
   local alive alive_str
   local qnvms="$1"
+  local qcomputevm="$2"
   local hdr_txt='| Hypervisor           | Runs VMs? | Alive? |'
   local hdr_sep='+----------------------+-----------+--------+'
   local nova_tmp=$(mktemp)
+  local nova_tmp_vmlist=$(mktemp)
+  local nova_tmp_list=$(mktemp)
 
   if [[ $qnvms == 1 ]] ; then
     hdr_txt="${hdr_txt} #VMs |"
     hdr_sep="${hdr_sep}------+"
+  fi
+  if [[ $qcomputevm == 1 ]] ; then
+    hdr_txt="${hdr_txt} VMs                                                 |"
+    hdr_sep="${hdr_sep}-----------------------------------------------------+"
+    # note: vm_name != vm_uuid
+    nova-manage vm list | awk '{ print $1,$2 }' > $nova_tmp_vmlist  # format: vm_name compute
+    nova list | \
+      sed -e 's/|//g; s/^ \+\(.*\) \+/\1/g; s/ \+[^ ]\+=\(\([0-9]\+\.\)\{3\}[0-9]\+\)/ \1/g' | \
+      grep -v -- ---------- | awk '{print $2,$6}' > $nova_tmp_list  # format: vm_name ipv4
   fi
 
   echo -e "${hdr_sep}\n${hdr_txt}\n${hdr_sep}"
@@ -367,12 +381,17 @@ function statusHypervisors() (
     echo -e -n "   ${status_str}    | "
     echo -e -n "${alive_str}  |"
     [[ $qnvms == 1 ]] && printf " %4d | " $nvms
+    [[ $qcomputevm == 1 ]] && printf " %-51s |" \
+                                     "$(echo $(grep "$host"'$' $nova_tmp_vmlist | \
+                                        awk '{print $1}' | \
+                                        xargs -L1 -I{} grep -E "^{}" $nova_tmp_list | \
+                                        awk '{print $2}'))"
     echo ''
 
   done
   exec 3<&-
 
-  rm -f "$nova_tmp"
+  rm -f $nova_tmp $nova_tmp_vmlist $nova_tmp_list
   echo "${hdr_sep}"
   echo ''
   echo -e "${Cy}Note:${Cz} ${Cg}alive${Cz}/${Cr}dead${Cz} status is updated asynchronously."
@@ -466,7 +485,7 @@ function main() (
       fi
     ;;
     status)
-      statusHypervisors "$nvms"
+      statusHypervisors "$nvms" 1
       r=$?
     ;;
     *)

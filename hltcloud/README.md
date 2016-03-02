@@ -50,15 +50,15 @@ hypervisor. It is disabled by default as it slows down a bit the operations.
 Sample output:
 
 ```
-+----------------------+-----------+--------+------+
-| Hypervisor           | Runs VMs? | Alive? | #VMs |
-+----------------------+-----------+--------+------+
-| cn43.internal        |    yes    | alive  |    1 |
-| cn44.internal        |    yes    | alive  |    2 |
-| cn45.internal        |    yes    | alive  |    2 |
-| cn46.internal        |    yes    | alive  |    2 |
-| cn47.internal        |    yes    | alive  |    1 |
-+----------------------+-----------+--------+------+
++----------------------+-----------+--------+------+-----------------------------------------------------+
+| Hypervisor           | Runs VMs? | Alive? | #VMs | VMs                                                 |
++----------------------+-----------+--------+------+-----------------------------------------------------+
+| cn43.internal        |    yes    | alive  |    2 | 10.162.208.10 10.162.208.57                         |
+| cn44.internal        |    yes    | alive  |    0 |                                                     |
+| cn45.internal        |    yes    | alive  |    0 |                                                     |
+| cn46.internal        |    yes    | alive  |    0 |                                                     |
+| cn47.internal        |    yes    | alive  |    2 | 10.162.208.4 10.162.208.48                          |
++----------------------+-----------+--------+------+-----------------------------------------------------+
 ```
 
 For each hypervisor you will see:
