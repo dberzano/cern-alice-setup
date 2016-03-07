@@ -40,9 +40,15 @@ case $distro_name in
         case $distro_release in
            5.*)
               distro_xrelease=5.x
+              platform=el5
               ;;
-           6.*|7*)
+           6.*)
               distro_xrelease=6.x
+              platform=el6
+              ;;
+           7*)
+              distro_xrelease=6.x
+              platform=el7
               ;;
         esac
         ;;
@@ -92,7 +98,7 @@ case $distro_name in
      ;;
 esac
 
-[ x$ALIENV_DEBUG == x1 ] && printf "distro_dir=$distro_dir\nuname_m=$uname_m\narch=$arch\ndistro_xrelease=$distro_xrelease\n"
+[ x$ALIENV_DEBUG == x1 ] && printf "distro_dir=$distro_dir\nuname_m=$uname_m\narch=$arch\ndistro_xrelease=$distro_xrelease\nplatform=$platform\n"
 
 modules=$cvmfsdir/$arch/Modules
 
