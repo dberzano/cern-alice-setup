@@ -30,6 +30,8 @@ else
   distro_release='<unknown>'
 fi
 
+[ x$ALIENV_DEBUG == x1 ] && printf "distro_name=$distro_name\ndistro_release=$distro_release\n"
+
 case $distro_name in
      Scientific*|CentOS*|RedHatEnterprise*)
         distro_dir="Scientific"
@@ -90,6 +92,8 @@ case $distro_name in
      ;;
 esac
 
+[ x$ALIENV_DEBUG == x1 ] && printf "distro_dir=$distro_dir\nuname_m=$uname_m\narch=$arch\ndistro_xrelease=$distro_xrelease\n"
+
 modules=$cvmfsdir/$arch/Modules
 
 if [  ! -d $modules ] 
@@ -119,6 +123,7 @@ function modulepath {
 }
 
 export MODULEPATH=$(modulepath modulefiles $moduledirs)
+[ x$ALIENV_DEBUG == x1 ] && printf "MODULEPATH=$MODULEPATH\n"
 
 export PATH=$PATH:$path
 
