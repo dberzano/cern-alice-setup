@@ -384,7 +384,7 @@ function statusHypervisors() (
     [[ $qcomputevm == 1 ]] && printf " %-51s |" \
                                      "$(echo $(grep "$host"'$' $nova_tmp_vmlist | \
                                         awk '{print $1}' | \
-                                        xargs -L1 -I{} grep -E "^{}" $nova_tmp_list | \
+                                        xargs -L1 -I{} grep -E "^{} " $nova_tmp_list | \
                                         awk '{print $2}'))"
     echo ''
 
