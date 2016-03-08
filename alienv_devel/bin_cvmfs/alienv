@@ -129,6 +129,7 @@ function modulepath {
 }
 
 export MODULEPATH=$(modulepath modulefiles $moduledirs)
+[ x$platform != x ] && MODULEPATH="$cvmfsdir/etc/toolchain/modulefiles/${platform}-${uname_m}:$MODULEPATH"
 [ x$ALIENV_DEBUG == x1 ] && printf "MODULEPATH=$MODULEPATH\n"
 
 export PATH=$PATH:$path
