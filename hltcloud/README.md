@@ -372,3 +372,7 @@ After a while you can delete the VMs in excess like this (they probably went to
 ```bash
 nova list | grep ERROR | awk '{print $2}' | xargs -L1 nova delete
 ```
+
+## HLT network schema
+
+![HLT network schema](hlt_network_schema.png)
