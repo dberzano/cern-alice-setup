@@ -284,7 +284,7 @@ function AliCleanEnv() {
     # cleanup of functions (also cleans up self!)
     unset AliCleanEnv AliCleanPathList AliExportVars AliMain AliMenu AliPrintVars \
       AliRemovePaths AliSetParallelMake AliConf AliUpdate AliTupleSection AliParseVerDir \
-      AliSanitizeDir
+      AliSanitizeDir AliThanksForAllTheFish
 
   else
 
@@ -626,6 +626,55 @@ function AliOldToNewSchema() (
   fi
 
 )
+
+# prints out a message saying that this script has been deprecated
+function AliThanksForAllTheFish() {
+  local NONINTERACTIVE=$1
+  local Cr=`echo -e "\033[31m"`
+  local Cm=`echo -e "\033[35m"`
+  local Cc=`echo -e "\033[36m"`
+  local C0=`echo -e "\033[m"`
+  cat >&2 <<\_EoF_
+                                     __
+                                 _.-~  )
+                      _..--~~~~,'   ,-/     _
+                   .-'. . . .'   ,-','    ,' )
+                 ,'. . . _   ,--~,-'__..-'  ,'
+               ,'. . .  (@)' ---~~~~      ,'
+              /. . . . '~~             ,-'
+             /. . . . .             ,-'
+            ; . . . .  - .        ,'     So long,
+           : . . . .       _     /       and thanks for all the fish!
+          . . . . .          `-.:
+         . . . ./  - .          )
+        .  . . |  _____..---.._/ ____
+  ~---~~~~----~~~~             ~~
+_EoF_
+  cat >&2 <<_EoF_
+
+As of May 2, 2016 and after almost 8 years of operations, ${Cc}alice-env.sh has been
+retired${C0}. This means that you can still use it, but ${Cm}it will no longer receive any
+update or support${C0}.
+
+The new supported ALICE installation method is based on ${Cc}aliBuild${C0}. ${Cm}Please get
+started with aliBuild at your earliest conveinence!${C0} As usual the documentation
+is available and it is constantly updated:
+
+   ${Cc}Get started${C0} > ${Cm}https://dberzano.github.io/alice/alibuild${C0}
+  ${Cc}User's guide${C0} > ${Cm}https://alisw.github.com/alibuild${C0}
+
+Note that you can use ${Cc}both alice-env.sh and aliBuild${Cc} in parallel, with a caveat:
+do not load alice-env.sh if you want to use aliBuild, and ${Cm}remove any automatic
+environment loading${C0} from your ${Cc}~/.bashrc${C0} or equivalent.
+
+${Cm}P.S.:${C0} do not worry, your current ALICE software installation was left intact.
+_EoF_
+
+  if [[ $NONINTERACTIVE == 0 ]]; then
+    printf "\n${Cr}*** Press ENTER to continue ***${C0}\n"
+    read
+  fi
+}
 
 # prints out ALICE paths
 function AliPrintVars() {
@@ -1104,6 +1153,8 @@ function AliMain() {
       [[ "$OPT_QUIET" != 1 ]] && echo -e "\n${Cy}Warning: automatic update failed ($ALI_rv)${Cz}"
     fi
   fi
+
+  [[ $OPT_QUIET == 0 ]] && AliThanksForAllTheFish $OPT_NONINTERACTIVE
 
   # print menu if non-interactive
   [[ "$OPT_NONINTERACTIVE" != 1 ]] && AliMenu

@@ -1613,6 +1613,51 @@ function RemoveLogs() {
   rm -f "$SWALLOW_LOG".out "$SWALLOW_LOG".err
 }
 
+function ThanksForAllTheFish() {
+  local Cr=`echo -e "\033[31m"`
+  local Cm=`echo -e "\033[35m"`
+  local Cc=`echo -e "\033[36m"`
+  local C0=`echo -e "\033[m"`
+  cat >&2 <<\_EoF_
+                                     __
+                                 _.-~  )
+                      _..--~~~~,'   ,-/     _
+                   .-'. . . .'   ,-','    ,' )
+                 ,'. . . _   ,--~,-'__..-'  ,'
+               ,'. . .  (@)' ---~~~~      ,'
+              /. . . . '~~             ,-'
+             /. . . . .             ,-'
+            ; . . . .  - .        ,'     So long,
+           : . . . .       _     /       and thanks for all the fish!
+          . . . . .          `-.:
+         . . . ./  - .          )
+        .  . . |  _____..---.._/ ____
+  ~---~~~~----~~~~             ~~
+_EoF_
+  cat >&2 <<_EoF_
+
+As of May 2, 2016 ${Cc}the automatic ALICE installer has been retired${C0}, along with
+the ${Cc}alice-env.sh${C0} environment script. You can still use them, but ${Cm}they will no
+longer receive any update or support${C0}.
+
+The new supported ALICE installation method is based on ${Cc}aliBuild${C0}. ${Cm}Please get
+started with aliBuild at your earliest conveinence!${C0} As usual the documentation
+is available and it is constantly updated:
+
+   ${Cc}Get started${C0} > ${Cm}https://dberzano.github.io/alice/alibuild${C0}
+  ${Cc}User's guide${C0} > ${Cm}https://alisw.github.com/alibuild${C0}
+
+Note that you can use ${Cc}both alice-env.sh and aliBuild${Cc} in parallel, with a caveat:
+do not load alice-env.sh if you want to use aliBuild, and ${Cm}remove any automatic
+environment loading${C0} from your ${Cc}~/.bashrc${C0} or equivalent.
+
+${Cm}P.S.:${C0} do not worry, your current ALICE software installation was left intact.
+
+${Cr}*** Press ENTER to continue ***${C0}
+_EoF_
+read
+}
+
 # Prints out a nice help
 function Help() (
 
@@ -1977,6 +2022,9 @@ function Main() {
       DebugDetectOs=1
     fi
   done
+
+  # Deprecation message (in a bit fancy way)
+  ThanksForAllTheFish
 
   # Detect proper build options
   DetectOsBuildOpts
