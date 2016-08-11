@@ -63,6 +63,14 @@ class AutoDoc(object):
     self._init_log(debug, syslog_only)
 
 
+  ## Runs a command. Takes the same arguments as subprocess.Popen() and returns
+  #  what it returns.
+  #
+  #  @return What subprocess.Popen() returns
+  def _exec(self, command, **args):
+    self._log.debug('Running command: %s' % ' '.join(command))
+    return subprocess.Popen(command, **args)
+
   ## Initializes the logging facility.
   #
   #  @param debug True enables debug output, False suppresses it
@@ -122,8 +130,8 @@ class AutoDoc(object):
         redirect = dev_null
       else:
         redirect = None
-      sp = subprocess.Popen(cmd, stderr=redirect, stdout=subprocess.PIPE, shell=False, \
-        cwd=self._git_clone)
+      sp = self._exec(cmd, stderr=redirect, stdout=subprocess.PIPE, shell=False,
+                      cwd=self._git_clone)
 
     tags = []
     for line in iter(sp.stdout.readline, ''):
@@ -153,7 +161,8 @@ class AutoDoc(object):
         redirect = dev_null
       else:
         redirect = None
-      sp = subprocess.Popen(cmd, stderr=redirect, stdout=redirect, shell=False, cwd=self._git_clone)
+      sp = self._exec(cmd, stderr=redirect, stdout=redirect, shell=False,
+                      cwd=self._git_clone)
 
     rc = sp.wait()
 
@@ -185,7 +194,8 @@ class AutoDoc(object):
         redirect = dev_null
       else:
         redirect = None
-      sp = subprocess.Popen(cmd, shell=False, stderr=redirect, stdout=redirect, cwd=self._git_clone)
+      sp = self._exec(cmd, shell=False, stderr=redirect, stdout=redirect,
+                      cwd=self._git_clone)
 
     rc = sp.wait()
 
@@ -213,7 +223,8 @@ class AutoDoc(object):
 
       self._log.debug('Resetting current working directory')
       cmd = [ 'git', 'reset', '--hard', 'HEAD' ]
-      sp = subprocess.Popen(cmd, stderr=redirect, stdout=redirect, shell=False, cwd=self._git_clone)
+      sp = self._exec(cmd, stderr=redirect, stdout=redirect, shell=False,
+                      cwd=self._git_clone)
       rc = sp.wait()
       if rc == 0:
         self._log.debug('Success resetting current working directory')
@@ -223,7 +234,8 @@ class AutoDoc(object):
 
       self._log.debug('Cleaning up working directory')
       cmd = [ 'git', 'clean', '-f', '-d' ]
-      sp = subprocess.Popen(cmd, stderr=redirect, stdout=redirect, shell=False, cwd=self._git_clone)
+      sp = self._exec(cmd, stderr=redirect, stdout=redirect, shell=False,
+                      cwd=self._git_clone)
       rc = sp.wait()
       if rc == 0:
         self._log.debug('Success cleaning up working directory')
@@ -233,7 +245,8 @@ class AutoDoc(object):
 
       self._log.debug('Checking out reference %s' % ref)
       cmd = [ 'git', 'checkout', ref ]
-      sp = subprocess.Popen(cmd, stderr=redirect, stdout=redirect, shell=False, cwd=self._git_clone)
+      sp = self._exec(cmd, stderr=redirect, stdout=redirect, shell=False,
+                      cwd=self._git_clone)
       rc = sp.wait()
       if rc == 0:
         self._log.debug('Success checking out reference %s' % ref)
@@ -268,7 +281,8 @@ class AutoDoc(object):
           redirect = dev_null
         else:
           redirect = None
-        sp = subprocess.Popen(cmd, shell=False, stderr=redirect, stdout=redirect, cwd=self._git_clone)
+        sp = self._exec(cmd, shell=False, stderr=redirect, stdout=redirect,
+                        cwd=self._git_clone)
 
       rc = sp.wait()
 
@@ -316,7 +330,8 @@ class AutoDoc(object):
 
         self._log.debug('Preparing build with CMake')
         cmd = [ 'cmake', self._git_clone, '-DDOXYGEN_ONLY=ON' ]
-        sp = subprocess.Popen(cmd, stderr=redirect, stdout=redirect, shell=False, cwd=build_path)
+        sp = self._exec(cmd, stderr=redirect, stdout=redirect, shell=False,
+                        cwd=build_path)
         rc = sp.wait()
         if rc == 0:
           self._log.debug('Success preparing build with CMake')
@@ -326,7 +341,8 @@ class AutoDoc(object):
 
         self._log.debug('Generating documentation (will take a while)')
         cmd = [ 'make', 'doxygen' ]
-        sp = subprocess.Popen(cmd, stderr=dev_null, stdout=dev_null, shell=False, cwd=build_path)
+        sp = self._exec(cmd, stderr=dev_null, stdout=dev_null, shell=False,
+                        cwd=build_path)
         rc = sp.wait()
         if rc == 0:
           self._log.debug('Success generating documentation')
@@ -343,7 +359,8 @@ class AutoDoc(object):
         cmd = [ 'rsync', '-a', '--delete',
           '%s/doxygen/html/' % build_path,
           '%s/%s/' % (self._output_path, output_path_subdir) ]
-        sp = subprocess.Popen(cmd, stderr=redirect, stdout=redirect, shell=False, cwd=build_path)
+        sp = self._exec(cmd, stderr=redirect, stdout=redirect, shell=False,
+                        cwd=build_path)
         rc = sp.wait()
         if rc == 0:
           self._log.debug('Success publishing documentation to %s' % self._output_path)
