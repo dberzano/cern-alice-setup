@@ -245,6 +245,8 @@ function waitVmsOnHypervisor() (
 # dependencies are started.
 #
 # Usage: disableHypervisor <full_host_name>
+#
+# Global variable force_shutoff may be 0 or 1.
 function disableHypervisor() (
 
   local host="$1"
@@ -268,17 +270,22 @@ function disableHypervisor() (
     if [[ $? != 0 ]] ; then
       err_count=1
     else
-      # Wait for VMs to disappear (timeout: 300 s)
-      waitVmsOnHypervisor "$host" 300
+      # Wait for VMs to disappear (timeout: 900 s)
+      waitVmsOnHypervisor "$host" 900 || err_count=1
     fi
 
   fi
 
   # Shut down all OpenStack-related daemons running on the host (must be
   # supported by an SSH key on the remote side for security reasons)
-  wrap "Shutting down OpenStack daemons on ${host}" \
-    sh -c "echo disable | ssh -F \"$sshConfigFile\" $host"
-  [[ $? == 0 ]] || err_count=$((err_count+1))
+  if [[ $err_count == 0 || $force_shutoff == 1 ]]; then
+    wrap "Shutting down OpenStack daemons on ${host}" \
+      sh -c "echo disable | ssh -F \"$sshConfigFile\" $host"
+    [[ $? == 0 ]] || err_count=$((err_count+1))
+  else
+    echo -e "${Cr}Not shutting down OpenStack on ${host} due to stale VMs! Try again or force with --force-shutoff!${Cz}"
+    return 1
+  fi
 
   [[ $err_count == 0 ]] && return 0
   return 1
@@ -410,6 +417,7 @@ function main() (
   local print_dry_notice=0
   local parallel_opts=()
   local all_args=("$@")
+  local force_shutoff=0
 
   full_prog=$(dirname "$0")
   full_prog=$(cd "$full_prog";pwd)
@@ -423,6 +431,11 @@ function main() (
     case "$1" in
       --for-real)
         dry=0
+        parallel_opts+=("$1")
+        shift
+      ;;
+      --force-shutoff)
+        force_shutoff=1
         parallel_opts+=("$1")
         shift
       ;;
@@ -484,6 +497,20 @@ function main() (
         print_help=1
       fi
     ;;
+    runvms)
+      GLANCE_GREP='CentOS6-build'
+      GLANCE_IMAGE=$(glance image-list 2> /dev/null | grep CentOS6- | sed -e 's/|//g' | awk '{print $2}' | sort -n | tail -n1)
+      NUM_INSTANCES=${hosts_list[0]:-"200"}
+      [[ -z "$GLANCE_IMAGE" ]] && { echo -e "${Cr}Cannot detect image to run.${Cz}"; r=1; }
+      [[ $dry == 0 ]] && CMD_PREFIX='' || { CMD_PREFIX='echo +'; print_dry_notice=1; }
+      ${CMD_PREFIX}nova boot --flavor ali1.xlarge                          \
+                             --image "$GLANCE_IMAGE"                       \
+                             --key-name WorkerNodesSsh                     \
+                             --user-data /var/lib/elastiq/wn-user-data.txt \
+                             --num-instances $NUM_INSTANCES                \
+                             grid-hlt-vms
+      echo -e "${Cg}Virtual machines started.${Cz}"
+    ;;
     status)
       statusHypervisors "$nvms" 1
       r=$?
@@ -498,17 +525,16 @@ function main() (
   if [[ $print_help == 1 ]] ; then
     echo -e "\n${Cm}Usage: ${Cc}${prog}${Cz}" \
       "[${Cc}--for-real${Cz}] [${Cc}--no-colors${Cz}] [${Cc}--line-output${Cz}] [${Cc}--parallel${Cz}] [${Cc}--ssh-config${Cz} ${Cy}<file>${Cz}] [${Cc}--nvms${Cz}]" \
-      "[${Cg}enable${Cz}|${Cr}disable${Cz}|${Cy}status${Cz}]" \
+      "[${Cg}enable${Cz}|${Cr}disable${Cz}|${Cy}status${Cz}|${Cg}runvms${Cz}]" \
       "[[${Cc}node1${Cz} [${Cc}node2${Cz}...]]|${Cc}@${Cy}list.txt${Cz}]${Cz}\n"
 
-    echo -e "         ${Cc}--for-real${Cz}     without this flag, ${Cg}enable${Cz} and" \
-      "${Cr}disable${Cz} are just simulated and not executed"
-    echo -e "         ${Cc}--no-colors${Cz}    turn off colors"
-    echo -e "         ${Cc}--line-output${Cz}  line-buffered output (useful with pdsh)"
-    echo -e "         ${Cc}--parallel${Cz}     use pdsh for executing in parallel with pdsh"
-    echo -e "         ${Cc}--ssh-config${Cz}   SSH config file for running remote commands"
-    echo -e "         ${Cc}--nvms${Cz}         report num of VMs running on each host when" \
-      "executing ${Cy}status${Cz} (slow)"
+    echo -e "         ${Cc}--for-real${Cz}       without this flag, ${Cg}enable${Cz} and ${Cr}disable${Cz} are just simulated and not executed"
+    echo -e "         ${Cc}--no-colors${Cz}      turn off colors"
+    echo -e "         ${Cc}--line-output${Cz}    line-buffered output (useful with pdsh)"
+    echo -e "         ${Cc}--parallel${Cz}       use pdsh for executing in parallel with pdsh"
+    echo -e "         ${Cc}--ssh-config${Cz}     SSH config file for running remote commands"
+    echo -e "         ${Cc}--nvms${Cz}           report num of VMs running on each host when executing ${Cy}status${Cz} (slow)"
+    echo -e "         ${Cc}--force-shutoff${Cz}  hypervisors are shut off even if there are stale VMs"
 
     echo
   fi
