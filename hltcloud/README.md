@@ -26,7 +26,7 @@ openstack-enter admin
 Syntax:
 
 ```
-openstack-hlt-manage  [--for-real] [--no-colors] [--line-output] [--parallel] [--ssh-config <file>] [--nvms] [enable|disable|status] [ [node1 [node2...]] | @list.txt ]
+openstack-hlt-manage  [--for-real] [--no-colors] [--line-output] [--parallel] [--force-shutoff] [--ssh-config <file>] [--nvms] [enable|disable|status|runvms] [ [node1 [node2...]] | @list.txt ]
 ```
 
 Instead of specifying a list of nodes one can just pass a list file with the
@@ -353,7 +353,21 @@ After enabling the relevant hosts with:
 openstack-hlt-manage --for-real --parallel enable @list.txt
 ```
 
-you can list the available keys and profiles with:
+you can simply enable VMs like this:
+
+```bash
+openstack-hlt-manage --for-real runvms
+```
+
+VMs will be started in a way that the cluster is filled. VMs in excess go to
+**ERROR** state, but the head node is configured to clean them up after a while.
+
+### Manually starting new VMs
+
+If for some reason the automatic procedure does not work, or if you want to
+customize the way VMs are run, follow this section.
+
+You can list the available keys and profiles with:
 
 ```bash
 nova keypair-list
@@ -363,7 +377,7 @@ nova flavor-list
 Then start a number of VMs like this:
 
 ```bash
-nova boot --flavor ali1.xlarge --image CentOS6-build12 --key-name WorkerNodesSsh --user-data /var/lib/elastiq/wn-user-data.txt --num-instances 200 wn-grid
+nova boot --flavor ali1.xlarge --image CentOS6-build13 --key-name WorkerNodesSsh --user-data /var/lib/elastiq/wn-user-data.txt --num-instances 200 wn-grid
 ```
 
 After a while you can delete the VMs in excess like this (they probably went to
