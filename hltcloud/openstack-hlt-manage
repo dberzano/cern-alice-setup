@@ -405,6 +405,11 @@ function statusHypervisors() (
   echo -e "      If you have just disabled a node it may still show as ${Cg}alive${Cz} for ~2 mins."
 )
 
+# Get our own images list from Glance (one per line on stdout)
+function getImages() {
+  glance image-list 2> /dev/null | grep -- CentOS6-build | sed -e 's/|//g' | awk '{print $2}'
+}
+
 # Entry point
 function main() (
 
@@ -498,9 +503,9 @@ function main() (
       fi
     ;;
     runvms)
-      GLANCE_GREP='CentOS6-build'
-      GLANCE_IMAGE=$(glance image-list 2> /dev/null | grep CentOS6- | sed -e 's/|//g' | awk '{print $2}' | sort -n | tail -n1)
       NUM_INSTANCES=${hosts_list[0]:-"200"}
+      GLANCE_HIGHEST=$(getImages | sed -e 's/build\([0-9]\+\)$/ \1/g' | awk '{print $2}' | sort -n | tail -n1)
+      [[ "$GLANCE_HIGHEST" ]] && GLANCE_IMAGE=$(getImages | grep build$GLANCE_HIGHEST | head -n1)
       [[ -z "$GLANCE_IMAGE" ]] && { echo -e "${Cr}Cannot detect image to run.${Cz}"; r=1; }
       [[ $dry == 0 ]] && CMD_PREFIX='' || { CMD_PREFIX='echo +'; print_dry_notice=1; }
       ${CMD_PREFIX}nova boot --flavor ali1.xlarge                          \
@@ -509,7 +514,7 @@ function main() (
                              --user-data /var/lib/elastiq/wn-user-data.txt \
                              --num-instances $NUM_INSTANCES                \
                              grid-hlt-vms
-      echo -e "${Cg}Virtual machines started.${Cz}"
+      echo -e "${Cg}Virtual machines started using image ${GLANCE_IMAGE}.${Cz}"
     ;;
     status)
       statusHypervisors "$nvms" 1
