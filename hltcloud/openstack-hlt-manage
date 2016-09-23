@@ -405,9 +405,13 @@ function statusHypervisors() (
   echo -e "      If you have just disabled a node it may still show as ${Cg}alive${Cz} for ~2 mins."
 )
 
-# Get our own images list from Glance (one per line on stdout)
+# Get our own images list from Glance (one per line on stdout). Images are
+# numerically sorted by taking only the number in their image names. Images with
+# greater numbers (i.e. "most recent" in most cases) come last.
 function getImages() {
-  glance image-list 2> /dev/null | grep -- CentOS6-build | sed -e 's/|//g' | awk '{print $2}'
+  glance image-list 2> /dev/null | grep active | sed -e 's/|//g' | awk '{print $2}' | \
+    while read IM; do printf "%s %s\n" "$(echo $IM | sed -e 's/[^0-9]//g')" "$IM"; done | \
+    sort -n | awk '{ print $2,$1 }' | awk '{ print $1 }'
 }
 
 # Entry point
@@ -423,6 +427,7 @@ function main() (
   local parallel_opts=()
   local all_args=("$@")
   local force_shutoff=0
+  local grepimage=
 
   full_prog=$(dirname "$0")
   full_prog=$(cd "$full_prog";pwd)
@@ -466,6 +471,10 @@ function main() (
         nvms=1
         shift
       ;;
+      --grepimage)
+        grepimage=$2
+        shift ; shift
+      ;;
       *)
         break;
       ;;
@@ -504,16 +513,15 @@ function main() (
     ;;
     runvms)
       NUM_INSTANCES=${hosts_list[0]:-"200"}
-      GLANCE_HIGHEST=$(getImages | sed -e 's/build\([0-9]\+\)$/ \1/g' | awk '{print $2}' | sort -n | tail -n1)
-      [[ "$GLANCE_HIGHEST" ]] && GLANCE_IMAGE=$(getImages | grep build$GLANCE_HIGHEST | head -n1)
-      [[ -z "$GLANCE_IMAGE" ]] && { echo -e "${Cr}Cannot detect image to run.${Cz}"; r=1; }
+      GLANCE_IMAGE=$(getImages | grep -i "${grepimage:-centos7}" | tail -n1)
+      [[ ! "$GLANCE_IMAGE" ]] && { echo -e "${Cr}Cannot detect image to run.${Cz}"; exit 1; }
       [[ $dry == 0 ]] && CMD_PREFIX='' || { CMD_PREFIX='echo +'; print_dry_notice=1; }
       ${CMD_PREFIX}nova boot --flavor ali1.xlarge                          \
                              --image "$GLANCE_IMAGE"                       \
                              --key-name WorkerNodesSsh                     \
                              --user-data /var/lib/elastiq/wn-user-data.txt \
-                             --num-instances $NUM_INSTANCES                \
-                             grid-hlt-vms
+                             $([[ $NUM_INSTANCES == 1 ]] || echo "--num-instances $NUM_INSTANCES") \
+                             grid-hlt-vms$([[ $NUM_INSTANCES == 1 ]] && printf -- -%s $(echo "$RANDOM$RANDOM$RANDOM"|md5sum|cut -d' ' -f1) )
       echo -e "${Cg}Virtual machines started using image ${GLANCE_IMAGE}.${Cz}"
     ;;
     status)
@@ -540,6 +548,7 @@ function main() (
     echo -e "         ${Cc}--ssh-config${Cz}     SSH config file for running remote commands"
     echo -e "         ${Cc}--nvms${Cz}           report num of VMs running on each host when executing ${Cy}status${Cz} (slow)"
     echo -e "         ${Cc}--force-shutoff${Cz}  hypervisors are shut off even if there are stale VMs"
+    echo -e "         ${Cc}--grepimage${Cz}      filter to apply to the images list to pick one"
 
     echo
   fi
