@@ -522,7 +522,18 @@ function main() (
                              --user-data /var/lib/elastiq/wn-user-data.txt \
                              $([[ $NUM_INSTANCES == 1 ]] || echo "--num-instances $NUM_INSTANCES") \
                              grid-hlt-vms$([[ $NUM_INSTANCES == 1 ]] && printf -- -%s $(echo "$RANDOM$RANDOM$RANDOM"|md5sum|cut -d' ' -f1) )
+      r=$?
       echo -e "${Cg}Virtual machines started using image ${GLANCE_IMAGE}.${Cz}"
+    ;;
+    listwns)
+      while read X; do
+        printf "%.0s%.0swn-%03d-%03d\n" $(echo $X | sed -e 's/\./ /g')
+      done < <(nova list | grep Running | grep -Eo '([0-9]+\.){3}[0-9]+') | sort
+      r=$?
+    ;;
+    vmstats)
+      nova list | grep -v Status | grep -v -- --- | sed -e 's/|//g' | awk '{print $3}' | sort | uniq -c
+      r=$?
     ;;
     status)
       statusHypervisors "$nvms" 1
@@ -538,7 +549,7 @@ function main() (
   if [[ $print_help == 1 ]] ; then
     echo -e "\n${Cm}Usage: ${Cc}${prog}${Cz}" \
       "[${Cc}--for-real${Cz}] [${Cc}--no-colors${Cz}] [${Cc}--line-output${Cz}] [${Cc}--parallel${Cz}] [${Cc}--ssh-config${Cz} ${Cy}<file>${Cz}] [${Cc}--nvms${Cz}]" \
-      "[${Cg}enable${Cz}|${Cr}disable${Cz}|${Cy}status${Cz}|${Cg}runvms${Cz}]" \
+      "[${Cg}enable${Cz}|${Cr}disable${Cz}|${Cy}status${Cz}|${Cg}runvms${Cz}|${Cy}listwns${Cz}|${Cy}vmstats${Cz}]" \
       "[[${Cc}node1${Cz} [${Cc}node2${Cz}...]]|${Cc}@${Cy}list.txt${Cz}]${Cz}\n"
 
     echo -e "         ${Cc}--for-real${Cz}       without this flag, ${Cg}enable${Cz} and ${Cr}disable${Cz} are just simulated and not executed"
@@ -566,7 +577,7 @@ function main() (
     fi
   fi
 
-  return $?
+  return $r
 )
 
 # Entry point
