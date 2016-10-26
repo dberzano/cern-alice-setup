@@ -26,7 +26,7 @@ openstack-enter admin
 Syntax:
 
 ```
-openstack-hlt-manage  [--for-real] [--no-colors] [--line-output] [--parallel] [--force-shutoff] [--ssh-config <file>] [--nvms] [enable|disable|status|runvms] [ [node1 [node2...]] | @list.txt ]
+openstack-hlt-manage [--for-real] [--no-colors] [--line-output] [--parallel] [--vm-timeout <seconds>] [--force-shutoff] [--ssh-config <file>] [--nvms] [enable|disable|status|runvms|listwns|vmstats] [[node1 [node2...]]|@list.txt]
 ```
 
 Instead of specifying a list of nodes one can just pass a list file with the
@@ -129,7 +129,7 @@ Those two operations normally involve a series of OpenStack commands, but they
 are simplified by the control script:
 
 ```
-openstack-hlt-manage [--for-real] disable [node1 [node2 [node3...]]]
+openstack-hlt-manage [--for-real] [--force-shutoff] [--vm-timeout <seconds>] disable [node1 [node2 [node3...]]]
 ```
 
 As for the `enable` command, errors removing one node are non-fatal and the
@@ -139,6 +139,12 @@ It is convenient to pass `--parallel` to disable hosts in parallel: this is way
 faster when running on many hosts at the same time, expecially if you consider
 that the command waits for virtual machines to disappear after issuing the kill
 command.
+
+The `--vm-timeout` switch (optional; defaults to 300 s) tells the script how
+long it is acceptable to wait for OpenStack to delete VMs before force-killing
+them. Use it to fine-tune the wait time. In combination with `--force-shutoff`
+OpenStack services on the compute node will be deactivated even when the timeout
+is reached.
 
 **Note:** the command runs in **dry-run** mode by default, meaning that it only
 simulates what would do. Prepend `--for-real` to effectively execute it.
