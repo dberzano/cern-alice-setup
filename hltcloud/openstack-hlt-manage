@@ -270,8 +270,8 @@ function disableHypervisor() (
     if [[ $? != 0 ]] ; then
       err_count=1
     else
-      # Wait for VMs to disappear (timeout: 900 s)
-      waitVmsOnHypervisor "$host" 900 || err_count=1
+      # Wait for VMs to disappear
+      waitVmsOnHypervisor "$host" "$vm_timeout" || err_count=1
     fi
 
   fi
@@ -427,6 +427,7 @@ function main() (
   local parallel_opts=()
   local all_args=("$@")
   local force_shutoff=0
+  local vm_timeout=300
   local grepimage=
 
   full_prog=$(dirname "$0")
@@ -458,6 +459,11 @@ function main() (
           eval "export $v=''"
         done
         shift
+      ;;
+      --vm-timeout)
+        vm_timeout="$2"
+        parallel_opts+=("$1" "$2")
+        shift ; shift
       ;;
       --parallel)
         parallel_exec=1
@@ -498,11 +504,14 @@ function main() (
         if [[ $parallel_exec == 1 ]] ; then
           # Parallel execution with "pdsh -R exec"
           hosts_list=$(echo ${hosts_list[*]} | sed -e 's/ /,/g')
-          pdsh -R exec -w "$hosts_list" \
-            "$full_prog" "${parallel_opts[@]}" "$action" '%h'
+          pdsh -f "${#hosts_list[*]}"                            \
+               -R exec                                           \
+               -w "$hosts_list"                                  \
+               "$full_prog" "${parallel_opts[@]}" "$action" '%h'
           r=$?
         else
           # Single core
+          export vm_timeout=$vm_timeout
           forEach "${action}Hypervisor" "${hosts_list[@]}"
           r=$?
         fi
@@ -526,9 +535,10 @@ function main() (
       echo -e "${Cg}Virtual machines started using image ${GLANCE_IMAGE}.${Cz}"
     ;;
     listwns)
+      nova list | grep Running | grep -Eo '([0-9]+\.){3}[0-9]+' | \
       while read X; do
         printf "%.0s%.0swn-%03d-%03d\n" $(echo $X | sed -e 's/\./ /g')
-      done < <(nova list | grep Running | grep -Eo '([0-9]+\.){3}[0-9]+') | sort
+      done
       r=$?
     ;;
     vmstats)
@@ -548,7 +558,7 @@ function main() (
 
   if [[ $print_help == 1 ]] ; then
     echo -e "\n${Cm}Usage: ${Cc}${prog}${Cz}" \
-      "[${Cc}--for-real${Cz}] [${Cc}--no-colors${Cz}] [${Cc}--line-output${Cz}] [${Cc}--parallel${Cz}] [${Cc}--ssh-config${Cz} ${Cy}<file>${Cz}] [${Cc}--nvms${Cz}]" \
+      "[${Cc}--for-real${Cz}] [${Cc}--no-colors${Cz}] [${Cc}--line-output${Cz}] [${Cc}--parallel${Cz}] [${Cc}--vm-timeout${Cz} ${Cy}<seconds>${Cz}] [${Cc}--force-shutoff${Cz}] [${Cc}--ssh-config${Cz} ${Cy}<file>${Cz}] [${Cc}--nvms${Cz}]" \
       "[${Cg}enable${Cz}|${Cr}disable${Cz}|${Cy}status${Cz}|${Cg}runvms${Cz}|${Cy}listwns${Cz}|${Cy}vmstats${Cz}]" \
       "[[${Cc}node1${Cz} [${Cc}node2${Cz}...]]|${Cc}@${Cy}list.txt${Cz}]${Cz}\n"
 
@@ -556,6 +566,7 @@ function main() (
     echo -e "         ${Cc}--no-colors${Cz}      turn off colors"
     echo -e "         ${Cc}--line-output${Cz}    line-buffered output (useful with pdsh)"
     echo -e "         ${Cc}--parallel${Cz}       use pdsh for executing in parallel with pdsh"
+    echo -e "         ${Cc}--vm-timeout${Cz}     wait ${Cy}<seconds>${Cz} for all VMs to disappear on a host"
     echo -e "         ${Cc}--ssh-config${Cz}     SSH config file for running remote commands"
     echo -e "         ${Cc}--nvms${Cz}           report num of VMs running on each host when executing ${Cy}status${Cz} (slow)"
     echo -e "         ${Cc}--force-shutoff${Cz}  hypervisors are shut off even if there are stale VMs"
